@@ -1,13 +1,19 @@
-const CACHE_NAME = 'argentores-v4';
+const CACHE_NAME = 'argentores-v5';
 const urlsToCache = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => {
+        return cache.addAll(urlsToCache).catch((err) => {
+          console.log('Cache addAll failed:', err);
+          // Continuar aunque falle el caché
+        });
+      })
       .then(() => self.skipWaiting())
   );
 });
