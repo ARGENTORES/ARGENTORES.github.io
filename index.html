@@ -351,40 +351,62 @@
         }
 
         let installPrompt = null;
+        let installPromptTimeout = null;
         
         const handler = (e) => {
           e.preventDefault();
           installPrompt = e;
           setDeferredPrompt(e);
           setShowInstallButton(true);
+          console.log('beforeinstallprompt event fired!');
         };
         
         window.addEventListener('beforeinstallprompt', handler);
         
+        // Verificar si el service worker está registrado
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then((registration) => {
+            console.log('Service Worker ready');
+            // Verificar que el manifest esté cargado
+            if (document.querySelector('link[rel="manifest"]')) {
+              console.log('Manifest found');
+            }
+          });
+        }
+        
         // Esperar más tiempo para que se dispare el evento (a veces tarda en móviles)
-        const timeoutId = setTimeout(() => {
+        installPromptTimeout = setTimeout(() => {
           if (!installPrompt && !checkInstalled()) {
             const isAndroid = /Android/.test(navigator.userAgent);
             const isChrome = /Chrome/.test(navigator.userAgent);
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
             // En Android Chrome, el evento puede tardar, pero aún podemos mostrar el botón
-            if (isAndroid && isChrome && 'serviceWorker' in navigator) {
+            if ((isAndroid && isChrome) || isMobile) {
               setShowInstallButton(true);
+              console.log('Showing install button (timeout)');
             }
           }
-        }, 3000);
+        }, 5000);
         
         return () => {
           window.removeEventListener('beforeinstallprompt', handler);
-          clearTimeout(timeoutId);
+          if (installPromptTimeout) {
+            clearTimeout(installPromptTimeout);
+          }
         };
       }, []);
 
       const handleInstallClick = async () => {
+        console.log('Install button clicked, deferredPrompt:', !!deferredPrompt);
+        
         // Intentar usar el prompt nativo primero (funciona en Android Chrome)
         if (deferredPrompt) {
           try {
+            console.log('Calling deferredPrompt.prompt()');
             await deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
+            console.log('User choice:', outcome);
             if (outcome === 'accepted') {
               setShowInstallButton(false);
               setIsInstalled(true);
@@ -398,14 +420,42 @@
           }
         }
         
-        // Si no hay prompt disponible, mostrar instrucciones según el dispositivo
+        // Si no hay prompt disponible, verificar requisitos y mostrar instrucciones
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
+        const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         
-        if (isIOS) {
+        // Verificar requisitos para PWA instalable
+        const hasServiceWorker = 'serviceWorker' in navigator;
+        const hasManifest = document.querySelector('link[rel="manifest"]');
+        
+        if (isAndroid) {
+          let message = 'Para instalar la aplicación:\n\n';
+          
+          if (!isHTTPS) {
+            message += '⚠️ IMPORTANTE: La página debe estar en HTTPS para poder instalar.\n\n';
+          }
+          
+          if (!hasServiceWorker) {
+            message += '⚠️ Service Worker no disponible.\n\n';
+          }
+          
+          if (!hasManifest) {
+            message += '⚠️ Manifest no encontrado.\n\n';
+          }
+          
+          message += '1. Toca el menú (⋮) en la esquina superior derecha del navegador\n';
+          message += '2. Busca y selecciona "Instalar aplicación"\n';
+          message += '3. Confirma la instalación\n\n';
+          message += 'También puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\n';
+          message += 'Si no aparece "Instalar aplicación", verifica:\n';
+          message += '- Que la página esté en HTTPS\n';
+          message += '- Que hayas interactuado con la página\n';
+          message += '- Recarga la página varias veces';
+          
+          alert(message);
+        } else if (isIOS) {
           alert('Para instalar en iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior\n2. Desplázate y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha');
-        } else if (isAndroid) {
-          alert('Para instalar en Android:\n\n1. Toca el menú (⋮) en la esquina superior derecha del navegador\n2. Busca y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\nTambién puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\nNota: Si no aparece la opción, intenta:\n- Recargar la página\n- Cerrar y abrir Chrome\n- Visitar desde HTTPS');
         } else {
           alert('Para instalar:\n\nBusca el icono de instalación (➕) en la barra de direcciones o ve al menú (⋮) → "Instalar ARGENTORES"');
         }
