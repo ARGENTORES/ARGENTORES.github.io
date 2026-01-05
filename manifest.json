@@ -1,12 +1,14 @@
 {
   "name": "ARGENTORES - El juego del impostor",
   "short_name": "ARGENTORES",
-  "description": "Encuentra al impostor",
+  "description": "Encuentra al impostor entre los jugadores",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#9333ea",
   "orientation": "portrait",
+  "categories": ["games", "entertainment"],
   "icons": [
     {
       "src": "icon-192.png",
