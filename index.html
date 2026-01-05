@@ -380,16 +380,15 @@
       }, []);
 
       const handleInstallClick = async () => {
+        // Intentar usar el prompt nativo primero (funciona en Android Chrome)
         if (deferredPrompt) {
           try {
-            // Usar el prompt nativo directamente (funciona en Android Chrome y otros navegadores)
             await deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             if (outcome === 'accepted') {
               setShowInstallButton(false);
               setIsInstalled(true);
               setDeferredPrompt(null);
-              // No mostrar alert, la instalación es silenciosa
               return;
             }
             setDeferredPrompt(null);
@@ -399,35 +398,16 @@
           }
         }
         
-        // Si llegamos aquí, no hay prompt disponible o fue cancelado
-        // Intentar métodos alternativos según el dispositivo
+        // Si no hay prompt disponible, mostrar instrucciones según el dispositivo
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         
         if (isIOS) {
-          // En iOS, intentar abrir el menú de compartir (limitado por políticas del navegador)
-          // Mostrar instrucciones visuales en lugar de alert
-          const message = 'Para instalar:\n\n1. Toca el botón de compartir (⬆️) abajo\n2. Selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir"';
-          if (window.navigator.share) {
-            try {
-              await window.navigator.share({
-                title: 'ARGENTORES',
-                text: 'Instala ARGENTORES',
-                url: window.location.href
-              });
-            } catch (e) {
-              alert(message);
-            }
-          } else {
-            alert(message);
-          }
+          alert('Para instalar en iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior\n2. Desplázate y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha');
         } else if (isAndroid) {
-          // En Android, el navegador debería mostrar el banner automáticamente
-          // Si no aparece, mostrar instrucciones mínimas
-          alert('Busca el icono de instalación (➕) en la barra de direcciones o en el menú (⋮) → "Instalar aplicación"');
+          alert('Para instalar en Android:\n\n1. Toca el menú (⋮) en la esquina superior derecha del navegador\n2. Busca y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\nTambién puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\nNota: Si no aparece la opción, intenta:\n- Recargar la página\n- Cerrar y abrir Chrome\n- Visitar desde HTTPS');
         } else {
-          // PC - mostrar instrucciones mínimas
-          alert('Busca el icono de instalación (➕) en la barra de direcciones');
+          alert('Para instalar:\n\nBusca el icono de instalación (➕) en la barra de direcciones o ve al menú (⋮) → "Instalar ARGENTORES"');
         }
       };
 
@@ -2680,18 +2660,6 @@
           <div className="max-w-2xl mx-auto w-full px-2 sm:px-4">
             {/* Theme Toggle Button */}
             <div className="flex justify-center sm:justify-end gap-2 mb-4">
-              {showInstallButton && !gameStarted && step === 1 && (
-                <button
-                  onClick={handleInstallClick}
-                  className={`px-4 py-2 rounded-xl transition-all duration-300 shadow-lg text-sm font-semibold ${
-                    isLightMode 
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                      : 'bg-purple-600 hover:bg-purple-700 text-white'
-                  }`}
-                >
-                  📱 Instalar App
-                </button>
-              )}
               {(gameStarted || step > 1) && (
                 <button
                   onClick={playAgain}
@@ -2739,7 +2707,7 @@
                         <GamepadIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={24} />
                         Configuraciones del juego
                       </h2>
-                      {!isInstalled && (
+                      {!isInstalled && showInstallButton && (
                         <button
                           onClick={handleInstallClick}
                           className={`px-3 sm:px-4 py-2 rounded-xl transition-all duration-300 shadow-lg text-xs sm:text-sm font-semibold flex items-center gap-2 ${
