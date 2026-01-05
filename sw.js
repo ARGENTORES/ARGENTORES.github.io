@@ -1,4 +1,4 @@
-const CACHE_NAME = 'argentores-v5';
+const CACHE_NAME = 'argentores-v6';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,29 +6,40 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
+        console.log('[SW] Caching files...');
         return cache.addAll(urlsToCache).catch((err) => {
-          console.log('Cache addAll failed:', err);
+          console.error('[SW] Cache addAll failed:', err);
           // Continuar aunque falle el caché
         });
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Service worker installed, skipping waiting');
+        return self.skipWaiting();
+      })
   );
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
+      console.log('[SW] Cleaning old caches...');
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[SW] Service worker activated, claiming clients');
+      return self.clients.claim();
+    })
   );
 });
 
