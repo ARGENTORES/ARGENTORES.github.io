@@ -363,14 +363,49 @@
         
         window.addEventListener('beforeinstallprompt', handler);
         
+        // Verificar requisitos para PWA instalable
+        const checkPWARequirements = async () => {
+          const checks = {
+            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+            manifest: !!document.querySelector('link[rel="manifest"]'),
+            serviceWorker: 'serviceWorker' in navigator,
+            icons: false
+          };
+          
+          // Verificar iconos
+          try {
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+              const manifestResponse = await fetch(manifestLink.href);
+              const manifest = await manifestResponse.json();
+              checks.icons = manifest.icons && manifest.icons.length > 0;
+              console.log('PWA Requirements check:', checks);
+            }
+          } catch (e) {
+            console.error('Error checking manifest:', e);
+          }
+          
+          return checks;
+        };
+        
         // Verificar si el service worker está registrado
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then((registration) => {
-            console.log('Service Worker ready');
-            // Verificar que el manifest esté cargado
-            if (document.querySelector('link[rel="manifest"]')) {
-              console.log('Manifest found');
+          navigator.serviceWorker.ready.then(async (registration) => {
+            console.log('Service Worker ready:', registration.scope);
+            const requirements = await checkPWARequirements();
+            console.log('PWA Requirements:', requirements);
+            
+            if (!requirements.https) {
+              console.warn('⚠️ PWA requiere HTTPS');
             }
+            if (!requirements.manifest) {
+              console.warn('⚠️ Manifest no encontrado');
+            }
+            if (!requirements.icons) {
+              console.warn('⚠️ Iconos no encontrados en manifest');
+            }
+          }).catch((err) => {
+            console.error('Service Worker not ready:', err);
           });
         }
         
@@ -3888,25 +3923,44 @@
     // Service Worker con mejor manejo de errores
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Desregistrar service workers antiguos para forzar actualización
+        // Registrar service worker inmediatamente
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((registration) => {
+            console.log('SW registered successfully:', registration.scope);
+            
+            // Verificar que el service worker esté activo
+            if (registration.installing) {
+              console.log('Service Worker installing');
+            } else if (registration.waiting) {
+              console.log('Service Worker waiting');
+            } else if (registration.active) {
+              console.log('Service Worker active');
+            }
+            
+            // Forzar actualización
+            registration.update();
+            
+            // Escuchar actualizaciones
+            registration.addEventListener('updatefound', () => {
+              console.log('Service Worker update found');
+            });
+          })
+          .catch((registrationError) => {
+            console.error('SW registration failed: ', registrationError);
+          });
+        
+        // Verificar registros existentes
         navigator.serviceWorker.getRegistrations().then((registrations) => {
+          console.log('Existing SW registrations:', registrations.length);
           registrations.forEach((registration) => {
-            if (registration.active && registration.active.scriptURL.includes('sw.js')) {
-              registration.update();
+            if (registration.active) {
+              console.log('Active SW:', registration.active.scriptURL);
             }
           });
         });
-        
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration);
-            // Forzar actualización del service worker
-            registration.update();
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError);
-          });
       });
+    } else {
+      console.warn('Service Workers not supported');
     }
   </script>
 </body>
