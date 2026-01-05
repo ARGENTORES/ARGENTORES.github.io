@@ -1,0 +1,3751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content="#9333ea">
+  <meta name="description" content="ARGENTORES - El juego del impostor. Encuentra al impostor entre los jugadores.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>ARGENTORES - El juego del impostor</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" onerror="this.onerror=null; document.documentElement.style.setProperty('--font-russo', 'Arial, sans-serif');">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" onerror="console.error('Failed to load React')"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onerror="console.error('Failed to load ReactDOM')"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" onerror="console.error('Failed to load Babel')"></script>
+  <script src="https://cdn.tailwindcss.com" onerror="console.error('Failed to load Tailwind')"></script>
+  <noscript>
+    <style>
+      body { display: none; }
+      body::before { content: 'JavaScript está deshabilitado. Por favor, habilítalo para usar esta aplicación.'; display: block; padding: 20px; }
+    </style>
+  </noscript>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    html {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    
+    h1, h2, h3, h4, h5, h6,
+    button,
+    .font-bold {
+      font-family: 'Russo One', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Black', 'Impact', sans-serif;
+      letter-spacing: 0.5px;
+      font-weight: 400;
+    }
+    
+    /* Fallback si Russo One no carga */
+    @supports not (font-family: 'Russo One') {
+      h1, h2, h3, h4, h5, h6,
+      button,
+      .font-bold {
+        font-family: 'Arial Black', 'Impact', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-weight: 900;
+      }
+    }
+    
+    button {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    
+    input, textarea {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+    
+    /* Iconos SVG inline para reemplazar lucide-react */
+    .icon-users { width: 24px; height: 24px; fill: currentColor; }
+    .icon-lock { width: 24px; height: 24px; fill: currentColor; }
+    .icon-eye { width: 24px; height: 24px; fill: currentColor; }
+    .icon-shuffle { width: 16px; height: 16px; fill: currentColor; }
+    .icon-info { width: 14px; height: 14px; fill: currentColor; }
+    
+    /* Responsive base sizes */
+    @media (max-width: 640px) {
+      html {
+        font-size: 14px;
+      }
+    }
+    
+    @media (min-width: 641px) and (max-width: 1024px) {
+      html {
+        font-size: 16px;
+      }
+    }
+    
+    @media (min-width: 1025px) {
+      html {
+        font-size: 16px;
+      }
+    }
+    
+    /* Asegurar que los elementos no se salgan de la pantalla */
+    img, svg, video {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Mejorar scroll en móviles */
+    @media (max-width: 768px) {
+      body {
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+    
+    /* Asegurar que los contenedores no se desborden */
+    #root {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* Mejorar renderizado en Safari */
+    @supports (-webkit-touch-callout: none) {
+      body {
+        -webkit-font-smoothing: antialiased;
+      }
+    }
+    
+    /* Prevenir zoom en inputs en iOS */
+    @media screen and (max-width: 768px) {
+      input[type="text"],
+      input[type="number"],
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+    }
+    
+    /* Mejorar visibilidad de botones en móviles */
+    @media (max-width: 640px) {
+      button {
+        min-height: 44px;
+        min-width: 44px;
+      }
+    }
+    
+    /* Asegurar que los textos largos no se salgan */
+    * {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    /* Fallback básico si Tailwind no carga */
+    .container-fallback {
+      max-width: 42rem;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    
+    /* Mejoras específicas para Brave */
+    @media screen {
+      /* Asegurar que los gradientes funcionen en Brave */
+      .bg-gradient-to-r {
+        background-image: linear-gradient(to right, var(--tw-gradient-stops));
+      }
+      
+      /* Mejorar renderizado de sombras en Brave */
+      .shadow-lg {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+    }
+    
+    /* Detectar y ajustar para Brave */
+    @supports (-webkit-appearance: none) {
+      /* Mejoras para navegadores basados en WebKit (incluye Brave) */
+      body {
+        -webkit-font-smoothing: antialiased;
+      }
+    }
+  </style>
+  <script>
+    // Verificar carga de recursos críticos
+    window.addEventListener('error', function(e) {
+      if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+        console.warn('Recurso no cargado:', e.target.src || e.target.href);
+        // Si Tailwind no carga, aplicar estilos básicos
+        if (e.target.src && e.target.src.includes('tailwindcss')) {
+          document.body.style.setProperty('--tailwind-loaded', 'false');
+        }
+      }
+    }, true);
+    
+    // Verificar que Tailwind esté disponible después de un tiempo
+    setTimeout(function() {
+      if (typeof tailwind === 'undefined') {
+        console.warn('Tailwind CSS no se cargó, usando estilos de fallback');
+        document.body.classList.add('tailwind-fallback');
+      }
+    }, 2000);
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:component-init',message:'Componente iniciando',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    // Componentes de iconos simples
+    const UsersIcon = ({ size = 24, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    );
+
+    const LockIcon = ({ size = 48, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+    );
+
+    const EyeIcon = ({ size = 20, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    );
+
+    const ShuffleIcon = ({ size = 16, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 3 21 3 21 8"></polyline>
+        <line x1="4" y1="20" x2="21" y2="3"></line>
+        <polyline points="21 16 21 21 16 21"></polyline>
+        <line x1="15" y1="15" x2="21" y2="21"></line>
+        <line x1="4" y1="4" x2="9" y2="9"></line>
+      </svg>
+    );
+
+    const GamepadIcon = ({ size = 24, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 12h4m-2-2v4m8-4v.01M18 12v.01M6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path>
+        <circle cx="12" cy="12" r="1"></circle>
+      </svg>
+    );
+
+    const SunIcon = ({ size = 20, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+    );
+
+    const MoonIcon = ({ size = 20, className = "" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    );
+
+    function ImpostorGame() {
+      // ============================================
+      // CONFIGURACIÓN DE PISTAS
+      // Cambia este valor a true para habilitar las pistas
+      // ============================================
+      const PISTAS_HABILITADAS = false;
+      // ============================================
+      
+      // ============================================
+      // MODO PRUEBA: TODOS IMPOSTORES SIEMPRE ACTIVO
+      // Cambia este valor a false para desactivar el modo de prueba
+      // ============================================
+      const MODO_PRUEBA_TODOS_IMPOSTORES = false;
+      // ============================================
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:ImpostorGame-render',message:'Componente renderizando',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      useEffect(() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:useEffect-tailwind',message:'Verificando Tailwind CSS',data:{hasTailwind:typeof tailwind !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+
+        const handler = (e) => {
+          e.preventDefault();
+          setDeferredPrompt(e);
+          setShowInstallButton(true);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+      }, []);
+
+      const handleInstallClick = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setShowInstallButton(false);
+        }
+        setDeferredPrompt(null);
+      };
+
+      const [step, setStep] = useState(1);
+      const [playerCount, setPlayerCount] = useState(5);
+      const [categories, setCategories] = useState([]);
+      const [categoryMode, setCategoryMode] = useState('multiple');
+      const [customCategories, setCustomCategories] = useState([]);
+      const [showCustomCategoryEditor, setShowCustomCategoryEditor] = useState(false);
+      const [editingCustomCategory, setEditingCustomCategory] = useState(null);
+      const [customCategoryName, setCustomCategoryName] = useState('');
+      const [customCategoryWords, setCustomCategoryWords] = useState('');
+      const [impostorCount, setImpostorCount] = useState(1);
+      const [useNames, setUseNames] = useState(false);
+      const [playerNames, setPlayerNames] = useState([]);
+      const [impostorHints, setImpostorHints] = useState(false);
+      const [impostorNeverFirst, setImpostorNeverFirst] = useState(false);
+      const [impostorsKnowEachOther, setImpostorsKnowEachOther] = useState(false);
+      // Modo "todos impostores" siempre activo (sin mostrar opción)
+      const allImpostorsMode = true;
+      const [gameStarted, setGameStarted] = useState(false);
+      const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+      const [revealedPlayers, setRevealedPlayers] = useState([]);
+      const [roleRevealed, setRoleRevealed] = useState(false);
+      const [allRolesRevealed, setAllRolesRevealed] = useState(false);
+      const [firstPlayer, setFirstPlayer] = useState(null);
+      const [showDiscussion, setShowDiscussion] = useState(false);
+      const [showFinalReveal, setShowFinalReveal] = useState(false);
+      const [selectedWord, setSelectedWord] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('');
+      const [eliminatedPlayers, setEliminatedPlayers] = useState([]);
+      const [votingPlayer, setVotingPlayer] = useState(null);
+      const [revealingVote, setRevealingVote] = useState(false);
+      const [impostorsRemaining, setImpostorsRemaining] = useState(0);
+      const [winners, setWinners] = useState(null);
+      const [isLightMode, setIsLightMode] = useState(false);
+      const [deferredPrompt, setDeferredPrompt] = useState(null);
+      const [showInstallButton, setShowInstallButton] = useState(false);
+      const [savedProfiles, setSavedProfiles] = useState([]);
+      const [selectedProfile, setSelectedProfile] = useState(null);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
+      const categoryList = [
+        { name: 'Animales', emoji: '🐾' },
+        { name: 'Profesiones', emoji: '👔' },
+        { name: 'Deportes', emoji: '⚽' },
+        { name: 'Países', emoji: '🌍' },
+        { name: 'Comida', emoji: '🍕' },
+        { name: 'Películas y Series', emoji: '🎬' },
+        { name: 'Objetos', emoji: '🔧' },
+        { name: 'Lugares', emoji: '🏖️' },
+        { name: 'Videojuegos', emoji: '🎮' },
+        { name: 'Música', emoji: '🎵' }
+      ];
+
+      const categoryWords = {
+        'Animales': ['Perro', 'Gato', 'Vaca', 'Caballo', 'Carpincho', 'Puma', 'Loro', 'Ñandú', 'Zorrino', 'Hornero', 'Guanaco', 'Carancho', 'Pingüino', 'Llama', 'Cóndor', 'Cocodrilo', 'Burro', 'Chancho', 'Oveja', 'Gallina', 'Pato', 'Cisne', 'Flamenco', 'Toro', 'Cabra', 'Conejo', 'Zorro', 'Lobo marino', 'Ballena', 'Delfín', 'Tiburón', 'Elefante', 'Jirafa', 'León', 'Tigre', 'Mono', 'Cebra', 'Hipopótamo', 'Rinoceronte', 'Oso', 'Águila', 'Paloma', 'Gorrión', 'Búho', 'Murciélago', 'Tortuga', 'Iguana', 'Serpiente', 'Rana', 'Mariposa'],
+        'Profesiones': ['Médico', 'Ingeniero', 'Profesor', 'Chef', 'Bombero', 'Policía', 'Artista', 'Piloto', 'Enfermero', 'Arquitecto', 'Abogado', 'Contador', 'Electricista', 'Plomero', 'Mecánico', 'Carpintero', 'Albañil', 'Pintor', 'Peluquero', 'Veterinario', 'Dentista', 'Farmacéutico', 'Psicólogo', 'Periodista', 'Fotógrafo', 'Diseñador gráfico', 'Programador', 'Chofer de colectivo', 'Taxista', 'Almacenero', 'Carnicero', 'Panadero', 'Verdulero', 'Cajero', 'Mozo', 'Cocinero', 'Músico', 'Actor', 'Bailarín', 'Locutor', 'DJ', 'Entrenador', 'Árbitro', 'Futbolista', 'Guardia de seguridad', 'Portero'],
+        'Deportes': ['Fútbol', 'Básquet', 'Tenis', 'Voley', 'Rugby', 'Natación', 'Atletismo', 'Boxeo', 'Ciclismo', 'Hockey', 'Paddle', 'Golf', 'Automovilismo', 'Equitación', 'Handball', 'Pesca', 'Escalada', 'Esquí', 'Snowboard', 'Patinaje', 'Gimnasia', 'Pesas', 'Yoga', 'Taekwondo', 'Judo', 'Karate', 'Esgrima', 'Tiro', 'Arco y flecha', 'Polo', 'Remo', 'Canotaje', 'Vela', 'Surf', 'Skate', 'BMX', 'Motocross', 'Rally', 'Karting', 'Truco', 'Ajedrez', 'Pool', 'Bowling', 'Tejo', 'Parapente', 'Parkour', 'CrossFit', 'Spinning', 'Running', 'Caminata'],
+        'Países': ['Argentina', 'Brasil', 'Chile', 'Uruguay', 'Paraguay', 'Bolivia', 'Perú', 'Colombia', 'Venezuela', 'Ecuador', 'México', 'Estados Unidos', 'Canadá', 'España', 'Francia', 'Italia', 'Alemania', 'Inglaterra', 'Portugal', 'Holanda', 'Bélgica', 'Suiza', 'Austria', 'Grecia', 'Rusia', 'Ucrania', 'Polonia', 'Turquía', 'Suecia', 'Noruega', 'Dinamarca', 'Finlandia', 'Irlanda', 'Escocia', 'Croacia', 'Serbia', 'Rumania', 'Hungría', 'República Checa', 'China', 'Japón', 'Corea del Sur', 'India', 'Tailandia', 'Vietnam', 'Indonesia', 'Filipinas', 'Australia', 'Nueva Zelanda', 'Egipto', 'Marruecos', 'Sudáfrica', 'Nigeria', 'Kenia', 'Israel', 'Arabia Saudita', 'Emiratos Árabes', 'Irán', 'Irak', 'Afganistán', 'Pakistán', 'Cuba', 'Jamaica', 'Panamá', 'Costa Rica', 'Guatemala', 'República Dominicana', 'Puerto Rico', 'Honduras', 'Nicaragua', 'El Salvador'],
+        'Comida': ['Pizza', 'Hamburguesa', 'Asado', 'Empanadas', 'Milanesa', 'Choripán', 'Locro', 'Humita', 'Tamales', 'Pastel de papa', 'Ravioles', 'Ñoquis', 'Tallarines', 'Lasaña', 'Canelones', 'Risotto', 'Polenta', 'Guiso', 'Puchero', 'Carbonada', 'Matambre', 'Vacío', 'Bife de chorizo', 'Costillas', 'Provoleta', 'Picada', 'Sándwich de miga', 'Tostado', 'Pancho', 'Pizza a la parrilla', 'Fugazzeta', 'Fainá', 'Medialunas', 'Facturas', 'Alfajores', 'Dulce de leche', 'Arroz con leche', 'Flan', 'Churros', 'Torta frita', 'Sushi', 'Tacos', 'Burritos', 'Nachos', 'Hot dog', 'Papas fritas', 'Pollo frito', 'Paella', 'Tortilla española', 'Ceviche', 'Sorrentinos', 'Agnolotis', 'Cappellettis', 'Fideos', 'Spaghetti', 'Mostacholes', 'Tirabuzón', 'Carbonara', 'Pesto', 'Tuco', 'Salsa blanca', 'Salsa bolognesa', 'Pizza napolitana', 'Muzzarella', 'Calzone', 'Focaccia', 'Milanesa napolitana', 'Milanesa a caballo', 'Suprema', 'Pollo al horno', 'Pollo a la parrilla', 'Pata muslo', 'Bondiola', 'Morcilla', 'Chinchulín', 'Riñón', 'Mollejas', 'Entraña', 'Tira de asado', 'Colita de cuadril', 'Osobuco', 'Estofado', 'Cazuela', 'Guiso de lentejas', 'Guiso de mondongo', 'Mondongo', 'Buseca', 'Sopa', 'Caldo', 'Caldo de pollo', 'Minestrone', 'Crema de verduras', 'Gazpacho', 'Sandwich', 'Lomito', 'Milanesa al pan', 'Hamburguesa completa', 'Panchos completos', 'Bondiola al pan', 'Vacío al pan', 'Churripán', 'Morcipán', 'Pancho con papas', 'Papas españolas', 'Papas noisette', 'Papas soufflé', 'Puré', 'Puré mixto', 'Ensalada', 'Ensalada César', 'Ensalada rusa', 'Ensalada mixta', 'Ensalada caprese', 'Tomate relleno', 'Papa rellena', 'Morrones rellenos', 'Tarta', 'Tarta de verdura', 'Tarta pascualina', 'Quiche', 'Empanada de carne', 'Empanada de pollo', 'Empanada de jamón y queso', 'Empanada de humita', 'Empanada tucumana', 'Empanada salteña', 'Empanada árabe', 'Ramen', 'Pad Thai', 'Wok', 'Chow mein', 'Arroz frito', 'Pollo agridulce', 'Pato laqueado', 'Dim sum', 'Gyozas', 'Spring rolls', 'Falafel', 'Shawarma', 'Kebab', 'Hummus', 'Baklava', 'Curry', 'Tikka masala', 'Naan', 'Samosas', 'Biryani', 'Pad see ew', 'Tom yum', 'Pho', 'Banh mi', 'Kimchi', 'Bibimbap', 'Bulgogi', 'Fish and chips', 'Roast beef', 'Shepherd pie', 'Bangers and mash', 'Croissant', 'Baguette', 'Crepe', 'Queso brie', 'Fondue', 'Raclette', 'Pretzels', 'Bratwurst', 'Schnitzel', 'Strudel', 'Goulash', 'Pierogi', 'Moussaka', 'Tzatziki', 'Souvlaki', 'Fajitas', 'Quesadillas', 'Enchiladas', 'Guacamole', 'Chili con carne', 'Mac and cheese', 'Waffles', 'Pancakes', 'Donas', 'Muffins', 'Bagels', 'Cheesecake', 'Brownies', 'Cookies', 'Tiramisú', 'Panna cotta', 'Gelato', 'Cannoli', 'Profiteroles', 'Éclair', 'Macarons', 'Crème brûlée', 'Mousse de chocolate', 'Pavlova', 'Trifle', 'Carrot cake', 'Red velvet', 'Lemon pie', 'Chocotorta', 'Rogel', 'Marquise'],
+        'Películas y Series': ['Titanic', 'El Padrino', 'Star Wars', 'Toy Story', 'El Rey León', 'Jurassic Park', 'Volver al Futuro', 'Rocky', 'Matrix', 'Avatar', 'Avengers', 'Iron Man', 'Spider-Man', 'Batman', 'Harry Potter', 'El Señor de los Anillos', 'Piratas del Caribe', 'Rápido y Furioso', 'Misión Imposible', 'Indiana Jones', 'E.T.', 'Tiburón', 'Shrek', 'Buscando a Nemo', 'Frozen', 'Coco', 'El Secreto de sus Ojos', 'Nueve Reinas', 'Relatos Salvajes', 'El Clan', 'Esperando la Carroza', 'Metegol', 'Breaking Bad', 'Game of Thrones', 'Friends', 'Los Simpsons', 'Stranger Things', 'The Walking Dead', 'La Casa de Papel', 'Narcos', 'Los Serrano', 'Casados con Hijos', 'Los Simuladores', 'El Marginal', 'Okupas', 'Tumberos', 'Son Amores', 'Chiquititas', 'Rebelde Way', 'Floricienta', 'Violetta', 'Soy Luna', 'The Office', 'How I Met Your Mother', 'The Big Bang Theory', 'Brooklyn Nine-Nine', 'Parks and Recreation', 'Modern Family', 'Two and a Half Men', 'Seinfeld', 'Forrest Gump', 'Gladiador', 'El Origen', 'Interestelar', 'Joker', 'Pulp Fiction', 'Django', 'El Lobo de Wall Street', 'Fight Club', 'Seven', 'El Sexto Sentido', 'It', 'Saw', 'El Conjuro', 'Scream', 'The Crown', 'Peaky Blinders', 'Sherlock', 'Black Mirror', 'Dark', 'The Witcher', 'The Mandalorian', 'The Boys', 'Euphoria', 'Wednesday', 'Squid Game', 'All of Us Are Dead', 'El Juego del Calamar', 'Merlí', 'Elite', 'Vis a Vis', 'Money Heist', 'Pepe Grillo', 'CQC', 'Showmatch', 'Duro de Matar', 'Top Gun', 'La Momia', 'El Pianista', 'La Lista de Schindler', 'La Vida es Bella', 'Amélie', 'Los Miserables', 'Casablanca', 'Grease', 'Dirty Dancing', 'High School Musical', 'La La Land', 'Bohemian Rhapsody', 'The Greatest Showman', 'Grey ´s Anatomy', 'House', 'Dexter', 'Prison Break', 'Lost', 'Heroes', 'Supernatural', 'Lucifer', 'The Vampire Diaries', 'Riverdale', 'Gossip Girl', '13 Reasons Why', 'Sex Education', 'La Que Se Avecina', 'El Chavo del 8', 'Chespirito'],
+        'Objetos': ['Mate', 'Bombilla', 'Termo', 'Pava', 'Yerba', 'Alfajor', 'Dulce de leche', 'Facón', 'Boleadoras', 'Poncho', 'Boina', 'Bombacha de gaucho', 'Alpargatas', 'Asado', 'Parrilla', 'Changuito', 'Sifón', 'Pingüino', 'Cama', 'Colchón', 'Almohada', 'Sábana', 'Frazada', 'Mesa', 'Silla', 'Sillón', 'Sofá', 'Televisor', 'Control remoto', 'Celular', 'Cargador', 'Auriculares', 'Computadora', 'Notebook', 'Teclado', 'Mouse', 'Monitor', 'Impresora', 'Router', 'Lámpara', 'Foco', 'Linterna', 'Vela', 'Fósforo', 'Encendedor', 'Espejo', 'Reloj', 'Despertador', 'Ventilador', 'Estufa', 'Aire acondicionado', 'Heladera', 'Freezer', 'Microondas', 'Horno', 'Cocina', 'Licuadora', 'Batidora', 'Tostadora', 'Pava eléctrica', 'Cafetera', 'Exprimidor', 'Jarra', 'Vaso', 'Taza', 'Plato', 'Bowl', 'Tenedor', 'Cuchillo', 'Cuchara', 'Cucharón', 'Espátula', 'Pinzas', 'Colador', 'Rallador', 'Pelador', 'Abrelatas', 'Sacacorchos', 'Tabla de cortar', 'Olla', 'Cacerola', 'Sartén', 'Wok', 'Fuente', 'Bandeja', 'Tupperware', 'Botella', 'Termo stanley', 'Bidón', 'Servilleta', 'Repasador', 'Trapo de piso', 'Esponja', 'Detergente', 'Lavandina', 'Desinfectante', 'Jabón', 'Escoba', 'Pala', 'Balde', 'Trapeador', 'Secador de piso', 'Escurridor', 'Cepillo', 'Plumero', 'Aspiradora', 'Lavarropas', 'Secarropas', 'Plancha', 'Tabla de planchar', 'Perchero', 'Gancho', 'Tender', 'Broche', 'Canasto', 'Cesto de basura', 'Bolsa de residuos', 'Inodoro', 'Bidet', 'Ducha', 'Bañera', 'Canilla', 'Lavabo', 'Toalla', 'Toallón', 'Cortina de baño', 'Alfombra de baño', 'Papel higiénico', 'Jabón líquido', 'Shampoo', 'Acondicionador', 'Crema de enjuague', 'Gel de ducha', 'Esponja de baño', 'Cepillo de dientes', 'Pasta dental', 'Hilo dental', 'Enjuague bucal', 'Peine', 'Cepillo de pelo', 'Secador de pelo', 'Plancha de pelo', 'Afeitadora', 'Espuma de afeitar', 'Perfume', 'Desodorante', 'Crema', 'Protector solar', 'Maquillaje', 'Algodón', 'Cotonete', 'Tijera', 'Pinza de depilar', 'Cortauñas', 'Lima de uñas', 'Balanza', 'Botiquín', 'Termómetro', 'Curitas', 'Vendas', 'Alcohol', 'Agua oxigenada', 'Remedio', 'Pastillas', 'Jarabe', 'Anteojos', 'Lentes de contacto', 'Anteojos de sol', 'Paraguas', 'Piloto', 'Campera', 'Buzo', 'Remera', 'Camisa', 'Pantalón', 'Jean', 'Short', 'Pollera', 'Vestido', 'Zapatillas', 'Zapatos', 'Botas', 'Sandalias', 'Ojotas', 'Medias', 'Cinturón', 'Cartera', 'Mochila', 'Bolso', 'Billetera', 'Llavero', 'Llaves', 'Candado', 'Cerradura', 'Timbre', 'Puerta', 'Ventana', 'Persiana', 'Cortina', 'Cuadro', 'Portarretrato', 'Adorno', 'Florero', 'Planta', 'Maceta', 'Regadera', 'Pala de jardín', 'Rastrillo', 'Manguera', 'Biblioteca', 'Estante', 'Cajón', 'Ropero', 'Placard', 'Escritorio', 'Silla de escritorio', 'Libro', 'Revista', 'Diario', 'Diccionario', 'Cuaderno', 'Carpeta', 'Hoja', 'Lápiz', 'Lapicera', 'Birome', 'Marcador', 'Resaltador', 'Goma de borrar', 'Sacapuntas', 'Regla', 'Compás', 'Transportador', 'Calculadora', 'Cartuchera', 'Mochila escolar', 'Tijera escolar', 'Pegamento', 'Cinta adhesiva', 'Voligoma', 'Plasticola', 'Abrochadora', 'Ganchos', 'Perforadora', 'Clips', 'Broches', 'Archivador', 'Sobre', 'Sello', 'Timbres', 'Teléfono', 'Cámara', 'Videocámara', 'Trípode', 'Micrófono', 'Parlante', 'Equipo de música', 'Radio', 'CD', 'DVD', 'Pendrive', 'Disco duro', 'Tarjeta de memoria', 'Cable', 'Zapatilla eléctrica', 'Enchufe', 'Adaptador', 'Pila', 'Batería', 'Cinta métrica', 'Nivel', 'Martillo', 'Destornillador', 'Pinza', 'Alicate', 'Llave inglesa', 'Taladro', 'Sierra', 'Cinta aisladora', 'Tornillo', 'Clavo', 'Tarugos', 'Tuerca', 'Arandela', 'Pegamento universal', 'Silicona', 'Pintura', 'Pincel', 'Rodillo', 'Escalera', 'Banqueta', 'Soga', 'Cuerda', 'Cadena', 'Alambre', 'Bolsa', 'Caja', 'Envase', 'Frasco', 'Lata'],
+        'Lugares': ['Playa', 'Montaña', 'Río', 'Lago', 'Bosque', 'Selva', 'Desierto', 'Campo', 'Centro comercial', 'Shopping', 'Supermercado', 'Almacén', 'Kiosco', 'Farmacia', 'Hospital', 'Clínica', 'Escuela', 'Universidad', 'Biblioteca', 'Museo', 'Teatro', 'Cine', 'Estadio', 'Cancha', 'Gimnasio', 'Parque', 'Plaza', 'Obelisco', 'Casa Rosada', 'Caminito', 'La Boca', 'Puerto Madero', 'Palermo', 'San Telmo', 'Recoleta', 'Cementerio de la Recoleta', 'Teatro Colón', 'Avenida 9 de Julio', 'Avenida Corrientes', 'Calle Florida', 'Cataratas del Iguazú', 'Glaciar Perito Moreno', 'Ushuaia', 'Tierra del Fuego', 'El Calafate', 'Bariloche', 'Cerro Catedral', 'Villa La Angostura', 'San Martín de los Andes', 'Mendoza', 'Aconcagua', 'Quebrada de Humahuaca', 'Cerro de los Siete Colores', 'Salta', 'Jujuy', 'Tilcara', 'Purmamarca', 'Cafayate', 'Tucumán', 'Tafí del Valle', 'Córdoba', 'Villa Carlos Paz', 'Mar del Plata', 'Pinamar', 'Villa Gesell', 'Cariló', 'Costa Atlántica', 'Península Valdés', 'Puerto Madryn', 'Rosario', 'Monumento a la Bandera', 'La Plata', 'Tigre', 'Delta del Tigre', 'Parque Nacional Los Glaciares', 'Parque Nacional Nahuel Huapi', 'Cerro Fitz Roy', 'El Chaltén', 'Tren a las Nubes', 'Ruta 40', 'Ruta de los Siete Lagos', 'Ischigualasto', 'Valle de la Luna', 'Talampaya', 'Salinas Grandes', 'Iruya', 'Torre Eiffel', 'Estatua de la Libertad', 'Big Ben', 'Coliseo Romano', 'Torre de Pisa', 'Taj Mahal', 'Gran Muralla China', 'Cristo Redentor', 'Machu Picchu', 'Pirámides de Egipto', 'Ópera de Sydney', 'Sagrada Familia', 'Puerta de Brandenburgo', 'Times Square', 'Central Park', 'Golden Gate', 'Chichén Itzá', 'Stonehenge', 'Partenón', 'Plaza Roja', 'Kremlin', 'Catedral de Notre Dame', 'Louvre', 'Arco de Triunfo', 'Palacio de Buckingham', 'Cataratas del Niágara', 'Gran Cañón', 'Petra', 'Monte Everest', 'Burj Khalifa', 'Alhambra', 'Restaurante', 'Bar', 'Café', 'Confitería', 'Parrilla', 'Pizzería', 'Hotel', 'Hostel', 'Aeropuerto', 'Terminal de buses', 'Estación de tren', 'Puerto', 'Aduana', 'Banco', 'Cajero', 'Correo', 'Comisaría', 'Cuartel de bomberos', 'Iglesia', 'Catedral', 'Templo', 'Mezquita', 'Sinagoga', 'Cementerio', 'Zoológico', 'Acuario', 'Parque de diversiones', 'Feria', 'Mercado', 'Feria americana', 'Casino', 'Boliche', 'Disco'],
+        'Videojuegos': ['Minecraft', 'Fortnite', 'GTA V', 'FIFA', 'EA FC', 'Counter Strike', 'Free Fire', 'League of Legends', 'Apex Legends', 'Call of Duty', 'Valorant', 'Roblox', 'Among Us', 'Fall Guys', 'Rocket League', 'Clash Royale', 'Clash of Clans', 'PUBG', 'Brawl Stars', 'Mario', 'Luigi', 'Sonic', 'Pikachu', 'Pac-Man', 'Donkey Kong', 'Link', 'Zelda', 'Kirby', 'Yoshi', 'Bowser', 'Peach', 'Toad', 'Wario', 'Waluigi', 'Crash Bandicoot', 'Spyro', 'Lara Croft', 'Master Chief', 'Kratos', 'Nathan Drake', 'Ellie', 'Joel', 'Steve', 'Alex', 'Creeper', 'Enderman', 'Slenderman', 'Herobrine', 'Ryu', 'Ken', 'Chun-Li', 'Sub-Zero', 'Scorpion', 'Raiden', 'Ezio', 'Altair', 'Cloud', 'Sephiroth', 'Samus', 'Fox McCloud', 'Mega Man', 'Solid Snake', 'Doom Slayer', 'Duke Nukem', 'Rayman', 'Banjo Kazooie', 'Conker', 'Spyro', 'Ratchet', 'Clank', 'Jak', 'Daxter', 'Sackboy', 'Knuckles', 'Tails', 'Shadow', 'Amy Rose', 'Dr Eggman', 'Doctor Robotnik', 'Wii', 'PlayStation', 'Xbox', 'Nintendo', 'Switch', 'Game Boy', 'DS', 'PSP', 'Vita', 'Sega', 'Atari', 'Arcade', 'Joystick', 'Mando', 'Control', 'Gamepad', 'Tetris', 'Pong', 'Space Invaders', 'Galaga', 'Street Fighter', 'Mortal Kombat', 'Tekken', 'Dragon Ball', 'Naruto', 'One Piece', 'Pokemon', 'Digimon', 'Yu-Gi-Oh', 'Metal Gear', 'Resident Evil', 'Silent Hill', 'The Last of Us', 'Uncharted', 'God of War', 'Halo', 'Gears of War', 'Tomb Raider', 'Assassins Creed', 'Far Cry', 'Watch Dogs', 'Splinter Cell', 'Prince of Persia', 'Devil May Cry', 'Bayonetta', 'Final Fantasy', 'Kingdom Hearts', 'Persona', 'Zelda', 'Metroid', 'Castlevania', 'Mega Man', 'Sonic', 'Mario Kart', 'Super Smash Bros', 'Splatoon', 'Animal Crossing', 'Fire Emblem', 'Xenoblade', 'The Witcher', 'Skyrim', 'Fallout', 'Dark Souls', 'Bloodborne', 'Elden Ring', 'Sekiro', 'Hollow Knight', 'Celeste', 'Undertale', 'Stardew Valley', 'Terraria', 'Ori', 'Cuphead', 'Portal', 'Half-Life', 'Left 4 Dead', 'Team Fortress', 'Dota', 'Overwatch', 'Hearthstone', 'World of Warcraft', 'Diablo', 'StarCraft', 'WarCraft', 'Age of Empires', 'Civilization', 'SimCity', 'The Sims', 'Spore', 'Need for Speed', 'Gran Turismo', 'Forza', 'Mario Bros', 'Donkey Kong Country', 'Metroid Prime', 'Pikmin', 'Star Fox', 'Earthbound', 'Mother', 'F-Zero', 'Punch-Out', 'Wii Sports', 'Wii Fit', 'Just Dance', 'Guitar Hero', 'Rock Band', 'Dance Dance Revolution', 'Beat Saber', 'Angry Birds', 'Candy Crush', 'Plants vs Zombies', 'Geometry Dash', 'Subway Surfers', 'Temple Run', 'Fruit Ninja', 'Cut the Rope', 'Clash of Clans', 'Mobile Legends', 'Arena of Valor', 'Genshin Impact', 'Honkai', 'Raid Shadow Legends'],
+        'Música': ['Charly García', 'Gustavo Cerati', 'Soda Stereo', 'Luis Alberto Spinetta', 'Fito Páez', 'Los Redondos', 'Patricio Rey', 'Andrés Calamaro', 'Sumo', 'Luca Prodan', 'Serú Girán', 'Sui Generis', 'Almendra', 'Pescado Rabioso', 'Divididos', 'Los Piojos', 'La Renga', 'Callejeros', 'Bersuit Vergarabat', 'Babasónicos', 'Los Enanitos Verdes', 'Rata Blanca', 'V8', 'Hermética', 'Pappo', 'Viejas Locas', 'Las Pelotas', 'Attaque 77', 'Los Auténticos Decadentes', 'Los Fabulosos Cadillacs', 'Vicentico', 'León Gieco', 'Mercedes Sosa', 'Soledad', 'Los Chalchaleros', 'Los Nocheros', 'Rodrigo', 'La Mona Jiménez', 'Damas Gratis', 'Pablo Lescano', 'Los Palmeras', 'Ráfaga', 'Alcides', 'Gilda', 'Antonio Ríos', 'Duki', 'Bizarrap', 'Trueno', 'Wos', 'Nicki Nicole', 'María Becerra', 'Emilia Mernes', 'Tini Stoessel', 'Cazzu', 'Paulo Londra', 'Lit Killah', 'Khea', 'YSY A', 'Neo Pistea', 'Dillom', 'Bhavi', 'Tiago PZK', 'FMK', 'Rusherking', 'Big One', 'L-Gante', 'Luck Ra', 'Nathy Peluso', 'Ca7riel', 'Paco Amoroso', 'Zoe Gotusso', 'Bandalos Chinos', 'Las Ligas Menores', 'Los Espíritus', 'Conociendo Rusia', 'Ciro y los Persas', 'La Beriso', 'Las Pastillas del Abuelo', 'Tan Biónica', 'Miranda', 'Estelares', 'Turf', 'La Vela Puerca', 'No Te Va Gustar', 'Michael Jackson', 'Madonna', 'The Beatles', 'Queen', 'Elvis Presley', 'Bob Marley', 'Nirvana', 'Metallica', 'AC/DC', 'Led Zeppelin', 'Pink Floyd', 'The Rolling Stones', 'U2', 'Coldplay', 'Imagine Dragons', 'Maroon 5', 'Bruno Mars', 'Ed Sheeran', 'Justin Bieber', 'Taylor Swift', 'Ariana Grande', 'Billie Eilish', 'The Weeknd', 'Drake', 'Eminem', 'Rihanna', 'Beyoncé', 'Lady Gaga', 'Katy Perry', 'Shakira', 'Bad Bunny', 'J Balvin', 'Daddy Yankee', 'Maluma', 'Ozuna', 'Anuel AA', 'Karol G', 'Peso Pluma', 'Feid', 'Rauw Alejandro', 'Rosalía', 'C Tangana', 'Juan Luis Guerra', 'Marc Anthony', 'Luis Miguel', 'Alejandro Sanz', 'Maná', 'Soda Stereo', 'Enanitos Verdes', 'Los Prisioneros', 'Cafe Tacvba', 'Molotov', 'Zoé', 'Mon Laferte', 'Natalia Lafourcade', 'Rock', 'Pop', 'Cumbia', 'Cuarteto', 'Folklore', 'Tango', 'Trap', 'Reggaeton', 'Hip hop', 'Rap', 'RKT', 'Electrónica', 'House', 'Techno', 'Reggae', 'Ska', 'Punk', 'Metal', 'Heavy metal', 'Blues', 'Jazz', 'Soul', 'Funk', 'Disco', 'Country', 'Salsa', 'Bachata', 'Merengue', 'Balada', 'Bolero', 'Ranchera', 'Mariachi', 'Samba', 'Bossa nova', 'Guitarra', 'Piano', 'Batería', 'Bajo', 'Violín', 'Saxofón', 'Trompeta', 'Flauta', 'Armónica', 'Acordeón', 'Teclado', 'Micrófono', 'Amplificador', 'Parlante', 'Auriculares', 'Bandoneón', 'Bombo', 'Charango', 'Quena', 'Ukelele', 'Tambor', 'Pandereta', 'Maracas', 'Bongó', 'Congas', 'Sintetizador']
+      };
+
+      const wordHints = {
+        // Puedes usar un string simple: 'Perro': 'El mejor amigo del hombre'
+        // O un array para múltiples pistas (se seleccionará una al azar): 'Perro': ['El mejor amigo del hombre', 'Animal doméstico que ladra', 'Mascota fiel']
+        'Animales': {
+          'Perro': ['Vínculo', 'Permanencia', 'Retorno'],
+    'Gato': ['Autonomía', 'Umbral', 'Observador'],
+    'Vaca': ['Ciclo', 'Inercia', 'Continuidad'],
+    'Caballo': ['Trayecto', 'Carga', 'Impulso'],
+    'Carpincho': ['Convivencia', 'Adaptación', 'Calma'],
+    'Puma': ['Acecho', 'Vacío', 'Reserva'],
+    'Loro': ['Repetición', 'Reflejo', 'Ruido'],
+    'Ñandú': ['Extensión', 'Huida', 'Plano'],
+    'Zorrino': ['Límite', 'Prevención', 'Reacción'],
+    'Hornero': ['Constancia', 'Diseño', 'Ciclo'],
+    'Guanaco': ['Austeridad', 'Distancia', 'Equilibrio'],
+    'Carancho': ['Espera', 'Ventaja', 'Restos'],
+    'Pingüino': ['Disciplina', 'Resistencia', 'Grupo'],
+    'Llama': ['Altitud', 'Servicio', 'Ritmo'],
+    'Cóndor': ['Paciencia', 'Altura', 'Control'],
+    'Cocodrilo': ['Inmovilidad', 'Tiempo', 'Energía'],
+    'Burro': ['Tenacidad', 'Límite', 'Decisión'],
+    'Chancho': ['Exceso', 'Oportunidad', 'Aprovechamiento'],
+    'Oveja': ['Seguimiento', 'Uniformidad', 'Masa'],
+    'Gallina': ['Repetición', 'Cautela', 'Cercanía'],
+    'Pato': ['Transición', 'Superficie', 'Fluidez'],
+    'Cisne': ['Apariencia', 'Distancia', 'Ritual'],
+    'Flamenco': ['Balance', 'Selección', 'Filtro'],
+    'Toro': ['Presión', 'Impulso', 'Dominio'],
+    'Cabra': ['Desafío', 'Pendiente', 'Insistencia'],
+    'Conejo': ['Alerta', 'Escape', 'Frecuencia'],
+    'Zorro': ['Estrategia', 'Ambigüedad', 'Margen'],
+    'Lobo marino': ['Turnos', 'Ruido', 'Espacio'],
+    'Ballena': ['Memoria', 'Deriva', 'Profundidad'],
+    'Delfín': ['Interacción', 'Señal', 'Coordinación'],
+    'Tiburón': ['Dirección', 'Eficiencia', 'Decisión'],
+    'Elefante': ['Registro', 'Peso', 'Continuidad'],
+    'Jirafa': ['Perspectiva', 'Desfase', 'Acceso'],
+    'León': ['Centro', 'Presencia', 'Control'],
+    'Tigre': ['Tensión', 'Soledad', 'Precisión'],
+    'Mono': ['Ensayo', 'Curiosidad', 'Aprendizaje'],
+    'Cebra': ['Contraste', 'Confusión', 'Colectivo'],
+    'Hipopótamo': ['Territorio', 'Inercia', 'Fuerza'],
+    'Rinoceronte': ['Dirección', 'Aislamiento', 'Impacto'],
+    'Oso': ['Reserva', 'Ciclo', 'Adaptación'],
+    'Águila': ['Enfoque', 'Altura', 'Anticipación'],
+    'Paloma': ['Retorno', 'Costumbre', 'Proximidad'],
+    'Gorrión': ['Frecuencia', 'Rutina', 'Presencia'],
+    'Búho': ['Vigilancia', 'Intervalo', 'Silencio'],
+    'Murciélago': ['Orientación', 'Pulso', 'Espacio'],
+    'Tortuga': ['Persistencia', 'Protección', 'Tiempo'],
+    'Iguana': ['Exposición', 'Inercia', 'Calor'],
+    'Serpiente': ['Transición', 'Continuidad', 'Economía'],
+    'Rana': ['Cambio', 'Etapa', 'Ritmo'],
+    'Mariposa': ['Proceso', 'Brevedad', 'Transformación']
+        },
+        'Profesiones': {
+          'Médico': ['Umbral', 'Irreversibilidad', 'Carga'],
+    'Ingeniero': ['Modelo', 'Compromiso', 'Ajuste'],
+    'Profesor': ['Desfase', 'Continuidad', 'Tránsito'],
+    'Chef': ['Tensión', 'Criterio', 'Resolución'],
+    'Bombero': ['Exposición', 'Evento', 'Límite'],
+    'Policía': ['Presencia', 'Fricción', 'Marco'],
+    'Artista': ['Desvío', 'Intención', 'Ruido'],
+    'Piloto': ['Trayectoria', 'Margen', 'Corrección'],
+    'Enfermero': ['Persistencia', 'Umbral', 'Acompañamiento'],
+    'Arquitecto': ['Vacío', 'Proyección', 'Orden'],
+    'Abogado': ['Marco', 'Asimetría', 'Ventaja'],
+    'Contador': ['Cierre', 'Equilibrio', 'Consistencia'],
+    'Electricista': ['Flujo', 'Ruptura', 'Riesgo'],
+    'Plomero': ['Presión', 'Desvío', 'Corrección'],
+    'Mecánico': ['Desfase', 'Función', 'Ajuste'],
+    'Carpintero': ['Medida', 'Ensayo', 'Encaje'],
+    'Albañil': ['Base', 'Carga', 'Secuencia'],
+    'Pintor': ['Capa', 'Límite', 'Variación'],
+    'Peluquero': ['Forma', 'Decisión', 'Cambio'],
+    'Veterinario': ['Evaluación', 'Umbral', 'Intervención'],
+    'Dentista': ['Detalle', 'Corrección', 'Prevención'],
+    'Farmacéutico': ['Proporción', 'Confianza', 'Control'],
+    'Psicólogo': ['Escucha', 'Proceso', 'Desplazamiento'],
+    'Periodista': ['Selección', 'Relato', 'Contexto'],
+    'Fotógrafo': ['Encuadre', 'Instante', 'Elección'],
+    'Diseñador gráfico': ['Síntesis', 'Forma', 'Lectura'],
+    'Programador': ['Abstracción', 'Iteración', 'Coherencia'],
+    'Chofer de colectivo': ['Ritmo', 'Recorrido', 'Inercia'],
+    'Taxista': ['Disponibilidad', 'Adaptación', 'Trayecto'],
+    'Almacenero': ['Proximidad', 'Continuidad', 'Rotación'],
+    'Carnicero': ['Selección', 'Corte', 'Criterio'],
+    'Panadero': ['Tiempo', 'Proceso', 'Transformación'],
+    'Verdulero': ['Clasificación', 'Frescura', 'Rotación'],
+    'Cajero': ['Verificación', 'Exactitud', 'Flujo'],
+    'Mozo': ['Presencia', 'Coordinación', 'Ritmo'],
+    'Cocinero': ['Secuencia', 'Preparación', 'Resultado'],
+    'Músico': ['Ritmo', 'Ejecución', 'Expresión'],
+    'Actor': ['Representación', 'Registro', 'Presencia'],
+    'Bailarín': ['Movimiento', 'Equilibrio', 'Control'],
+    'Locutor': ['Modulación', 'Claridad', 'Emisión'],
+    'DJ': ['Selección', 'Transición', 'Clima'],
+    'Entrenador': ['Planificación', 'Proceso', 'Seguimiento'],
+    'Árbitro': ['Criterio', 'Límite', 'Decisión'],
+    'Futbolista': ['Coordinación', 'Lectura', 'Ejecución'],
+    'Guardia de seguridad': ['Vigilancia', 'Prevención', 'Presencia'],
+    'Portero': ['Control', 'Acceso', 'Custodia']
+        },
+        'Deportes': {
+          'Fútbol': ['Espacio', 'Lectura', 'Oportunidad'],
+    'Básquet': ['Ritmo', 'Decisión', 'Altura'],
+    'Tenis': ['Intervalo', 'Precisión', 'Duelo'],
+    'Voley': ['Suspensión', 'Turno', 'Coordinación'],
+    'Rugby': ['Contacto', 'Avance', 'Sacrificio'],
+    'Natación': ['Continuidad', 'Resistencia', 'Medio'],
+    'Atletismo': ['Marca', 'Límite', 'Progresión'],
+    'Boxeo': ['Tensión', 'Umbral', 'Respuesta'],
+    'Ciclismo': ['Inercia', 'Trayectoria', 'Esfuerzo'],
+    'Hockey': ['Velocidad', 'Control', 'Superficie'],
+    'Paddle': ['Rebote', 'Lectura', 'Espacio'],
+    'Golf': ['Aislamiento', 'Exactitud', 'Espera'],
+    'Automovilismo': ['Trayectoria', 'Riesgo', 'Decisión'],
+    'Equitación': ['Sincronía', 'Dominio', 'Confianza'],
+    'Handball': ['Impulso', 'Secuencia', 'Contacto'],
+    'Pesca': ['Paciencia', 'Azar', 'Tensión'],
+    'Escalada': ['Progresión', 'Agarre', 'Elección'],
+    'Esquí': ['Pendiente', 'Fluidez', 'Equilibrio'],
+    'Snowboard': ['Deslizamiento', 'Estilo', 'Ruptura'],
+    'Patinaje': ['Inercia', 'Control', 'Estética'],
+    'Gimnasia': ['Precisión', 'Forma', 'Dominio'],
+    'Pesas': ['Carga', 'Límite', 'Voluntad'],
+    'Yoga': ['Conciencia', 'Respiración', 'Estabilidad'],
+    'Taekwondo': ['Distancia', 'Explosión', 'Control'],
+    'Judo': ['Equilibrio', 'Uso', 'Redirección'],
+    'Karate': ['Forma', 'Impacto', 'Contención'],
+    'Esgrima': ['Tiempo', 'Distancia', 'Intención'],
+    'Tiro': ['Quietud', 'Enfoque', 'Decisión'],
+    'Arco y flecha': ['Tensión', 'Dirección', 'Soltura'],
+    'Polo': ['Velocidad', 'Coordinación', 'Campo'],
+    'Remo': ['Ritmo', 'Repetición', 'Sincronía'],
+    'Canotaje': ['Flujo', 'Dirección', 'Resistencia'],
+    'Vela': ['Lectura', 'Adaptación', 'Incertidumbre'],
+    'Surf': ['Espera', 'Momento', 'Equilibrio'],
+    'Skate': ['Riesgo', 'Creatividad', 'Fluidez'],
+    'BMX': ['Impulso', 'Aire', 'Precisión'],
+    'Motocross': ['Terreno', 'Impacto', 'Resistencia'],
+    'Rally': ['Trayectoria', 'Incertidumbre', 'Control'],
+    'Karting': ['Reacción', 'Curva', 'Competencia'],
+    'Truco': ['Engaño', 'Lectura', 'Memoria'],
+    'Ajedrez': ['Anticipación', 'Sacrificio', 'Estructura'],
+    'Pool': ['Ángulo', 'Secuencia', 'Control'],
+    'Bowling': ['Repetición', 'Ajuste', 'Resultado'],
+    'Tejo': ['Precisión', 'Deslizamiento', 'Objetivo'],
+    'Parapente': ['Suspensión', 'Corriente', 'Confianza'],
+    'Parkour': ['Trayecto', 'Decisión', 'Continuidad'],
+    'CrossFit': ['Intensidad', 'Límite', 'Volumen'],
+    'Spinning': ['Ritmo', 'Persistencia', 'Carga'],
+    'Running': ['Cadencia', 'Duración', 'Soledad'],
+    'Caminata': ['Ritmo', 'Presencia', 'Continuidad']
+        },
+        'Países': {
+          'Argentina': '',
+          'Brasil': '',
+          'Chile': '',
+          'Uruguay': '',
+          'Paraguay': '',
+          'Bolivia': '',
+          'Perú': '',
+          'Colombia': '',
+          'Venezuela': '',
+          'Ecuador': '',
+          'México': '',
+          'Estados Unidos': '',
+          'Canadá': '',
+          'España': '',
+          'Francia': '',
+          'Italia': '',
+          'Alemania': '',
+          'Inglaterra': '',
+          'Portugal': '',
+          'Holanda': '',
+          'Bélgica': '',
+          'Suiza': '',
+          'Austria': '',
+          'Grecia': '',
+          'Rusia': '',
+          'Ucrania': '',
+          'Polonia': '',
+          'Turquía': '',
+          'Suecia': '',
+          'Noruega': '',
+          'Dinamarca': '',
+          'Finlandia': '',
+          'Irlanda': '',
+          'Escocia': '',
+          'Croacia': '',
+          'Serbia': '',
+          'Rumania': '',
+          'Hungría': '',
+          'República Checa': '',
+          'China': '',
+          'Japón': '',
+          'Corea del Sur': '',
+          'India': '',
+          'Tailandia': '',
+          'Vietnam': '',
+          'Indonesia': '',
+          'Filipinas': '',
+          'Australia': '',
+          'Nueva Zelanda': '',
+          'Egipto': '',
+          'Marruecos': '',
+          'Sudáfrica': '',
+          'Nigeria': '',
+          'Kenia': '',
+          'Israel': '',
+          'Arabia Saudita': '',
+          'Emiratos Árabes': '',
+          'Irán': '',
+          'Irak': '',
+          'Afganistán': '',
+          'Pakistán': '',
+          'Cuba': '',
+          'Jamaica': '',
+          'Panamá': '',
+          'Costa Rica': '',
+          'Guatemala': '',
+          'República Dominicana': '',
+          'Puerto Rico': '',
+          'Honduras': '',
+          'Nicaragua': '',
+          'El Salvador': ''
+        },
+        'Comida': {
+          'Pizza': '',
+          'Hamburguesa': '',
+          'Asado': '',
+          'Empanadas': '',
+          'Milanesa': '',
+          'Choripán': '',
+          'Locro': '',
+          'Humita': '',
+          'Tamales': '',
+          'Pastel de papa': '',
+          'Ravioles': '',
+          'Ñoquis': '',
+          'Tallarines': '',
+          'Lasaña': '',
+          'Canelones': '',
+          'Risotto': '',
+          'Polenta': '',
+          'Guiso': '',
+          'Puchero': '',
+          'Carbonada': '',
+          'Matambre': '',
+          'Vacío': '',
+          'Bife de chorizo': '',
+          'Costillas': '',
+          'Provoleta': '',
+          'Picada': '',
+          'Sándwich de miga': '',
+          'Tostado': '',
+          'Pancho': '',
+          'Pizza a la parrilla': '',
+          'Fugazzeta': '',
+          'Fainá': '',
+          'Medialunas': '',
+          'Facturas': '',
+          'Alfajores': '',
+          'Dulce de leche': '',
+          'Arroz con leche': '',
+          'Flan': '',
+          'Churros': '',
+          'Torta frita': '',
+          'Sushi': '',
+          'Tacos': '',
+          'Burritos': '',
+          'Nachos': '',
+          'Hot dog': '',
+          'Papas fritas': '',
+          'Pollo frito': '',
+          'Paella': '',
+          'Tortilla española': '',
+          'Ceviche': '',
+          'Sorrentinos': '',
+          'Agnolotis': '',
+          'Cappellettis': '',
+          'Fideos': '',
+          'Spaghetti': '',
+          'Mostacholes': '',
+          'Tirabuzón': '',
+          'Carbonara': '',
+          'Pesto': '',
+          'Tuco': '',
+          'Salsa blanca': '',
+          'Salsa bolognesa': '',
+          'Pizza napolitana': '',
+          'Muzzarella': '',
+          'Calzone': '',
+          'Focaccia': '',
+          'Milanesa napolitana': '',
+          'Milanesa a caballo': '',
+          'Suprema': '',
+          'Pollo al horno': '',
+          'Pollo a la parrilla': '',
+          'Pata muslo': '',
+          'Bondiola': '',
+          'Morcilla': '',
+          'Chinchulín': '',
+          'Riñón': '',
+          'Mollejas': '',
+          'Entraña': '',
+          'Tira de asado': '',
+          'Colita de cuadril': '',
+          'Osobuco': '',
+          'Estofado': '',
+          'Cazuela': '',
+          'Guiso de lentejas': '',
+          'Guiso de mondongo': '',
+          'Mondongo': '',
+          'Buseca': '',
+          'Sopa': '',
+          'Caldo': '',
+          'Caldo de pollo': '',
+          'Minestrone': '',
+          'Crema de verduras': '',
+          'Gazpacho': '',
+          'Sandwich': '',
+          'Lomito': '',
+          'Milanesa al pan': '',
+          'Hamburguesa completa': '',
+          'Panchos completos': '',
+          'Bondiola al pan': '',
+          'Vacío al pan': '',
+          'Churripán': '',
+          'Morcipán': '',
+          'Pancho con papas': '',
+          'Papas españolas': '',
+          'Papas noisette': '',
+          'Papas soufflé': '',
+          'Puré': '',
+          'Puré mixto': '',
+          'Ensalada': '',
+          'Ensalada César': '',
+          'Ensalada rusa': '',
+          'Ensalada mixta': '',
+          'Ensalada caprese': '',
+          'Tomate relleno': '',
+          'Papa rellena': '',
+          'Morrones rellenos': '',
+          'Tarta': '',
+          'Tarta de verdura': '',
+          'Tarta pascualina': '',
+          'Quiche': '',
+          'Empanada de carne': '',
+          'Empanada de pollo': '',
+          'Empanada de jamón y queso': '',
+          'Empanada de humita': '',
+          'Empanada tucumana': '',
+          'Empanada salteña': '',
+          'Empanada árabe': '',
+          'Ramen': '',
+          'Pad Thai': '',
+          'Wok': '',
+          'Chow mein': '',
+          'Arroz frito': '',
+          'Pollo agridulce': '',
+          'Pato laqueado': '',
+          'Dim sum': '',
+          'Gyozas': '',
+          'Spring rolls': '',
+          'Falafel': '',
+          'Shawarma': '',
+          'Kebab': '',
+          'Hummus': '',
+          'Baklava': '',
+          'Curry': '',
+          'Tikka masala': '',
+          'Naan': '',
+          'Samosas': '',
+          'Biryani': '',
+          'Pad see ew': '',
+          'Tom yum': '',
+          'Pho': '',
+          'Banh mi': '',
+          'Kimchi': '',
+          'Bibimbap': '',
+          'Bulgogi': '',
+          'Fish and chips': '',
+          'Roast beef': '',
+          'Shepherd pie': '',
+          'Bangers and mash': '',
+          'Croissant': '',
+          'Baguette': '',
+          'Crepe': '',
+          'Queso brie': '',
+          'Fondue': '',
+          'Raclette': '',
+          'Pretzels': '',
+          'Bratwurst': '',
+          'Schnitzel': '',
+          'Strudel': '',
+          'Goulash': '',
+          'Pierogi': '',
+          'Moussaka': '',
+          'Tzatziki': '',
+          'Souvlaki': '',
+          'Fajitas': '',
+          'Quesadillas': '',
+          'Enchiladas': '',
+          'Guacamole': '',
+          'Chili con carne': '',
+          'Mac and cheese': '',
+          'Waffles': '',
+          'Pancakes': '',
+          'Donas': '',
+          'Muffins': '',
+          'Bagels': '',
+          'Cheesecake': '',
+          'Brownies': '',
+          'Cookies': '',
+          'Tiramisú': '',
+          'Panna cotta': '',
+          'Gelato': '',
+          'Cannoli': '',
+          'Profiteroles': '',
+          'Éclair': '',
+          'Macarons': '',
+          'Crème brûlée': '',
+          'Mousse de chocolate': '',
+          'Pavlova': '',
+          'Trifle': '',
+          'Carrot cake': '',
+          'Red velvet': '',
+          'Lemon pie': '',
+          'Chocotorta': '',
+          'Rogel': '',
+          'Marquise': '',
+          'Pasta': '',
+          'Helado': 'Postre frío y dulce'
+        },
+        'Películas y Series': {
+          'Titanic': '',
+          'El Padrino': '',
+          'Star Wars': '',
+          'Toy Story': '',
+          'El Rey León': '',
+          'Jurassic Park': '',
+          'Volver al Futuro': '',
+          'Rocky': '',
+          'Matrix': '',
+          'Avatar': '',
+          'Avengers': '',
+          'Iron Man': '',
+          'Spider-Man': '',
+          'Batman': '',
+          'Harry Potter': '',
+          'El Señor de los Anillos': '',
+          'Piratas del Caribe': '',
+          'Rápido y Furioso': '',
+          'Misión Imposible': '',
+          'Indiana Jones': '',
+          'E.T.': '',
+          'Tiburón': '',
+          'Shrek': '',
+          'Buscando a Nemo': '',
+          'Frozen': '',
+          'Coco': '',
+          'El Secreto de sus Ojos': '',
+          'Nueve Reinas': '',
+          'Relatos Salvajes': '',
+          'El Clan': '',
+          'Esperando la Carroza': '',
+          'Metegol': '',
+          'Breaking Bad': '',
+          'Game of Thrones': '',
+          'Friends': '',
+          'Los Simpsons': '',
+          'Stranger Things': '',
+          'The Walking Dead': '',
+          'La Casa de Papel': '',
+          'Narcos': '',
+          'Los Serrano': '',
+          'Casados con Hijos': '',
+          'Los Simuladores': '',
+          'El Marginal': '',
+          'Okupas': '',
+          'Tumberos': '',
+          'Son Amores': '',
+          'Chiquititas': '',
+          'Rebelde Way': '',
+          'Floricienta': '',
+          'Violetta': '',
+          'Soy Luna': '',
+          'The Office': '',
+          'How I Met Your Mother': '',
+          'The Big Bang Theory': '',
+          'Brooklyn Nine-Nine': '',
+          'Parks and Recreation': '',
+          'Modern Family': '',
+          'Two and a Half Men': '',
+          'Seinfeld': '',
+          'Forrest Gump': '',
+          'Gladiador': '',
+          'El Origen': '',
+          'Interestelar': '',
+          'Joker': '',
+          'Pulp Fiction': '',
+          'Django': '',
+          'El Lobo de Wall Street': '',
+          'Fight Club': '',
+          'Seven': '',
+          'El Sexto Sentido': '',
+          'It': '',
+          'Saw': '',
+          'El Conjuro': '',
+          'Scream': '',
+          'The Crown': '',
+          'Peaky Blinders': '',
+          'Sherlock': '',
+          'Black Mirror': '',
+          'Dark': '',
+          'The Witcher': '',
+          'The Mandalorian': '',
+          'The Boys': '',
+          'Euphoria': '',
+          'Wednesday': '',
+          'Squid Game': '',
+          'All of Us Are Dead': '',
+          'El Juego del Calamar': '',
+          'Merlí': '',
+          'Elite': '',
+          'Vis a Vis': '',
+          'Money Heist': '',
+          'Pepe Grillo': '',
+          'CQC': '',
+          'Showmatch': '',
+          'Duro de Matar': '',
+          'Top Gun': '',
+          'La Momia': '',
+          'El Pianista': '',
+          'La Lista de Schindler': '',
+          'La Vida es Bella': '',
+          'Amélie': '',
+          'Los Miserables': '',
+          'Casablanca': '',
+          'Grease': '',
+          'Dirty Dancing': '',
+          'High School Musical': '',
+          'La La Land': '',
+          'Bohemian Rhapsody': '',
+          'The Greatest Showman': '',
+          'Grey ´s Anatomy': '',
+          'House': '',
+          'Dexter': '',
+          'Prison Break': '',
+          'Lost': '',
+          'Heroes': '',
+          'Supernatural': '',
+          'Lucifer': '',
+          'The Vampire Diaries': '',
+          'Riverdale': '',
+          'Gossip Girl': '',
+          '13 Reasons Why': '',
+          'Sex Education': '',
+          'La Que Se Avecina': '',
+          'El Chavo del 8': '',
+          'Chespirito': ''
+        },
+        'Objetos': {
+          'Mate': '',
+          'Bombilla': '',
+          'Termo': '',
+          'Pava': '',
+          'Yerba': '',
+          'Alfajor': '',
+          'Dulce de leche': '',
+          'Facón': '',
+          'Boleadoras': '',
+          'Poncho': '',
+          'Boina': '',
+          'Bombacha de gaucho': '',
+          'Alpargatas': '',
+          'Asado': '',
+          'Parrilla': '',
+          'Changuito': '',
+          'Sifón': '',
+          'Pingüino': '',
+          'Cama': '',
+          'Colchón': '',
+          'Almohada': '',
+          'Sábana': '',
+          'Frazada': '',
+          'Mesa': '',
+          'Silla': '',
+          'Sillón': '',
+          'Sofá': '',
+          'Televisor': '',
+          'Control remoto': '',
+          'Celular': '',
+          'Cargador': '',
+          'Auriculares': '',
+          'Computadora': '',
+          'Notebook': '',
+          'Teclado': '',
+          'Mouse': '',
+          'Monitor': '',
+          'Impresora': '',
+          'Router': '',
+          'Lámpara': '',
+          'Foco': '',
+          'Linterna': '',
+          'Vela': '',
+          'Fósforo': '',
+          'Encendedor': '',
+          'Espejo': '',
+          'Reloj': '',
+          'Despertador': '',
+          'Ventilador': '',
+          'Estufa': '',
+          'Aire acondicionado': '',
+          'Heladera': '',
+          'Freezer': '',
+          'Microondas': '',
+          'Horno': '',
+          'Cocina': '',
+          'Licuadora': '',
+          'Batidora': '',
+          'Tostadora': '',
+          'Pava eléctrica': '',
+          'Cafetera': '',
+          'Exprimidor': '',
+          'Jarra': '',
+          'Vaso': '',
+          'Taza': '',
+          'Plato': '',
+          'Bowl': '',
+          'Tenedor': '',
+          'Cuchillo': '',
+          'Cuchara': '',
+          'Cucharón': '',
+          'Espátula': '',
+          'Pinzas': '',
+          'Colador': '',
+          'Rallador': '',
+          'Pelador': '',
+          'Abrelatas': '',
+          'Sacacorchos': '',
+          'Tabla de cortar': '',
+          'Olla': '',
+          'Cacerola': '',
+          'Sartén': '',
+          'Wok': '',
+          'Fuente': '',
+          'Bandeja': '',
+          'Tupperware': '',
+          'Botella': '',
+          'Termo stanley': '',
+          'Bidón': '',
+          'Servilleta': '',
+          'Repasador': '',
+          'Trapo de piso': '',
+          'Esponja': '',
+          'Detergente': '',
+          'Lavandina': '',
+          'Desinfectante': '',
+          'Jabón': '',
+          'Escoba': '',
+          'Pala': '',
+          'Balde': '',
+          'Trapeador': '',
+          'Secador de piso': '',
+          'Escurridor': '',
+          'Cepillo': '',
+          'Plumero': '',
+          'Aspiradora': '',
+          'Lavarropas': '',
+          'Secarropas': '',
+          'Plancha': '',
+          'Tabla de planchar': '',
+          'Perchero': '',
+          'Gancho': '',
+          'Tender': '',
+          'Broche': '',
+          'Canasto': '',
+          'Cesto de basura': '',
+          'Bolsa de residuos': '',
+          'Inodoro': '',
+          'Bidet': '',
+          'Ducha': '',
+          'Bañera': '',
+          'Canilla': '',
+          'Lavabo': '',
+          'Toalla': '',
+          'Toallón': '',
+          'Cortina de baño': '',
+          'Alfombra de baño': '',
+          'Papel higiénico': '',
+          'Jabón líquido': '',
+          'Shampoo': '',
+          'Acondicionador': '',
+          'Crema de enjuague': '',
+          'Gel de ducha': '',
+          'Esponja de baño': '',
+          'Cepillo de dientes': '',
+          'Pasta dental': '',
+          'Hilo dental': '',
+          'Enjuague bucal': '',
+          'Peine': '',
+          'Cepillo de pelo': '',
+          'Secador de pelo': '',
+          'Plancha de pelo': '',
+          'Afeitadora': '',
+          'Espuma de afeitar': '',
+          'Perfume': '',
+          'Desodorante': '',
+          'Crema': '',
+          'Protector solar': '',
+          'Maquillaje': '',
+          'Algodón': '',
+          'Cotonete': '',
+          'Tijera': '',
+          'Pinza de depilar': '',
+          'Cortauñas': '',
+          'Lima de uñas': '',
+          'Balanza': '',
+          'Botiquín': '',
+          'Termómetro': '',
+          'Curitas': '',
+          'Vendas': '',
+          'Alcohol': '',
+          'Agua oxigenada': '',
+          'Remedio': '',
+          'Pastillas': '',
+          'Jarabe': '',
+          'Anteojos': '',
+          'Lentes de contacto': '',
+          'Anteojos de sol': '',
+          'Paraguas': '',
+          'Piloto': '',
+          'Campera': '',
+          'Buzo': '',
+          'Remera': '',
+          'Camisa': '',
+          'Pantalón': '',
+          'Jean': '',
+          'Short': '',
+          'Pollera': '',
+          'Vestido': '',
+          'Zapatillas': '',
+          'Zapatos': '',
+          'Botas': '',
+          'Sandalias': '',
+          'Ojotas': '',
+          'Medias': '',
+          'Cinturón': '',
+          'Cartera': '',
+          'Mochila': '',
+          'Bolso': '',
+          'Billetera': '',
+          'Llavero': '',
+          'Llaves': '',
+          'Candado': '',
+          'Cerradura': '',
+          'Timbre': '',
+          'Puerta': '',
+          'Ventana': '',
+          'Persiana': '',
+          'Cortina': '',
+          'Cuadro': '',
+          'Portarretrato': '',
+          'Adorno': '',
+          'Florero': '',
+          'Planta': '',
+          'Maceta': '',
+          'Regadera': '',
+          'Pala de jardín': '',
+          'Rastrillo': '',
+          'Manguera': '',
+          'Biblioteca': '',
+          'Estante': '',
+          'Cajón': '',
+          'Ropero': '',
+          'Placard': '',
+          'Escritorio': '',
+          'Silla de escritorio': '',
+          'Libro': '',
+          'Revista': '',
+          'Diario': '',
+          'Diccionario': '',
+          'Cuaderno': '',
+          'Carpeta': '',
+          'Hoja': '',
+          'Lápiz': '',
+          'Lapicera': '',
+          'Birome': '',
+          'Marcador': '',
+          'Resaltador': '',
+          'Goma de borrar': '',
+          'Sacapuntas': '',
+          'Regla': '',
+          'Compás': '',
+          'Transportador': '',
+          'Calculadora': '',
+          'Cartuchera': '',
+          'Mochila escolar': '',
+          'Tijera escolar': '',
+          'Pegamento': '',
+          'Cinta adhesiva': '',
+          'Voligoma': '',
+          'Plasticola': '',
+          'Abrochadora': '',
+          'Ganchos': '',
+          'Perforadora': '',
+          'Clips': '',
+          'Broches': '',
+          'Archivador': '',
+          'Sobre': '',
+          'Sello': '',
+          'Timbres': '',
+          'Teléfono': '',
+          'Cámara': '',
+          'Videocámara': '',
+          'Trípode': '',
+          'Micrófono': '',
+          'Parlante': '',
+          'Equipo de música': '',
+          'Radio': '',
+          'CD': '',
+          'DVD': '',
+          'Pendrive': '',
+          'Disco duro': '',
+          'Tarjeta de memoria': '',
+          'Cable': '',
+          'Zapatilla eléctrica': '',
+          'Enchufe': '',
+          'Adaptador': '',
+          'Pila': '',
+          'Batería': '',
+          'Cinta métrica': '',
+          'Nivel': '',
+          'Martillo': '',
+          'Destornillador': '',
+          'Pinza': '',
+          'Alicate': '',
+          'Llave inglesa': '',
+          'Taladro': '',
+          'Sierra': '',
+          'Cinta aisladora': '',
+          'Tornillo': '',
+          'Clavo': '',
+          'Tarugos': '',
+          'Tuerca': '',
+          'Arandela': '',
+          'Pegamento universal': '',
+          'Silicona': '',
+          'Pintura': '',
+          'Pincel': '',
+          'Rodillo': '',
+          'Escalera': '',
+          'Banqueta': '',
+          'Soga': '',
+          'Cuerda': '',
+          'Cadena': '',
+          'Alambre': '',
+          'Bolsa': '',
+          'Caja': '',
+          'Envase': '',
+          'Frasco': '',
+          'Lata': ''
+        },
+        'Lugares': {
+          'Playa': '',
+          'Montaña': '',
+          'Río': '',
+          'Lago': '',
+          'Bosque': '',
+          'Selva': '',
+          'Desierto': '',
+          'Campo': '',
+          'Centro comercial': '',
+          'Shopping': '',
+          'Supermercado': '',
+          'Almacén': '',
+          'Kiosco': '',
+          'Farmacia': '',
+          'Hospital': '',
+          'Clínica': '',
+          'Escuela': '',
+          'Universidad': '',
+          'Biblioteca': '',
+          'Museo': '',
+          'Teatro': '',
+          'Cine': '',
+          'Estadio': '',
+          'Cancha': '',
+          'Gimnasio': '',
+          'Parque': '',
+          'Plaza': '',
+          'Obelisco': '',
+          'Casa Rosada': '',
+          'Caminito': '',
+          'La Boca': '',
+          'Puerto Madero': '',
+          'Palermo': '',
+          'San Telmo': '',
+          'Recoleta': '',
+          'Cementerio de la Recoleta': '',
+          'Teatro Colón': '',
+          'Avenida 9 de Julio': '',
+          'Avenida Corrientes': '',
+          'Calle Florida': '',
+          'Cataratas del Iguazú': '',
+          'Glaciar Perito Moreno': '',
+          'Ushuaia': '',
+          'Tierra del Fuego': '',
+          'El Calafate': '',
+          'Bariloche': '',
+          'Cerro Catedral': '',
+          'Villa La Angostura': '',
+          'San Martín de los Andes': '',
+          'Mendoza': '',
+          'Aconcagua': '',
+          'Quebrada de Humahuaca': '',
+          'Cerro de los Siete Colores': '',
+          'Salta': '',
+          'Jujuy': '',
+          'Tilcara': '',
+          'Purmamarca': '',
+          'Cafayate': '',
+          'Tucumán': '',
+          'Tafí del Valle': '',
+          'Córdoba': '',
+          'Villa Carlos Paz': '',
+          'Mar del Plata': '',
+          'Pinamar': '',
+          'Villa Gesell': '',
+          'Cariló': '',
+          'Costa Atlántica': '',
+          'Península Valdés': '',
+          'Puerto Madryn': '',
+          'Rosario': '',
+          'Monumento a la Bandera': '',
+          'La Plata': '',
+          'Tigre': '',
+          'Delta del Tigre': '',
+          'Parque Nacional Los Glaciares': '',
+          'Parque Nacional Nahuel Huapi': '',
+          'Cerro Fitz Roy': '',
+          'El Chaltén': '',
+          'Tren a las Nubes': '',
+          'Ruta 40': '',
+          'Ruta de los Siete Lagos': '',
+          'Ischigualasto': '',
+          'Valle de la Luna': '',
+          'Talampaya': '',
+          'Salinas Grandes': '',
+          'Iruya': '',
+          'Torre Eiffel': '',
+          'Estatua de la Libertad': '',
+          'Big Ben': '',
+          'Coliseo Romano': '',
+          'Torre de Pisa': '',
+          'Taj Mahal': '',
+          'Gran Muralla China': '',
+          'Cristo Redentor': '',
+          'Machu Picchu': '',
+          'Pirámides de Egipto': '',
+          'Ópera de Sydney': '',
+          'Sagrada Familia': '',
+          'Puerta de Brandenburgo': '',
+          'Times Square': '',
+          'Central Park': '',
+          'Golden Gate': '',
+          'Chichén Itzá': '',
+          'Stonehenge': '',
+          'Partenón': '',
+          'Plaza Roja': '',
+          'Kremlin': '',
+          'Catedral de Notre Dame': '',
+          'Louvre': '',
+          'Arco de Triunfo': '',
+          'Palacio de Buckingham': '',
+          'Cataratas del Niágara': '',
+          'Gran Cañón': '',
+          'Petra': '',
+          'Monte Everest': '',
+          'Burj Khalifa': '',
+          'Alhambra': '',
+          'Restaurante': '',
+          'Bar': '',
+          'Café': '',
+          'Confitería': '',
+          'Parrilla': '',
+          'Pizzería': '',
+          'Hotel': '',
+          'Hostel': '',
+          'Aeropuerto': '',
+          'Terminal de buses': '',
+          'Estación de tren': '',
+          'Puerto': '',
+          'Aduana': '',
+          'Banco': '',
+          'Cajero': '',
+          'Correo': '',
+          'Comisaría': '',
+          'Cuartel de bomberos': '',
+          'Iglesia': '',
+          'Catedral': '',
+          'Templo': '',
+          'Mezquita': '',
+          'Sinagoga': '',
+          'Cementerio': '',
+          'Zoológico': '',
+          'Acuario': '',
+          'Parque de diversiones': '',
+          'Feria': '',
+          'Mercado': '',
+          'Feria americana': '',
+          'Casino': '',
+          'Boliche': '',
+          'Disco': ''
+        },
+        'Videojuegos': {
+          'Minecraft': '',
+          'Fortnite': '',
+          'GTA V': '',
+          'FIFA': '',
+          'EA FC': '',
+          'Counter Strike': '',
+          'Free Fire': '',
+          'League of Legends': '',
+          'Apex Legends': '',
+          'Call of Duty': '',
+          'Valorant': '',
+          'Roblox': '',
+          'Among Us': '',
+          'Fall Guys': '',
+          'Rocket League': '',
+          'Clash Royale': '',
+          'Clash of Clans': '',
+          'PUBG': '',
+          'Brawl Stars': '',
+          'Mario': '',
+          'Luigi': '',
+          'Sonic': '',
+          'Pikachu': '',
+          'Pac-Man': '',
+          'Donkey Kong': '',
+          'Link': '',
+          'Zelda': '',
+          'Kirby': '',
+          'Yoshi': '',
+          'Bowser': '',
+          'Peach': '',
+          'Toad': '',
+          'Wario': '',
+          'Waluigi': '',
+          'Crash Bandicoot': '',
+          'Spyro': '',
+          'Lara Croft': '',
+          'Master Chief': '',
+          'Kratos': '',
+          'Nathan Drake': '',
+          'Ellie': '',
+          'Joel': '',
+          'Steve': '',
+          'Alex': '',
+          'Creeper': '',
+          'Enderman': '',
+          'Slenderman': '',
+          'Herobrine': '',
+          'Ryu': '',
+          'Ken': '',
+          'Chun-Li': '',
+          'Sub-Zero': '',
+          'Scorpion': '',
+          'Raiden': '',
+          'Ezio': '',
+          'Altair': '',
+          'Cloud': '',
+          'Sephiroth': '',
+          'Samus': '',
+          'Fox McCloud': '',
+          'Mega Man': '',
+          'Solid Snake': '',
+          'Doom Slayer': '',
+          'Duke Nukem': '',
+          'Rayman': '',
+          'Banjo Kazooie': '',
+          'Conker': '',
+          'Ratchet': '',
+          'Clank': '',
+          'Jak': '',
+          'Daxter': '',
+          'Sackboy': '',
+          'Knuckles': '',
+          'Tails': '',
+          'Shadow': '',
+          'Amy Rose': '',
+          'Dr Eggman': '',
+          'Doctor Robotnik': '',
+          'Wii': '',
+          'PlayStation': '',
+          'Xbox': '',
+          'Nintendo': '',
+          'Switch': '',
+          'Game Boy': '',
+          'DS': '',
+          'PSP': '',
+          'Vita': '',
+          'Sega': '',
+          'Atari': '',
+          'Arcade': '',
+          'Joystick': '',
+          'Mando': '',
+          'Control': '',
+          'Gamepad': '',
+          'Tetris': '',
+          'Pong': '',
+          'Space Invaders': '',
+          'Galaga': '',
+          'Street Fighter': '',
+          'Mortal Kombat': '',
+          'Tekken': '',
+          'Dragon Ball': '',
+          'Naruto': '',
+          'One Piece': '',
+          'Pokemon': '',
+          'Digimon': '',
+          'Yu-Gi-Oh': '',
+          'Metal Gear': '',
+          'Resident Evil': '',
+          'Silent Hill': '',
+          'The Last of Us': '',
+          'Uncharted': '',
+          'God of War': '',
+          'Halo': '',
+          'Gears of War': '',
+          'Tomb Raider': '',
+          'Assassins Creed': '',
+          'Far Cry': '',
+          'Watch Dogs': '',
+          'Splinter Cell': '',
+          'Prince of Persia': '',
+          'Devil May Cry': '',
+          'Bayonetta': '',
+          'Final Fantasy': '',
+          'Kingdom Hearts': '',
+          'Persona': '',
+          'Metroid': '',
+          'Castlevania': '',
+          'Mario Kart': '',
+          'Super Smash Bros': '',
+          'Splatoon': '',
+          'Animal Crossing': '',
+          'Fire Emblem': '',
+          'Xenoblade': '',
+          'The Witcher': '',
+          'Skyrim': '',
+          'Fallout': '',
+          'Dark Souls': '',
+          'Bloodborne': '',
+          'Elden Ring': '',
+          'Sekiro': '',
+          'Hollow Knight': '',
+          'Celeste': '',
+          'Undertale': '',
+          'Stardew Valley': '',
+          'Terraria': '',
+          'Ori': '',
+          'Cuphead': '',
+          'Portal': '',
+          'Half-Life': '',
+          'Left 4 Dead': '',
+          'Team Fortress': '',
+          'Dota': '',
+          'Overwatch': '',
+          'Hearthstone': '',
+          'World of Warcraft': '',
+          'Diablo': '',
+          'StarCraft': '',
+          'WarCraft': '',
+          'Age of Empires': '',
+          'Civilization': '',
+          'SimCity': '',
+          'The Sims': '',
+          'Spore': '',
+          'Need for Speed': '',
+          'Gran Turismo': '',
+          'Forza': '',
+          'Mario Bros': '',
+          'Donkey Kong Country': '',
+          'Metroid Prime': '',
+          'Pikmin': '',
+          'Star Fox': '',
+          'Earthbound': '',
+          'Mother': '',
+          'F-Zero': '',
+          'Punch-Out': '',
+          'Wii Sports': '',
+          'Wii Fit': '',
+          'Just Dance': '',
+          'Guitar Hero': '',
+          'Rock Band': '',
+          'Dance Dance Revolution': '',
+          'Beat Saber': '',
+          'Angry Birds': '',
+          'Candy Crush': '',
+          'Plants vs Zombies': '',
+          'Geometry Dash': '',
+          'Subway Surfers': '',
+          'Temple Run': '',
+          'Fruit Ninja': '',
+          'Cut the Rope': '',
+          'Mobile Legends': '',
+          'Arena of Valor': '',
+          'Genshin Impact': '',
+          'Honkai': '',
+          'Raid Shadow Legends': ''
+        },
+        'Música': {
+          'Charly García': '',
+          'Gustavo Cerati': '',
+          'Soda Stereo': '',
+          'Luis Alberto Spinetta': '',
+          'Fito Páez': '',
+          'Los Redondos': '',
+          'Patricio Rey': '',
+          'Andrés Calamaro': '',
+          'Sumo': '',
+          'Luca Prodan': '',
+          'Serú Girán': '',
+          'Sui Generis': '',
+          'Almendra': '',
+          'Pescado Rabioso': '',
+          'Divididos': '',
+          'Los Piojos': '',
+          'La Renga': '',
+          'Callejeros': '',
+          'Bersuit Vergarabat': '',
+          'Babasónicos': '',
+          'Los Enanitos Verdes': '',
+          'Rata Blanca': '',
+          'V8': '',
+          'Hermética': '',
+          'Pappo': '',
+          'Viejas Locas': '',
+          'Las Pelotas': '',
+          'Attaque 77': '',
+          'Los Auténticos Decadentes': '',
+          'Los Fabulosos Cadillacs': '',
+          'Vicentico': '',
+          'León Gieco': '',
+          'Mercedes Sosa': '',
+          'Soledad': '',
+          'Los Chalchaleros': '',
+          'Los Nocheros': '',
+          'Rodrigo': '',
+          'La Mona Jiménez': '',
+          'Damas Gratis': '',
+          'Pablo Lescano': '',
+          'Los Palmeras': '',
+          'Ráfaga': '',
+          'Alcides': '',
+          'Gilda': '',
+          'Antonio Ríos': '',
+          'Duki': '',
+          'Bizarrap': '',
+          'Trueno': '',
+          'Wos': '',
+          'Nicki Nicole': '',
+          'María Becerra': '',
+          'Emilia Mernes': '',
+          'Tini Stoessel': '',
+          'Cazzu': '',
+          'Paulo Londra': '',
+          'Lit Killah': '',
+          'Khea': '',
+          'YSY A': '',
+          'Neo Pistea': '',
+          'Dillom': '',
+          'Bhavi': '',
+          'Tiago PZK': '',
+          'FMK': '',
+          'Rusherking': '',
+          'Big One': '',
+          'L-Gante': '',
+          'Luck Ra': '',
+          'Nathy Peluso': '',
+          'Ca7riel': '',
+          'Paco Amoroso': '',
+          'Zoe Gotusso': '',
+          'Bandalos Chinos': '',
+          'Las Ligas Menores': '',
+          'Los Espíritus': '',
+          'Conociendo Rusia': '',
+          'Ciro y los Persas': '',
+          'La Beriso': '',
+          'Las Pastillas del Abuelo': '',
+          'Tan Biónica': '',
+          'Miranda': '',
+          'Estelares': '',
+          'Turf': '',
+          'La Vela Puerca': '',
+          'No Te Va Gustar': '',
+          'Michael Jackson': '',
+          'Madonna': '',
+          'The Beatles': '',
+          'Queen': '',
+          'Elvis Presley': '',
+          'Bob Marley': '',
+          'Nirvana': '',
+          'Metallica': '',
+          'AC/DC': '',
+          'Led Zeppelin': '',
+          'Pink Floyd': '',
+          'The Rolling Stones': '',
+          'U2': '',
+          'Coldplay': '',
+          'Imagine Dragons': '',
+          'Maroon 5': '',
+          'Bruno Mars': '',
+          'Ed Sheeran': '',
+          'Justin Bieber': '',
+          'Taylor Swift': '',
+          'Ariana Grande': '',
+          'Billie Eilish': '',
+          'The Weeknd': '',
+          'Drake': '',
+          'Eminem': '',
+          'Rihanna': '',
+          'Beyoncé': '',
+          'Lady Gaga': '',
+          'Katy Perry': '',
+          'Shakira': '',
+          'Bad Bunny': '',
+          'J Balvin': '',
+          'Daddy Yankee': '',
+          'Maluma': '',
+          'Ozuna': '',
+          'Anuel AA': '',
+          'Karol G': '',
+          'Peso Pluma': '',
+          'Feid': '',
+          'Rauw Alejandro': '',
+          'Rosalía': '',
+          'C Tangana': '',
+          'Juan Luis Guerra': '',
+          'Marc Anthony': '',
+          'Luis Miguel': '',
+          'Alejandro Sanz': '',
+          'Maná': '',
+          'Enanitos Verdes': '',
+          'Los Prisioneros': '',
+          'Cafe Tacvba': '',
+          'Molotov': '',
+          'Zoé': '',
+          'Mon Laferte': '',
+          'Natalia Lafourcade': '',
+          'Rock': '',
+          'Pop': '',
+          'Cumbia': '',
+          'Cuarteto': '',
+          'Folklore': '',
+          'Tango': '',
+          'Trap': '',
+          'Reggaeton': '',
+          'Hip hop': '',
+          'Rap': '',
+          'RKT': '',
+          'Electrónica': '',
+          'House': '',
+          'Techno': '',
+          'Reggae': '',
+          'Ska': '',
+          'Punk': '',
+          'Metal': '',
+          'Heavy metal': '',
+          'Blues': '',
+          'Jazz': '',
+          'Soul': '',
+          'Funk': '',
+          'Disco': '',
+          'Country': '',
+          'Salsa': '',
+          'Bachata': '',
+          'Merengue': '',
+          'Balada': '',
+          'Bolero': '',
+          'Ranchera': '',
+          'Mariachi': '',
+          'Samba': '',
+          'Bossa nova': '',
+          'Guitarra': '',
+          'Piano': '',
+          'Batería': '',
+          'Bajo': '',
+          'Violín': '',
+          'Saxofón': '',
+          'Trompeta': '',
+          'Flauta': '',
+          'Armónica': '',
+          'Acordeón': '',
+          'Teclado': '',
+          'Micrófono': '',
+          'Amplificador': '',
+          'Parlante': '',
+          'Auriculares': '',
+          'Bandoneón': '',
+          'Bombo': '',
+          'Charango': '',
+          'Quena': '',
+          'Ukelele': '',
+          'Tambor': '',
+          'Pandereta': '',
+          'Maracas': '',
+          'Bongó': '',
+          'Congas': '',
+          'Sintetizador': ''
+        }
+      };
+
+      const getRecommendedImpostors = (players) => {
+        if (players <= 3) return 1;
+        if (players <= 5) return 1;
+        if (players <= 7) return 2;
+        if (players <= 8) return 2;
+        if (players <= 10) return 3;
+        if (players <= 12) return 4;
+        if (players <= 14) return 4;
+        if (players <= 16) return 5;
+        if (players <= 18) return 5;
+        return 6; // 19-20
+      };
+
+      const getMaxImpostors = (players) => {
+        // Máximo 30% de impostores, pero siempre mínimo 1 y nunca más que jugadores - 1
+        const maxPercentage = Math.ceil(players * 0.3);
+        return Math.min(maxPercentage, players - 1, Math.max(1, maxPercentage));
+      };
+
+      // Ajustar automáticamente el número de impostores si excede el máximo permitido
+      useEffect(() => {
+        const maxImpostors = getMaxImpostors(playerCount);
+        if (impostorCount > maxImpostors) {
+          setImpostorCount(maxImpostors);
+        }
+      }, [playerCount, impostorCount]);
+
+      // Ajustar nombres cuando cambia playerCount
+      useEffect(() => {
+        if (useNames) {
+          const currentLength = playerNames.length;
+          if (currentLength < playerCount) {
+            // Agregar campos vacíos si aumentó el número de jugadores
+            setPlayerNames(prev => [...prev, ...Array(playerCount - currentLength).fill('')]);
+          } else if (currentLength > playerCount) {
+            // Truncar si disminuyó el número de jugadores
+            setPlayerNames(prev => prev.slice(0, playerCount));
+          }
+        }
+      }, [playerCount, useNames]);
+
+      // Guardar cache automáticamente cuando cambian los nombres o playerCount
+      useEffect(() => {
+        if (useNames && playerNames.length > 0) {
+          const cacheData = {
+            playerCount: playerCount,
+            names: [...playerNames]
+          };
+          localStorage.setItem('impostorGameCache', JSON.stringify(cacheData));
+        }
+      }, [playerNames, playerCount, useNames]);
+
+      const toggleCategory = (cat) => {
+        if (categoryMode === 'single') {
+          setCategories([cat]);
+        } else if (categoryMode === 'multiple') {
+          if (categories.includes(cat)) {
+            setCategories(categories.filter(c => c !== cat));
+          } else {
+            setCategories([...categories, cat]);
+          }
+        }
+      };
+
+      // Función para detectar nombres duplicados
+      const getDuplicateNameIndices = () => {
+        if (!useNames) return [];
+        const duplicates = [];
+        const nameMap = new Map();
+        
+        playerNames.forEach((name, index) => {
+          const normalizedName = name.trim().toLowerCase();
+          if (normalizedName) {
+            if (nameMap.has(normalizedName)) {
+              duplicates.push(index);
+              duplicates.push(nameMap.get(normalizedName));
+            } else {
+              nameMap.set(normalizedName, index);
+            }
+          }
+        });
+        
+        return [...new Set(duplicates)];
+      };
+
+      const handleNameChange = (index, value) => {
+        const newNames = [...playerNames];
+        newNames[index] = value;
+        setPlayerNames(newNames);
+        // Guardar automáticamente en cache
+        const cacheData = {
+          playerCount: playerCount,
+          names: [...newNames]
+        };
+        localStorage.setItem('impostorGameCache', JSON.stringify(cacheData));
+      };
+
+      // Funciones para guardar/cargar perfiles
+      useEffect(() => {
+        const saved = localStorage.getItem('impostorGameProfiles');
+        if (saved) {
+          try {
+            setSavedProfiles(JSON.parse(saved));
+          } catch (e) {
+            console.error('Error loading saved profiles:', e);
+          }
+        }
+      }, []);
+
+      // Cargar opciones guardadas al inicio
+      useEffect(() => {
+        const savedOptions = localStorage.getItem('impostorGameOptions');
+        if (savedOptions) {
+          try {
+            const options = JSON.parse(savedOptions);
+            if (options.impostorHints !== undefined) setImpostorHints(options.impostorHints);
+            if (options.impostorNeverFirst !== undefined) setImpostorNeverFirst(options.impostorNeverFirst);
+            if (options.impostorsKnowEachOther !== undefined) setImpostorsKnowEachOther(options.impostorsKnowEachOther);
+          } catch (e) {
+            console.error('Error loading saved options:', e);
+          }
+        }
+      }, []);
+
+      // Guardar opciones cuando cambian
+      useEffect(() => {
+        const options = {
+          impostorHints,
+          impostorNeverFirst,
+          impostorsKnowEachOther
+        };
+        localStorage.setItem('impostorGameOptions', JSON.stringify(options));
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther]);
+
+      // Cargar categorías personalizadas al inicio
+      useEffect(() => {
+        const saved = localStorage.getItem('impostorGameCustomCategories');
+        if (saved) {
+          try {
+            const customCats = JSON.parse(saved);
+            setCustomCategories(customCats);
+            // Agregar las categorías personalizadas a categoryWords dinámicamente
+            customCats.forEach(cat => {
+              if (cat.name && cat.words && Array.isArray(cat.words)) {
+                categoryWords[cat.name] = cat.words;
+              }
+            });
+          } catch (e) {
+            console.error('Error loading custom categories:', e);
+          }
+        }
+      }, []);
+
+      // Funciones para categorías personalizadas
+      const saveCustomCategory = () => {
+        const wordsArray = customCategoryWords.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+        
+        if (wordsArray.length < 6) {
+          alert('La categoría debe tener al menos 6 palabras.');
+          return;
+        }
+        
+        if (!customCategoryName.trim()) {
+          alert('Por favor, ingresa un nombre para la categoría.');
+          return;
+        }
+        
+        const categoryData = {
+          name: customCategoryName.trim(),
+          emoji: '⭐',
+          words: wordsArray
+        };
+        
+        let updatedCategories;
+        if (editingCustomCategory) {
+          // Editar categoría existente
+          // Si cambió el nombre, eliminar el anterior de categoryWords
+          if (editingCustomCategory.name !== categoryData.name) {
+            delete categoryWords[editingCustomCategory.name];
+            // Si estaba seleccionada, actualizar la selección
+            setCategories(categories.map(c => c === editingCustomCategory.name ? categoryData.name : c));
+          }
+          updatedCategories = customCategories.map(cat => 
+            cat.name === editingCustomCategory.name ? categoryData : cat
+          );
+        } else {
+          // Nueva categoría
+          updatedCategories = [...customCategories, categoryData];
+        }
+        
+        setCustomCategories(updatedCategories);
+        localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updatedCategories));
+        
+        // Actualizar categoryWords
+        categoryWords[categoryData.name] = categoryData.words;
+        
+        // Limpiar formulario
+        setCustomCategoryName('');
+        setCustomCategoryWords('');
+        setShowCustomCategoryEditor(false);
+        setEditingCustomCategory(null);
+      };
+
+      const deleteCustomCategory = (categoryName) => {
+        if (confirm(`¿Estás seguro de que quieres eliminar la categoría "${categoryName}"?`)) {
+          const updated = customCategories.filter(cat => cat.name !== categoryName);
+          setCustomCategories(updated);
+          localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
+          delete categoryWords[categoryName];
+          // Si estaba seleccionada, quitarla
+          setCategories(categories.filter(c => c !== categoryName));
+        }
+      };
+
+      const editCustomCategory = (category) => {
+        setEditingCustomCategory(category);
+        setCustomCategoryName(category.name);
+        setCustomCategoryWords(category.words.join('\n'));
+        setShowCustomCategoryEditor(true);
+      };
+
+      const exportCustomCategory = (category) => {
+        const exportData = {
+          name: category.name,
+          emoji: category.emoji || '⭐',
+          words: category.words
+        };
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${category.name.replace(/\s+/g, '_')}_categoria.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+
+      const importCustomCategory = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const imported = JSON.parse(event.target.result);
+              
+              if (!imported.name || !imported.words || !Array.isArray(imported.words)) {
+                alert('El archivo no tiene el formato correcto. Debe tener "name" y "words" (array).');
+                return;
+              }
+              
+              if (imported.words.length < 6) {
+                alert('La categoría importada debe tener al menos 6 palabras.');
+                return;
+              }
+              
+              // Verificar si ya existe
+              const exists = customCategories.some(cat => cat.name === imported.name);
+              if (exists) {
+                if (!confirm(`La categoría "${imported.name}" ya existe. ¿Quieres reemplazarla?`)) {
+                  return;
+                }
+                const updated = customCategories.map(cat => 
+                  cat.name === imported.name ? imported : cat
+                );
+                setCustomCategories(updated);
+                localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
+              } else {
+                const updated = [...customCategories, imported];
+                setCustomCategories(updated);
+                localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
+              }
+              
+              // Actualizar categoryWords
+              categoryWords[imported.name] = imported.words;
+              
+              alert(`Categoría "${imported.name}" importada correctamente.`);
+            } catch (error) {
+              alert('Error al importar la categoría. Verifica que el archivo sea válido.');
+              console.error('Import error:', error);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      };
+
+      // Funciones para manejar la probabilidad de todos impostores
+      const getAllImpostorsProbability = () => {
+        const today = new Date().toDateString();
+        const stored = localStorage.getItem('allImpostorsProbability');
+        let data = stored ? JSON.parse(stored) : { 
+          probability: 0.5, 
+          lastDate: today, 
+          gamesWithoutTrigger: 0 
+        };
+        
+        // Reset diario (solo si la probabilidad no es >= 100, para permitir pruebas)
+        if (data.lastDate !== today && data.probability < 100) {
+          data.probability = 0.5;
+          data.lastDate = today;
+          data.gamesWithoutTrigger = 0;
+        } else if (data.lastDate !== today && data.probability >= 100) {
+          // Si es >= 100, solo actualizar la fecha pero mantener la probabilidad
+          data.lastDate = today;
+        }
+        
+        return data;
+      };
+
+      const updateAllImpostorsProbability = (triggered) => {
+        const today = new Date().toDateString();
+        const stored = localStorage.getItem('allImpostorsProbability');
+        let data = stored ? JSON.parse(stored) : { 
+          probability: 0.5, 
+          lastDate: today, 
+          gamesWithoutTrigger: 0 
+        };
+        
+        // Reset diario
+        if (data.lastDate !== today) {
+          data.probability = 0.5;
+          data.lastDate = today;
+          data.gamesWithoutTrigger = 0;
+        }
+        
+        if (triggered) {
+          // Si se activó, resetear a 0.5%
+          data.probability = 0.5  ;
+          data.gamesWithoutTrigger = 0;
+        } else {
+          // Si no se activó, aumentar probabilidad
+          data.gamesWithoutTrigger++;
+          if (data.probability < 3) {
+            // Subir 0.2% hasta llegar a 3%
+            data.probability = Math.min(3, data.probability + 0.2);
+          } else if (data.probability < 4) {
+            // Subir 0.1% hasta llegar a 4%
+            data.probability = Math.min(4, data.probability + 0.1);
+          }
+        }
+        
+        localStorage.setItem('allImpostorsProbability', JSON.stringify(data));
+      };
+
+      const checkAllImpostorsTrigger = () => {
+        // Modo de prueba: siempre activar si está habilitado
+        if (MODO_PRUEBA_TODOS_IMPOSTORES && playerCount >= 6) {
+          console.log('MODO PRUEBA ACTIVO: Todos impostores forzado');
+          updateAllImpostorsProbability(true);
+          return true;
+        }
+        
+        if (playerCount < 6) {
+          console.log('Player count too low:', playerCount);
+          return false;
+        }
+        
+        const data = getAllImpostorsProbability();
+        const today = new Date().toDateString();
+        const isFirstRoundOfDay = data.lastDate !== today;
+        
+        console.log('Checking all impostors trigger:', {
+          probability: data.probability,
+          lastDate: data.lastDate,
+          today: today,
+          isFirstRoundOfDay: isFirstRoundOfDay
+        });
+        
+        // Si la probabilidad es 100% o más, siempre activar
+        if (data.probability >= 100) {
+          console.log('Probability >= 100, activating all impostors mode');
+          updateAllImpostorsProbability(true);
+          return true;
+        }
+        
+        // 2% solo en la primera ronda del día
+        if (isFirstRoundOfDay) {
+          const firstRoundChance = Math.random() * 100;
+          console.log('First round of day, chance:', firstRoundChance);
+          if (firstRoundChance < 2) {
+            updateAllImpostorsProbability(true);
+            return true;
+          }
+          // Si es la primera ronda y no se activó el 2%, no aplicar probabilidad acumulada en esta ronda
+          updateAllImpostorsProbability(false);
+          return false;
+        }
+        
+        // Probabilidad acumulada (solo en rondas después de la primera del día)
+        const chance = Math.random() * 100;
+        console.log('Regular round, chance:', chance, 'probability:', data.probability);
+        if (chance < data.probability) {
+          console.log('Triggered! Activating all impostors mode');
+          updateAllImpostorsProbability(true);
+          return true;
+        }
+        
+        console.log('Not triggered');
+        updateAllImpostorsProbability(false);
+        return false;
+      };
+
+
+      // Cargar cache automáticamente cuando se activa useNames
+      useEffect(() => {
+        if (useNames) {
+          const cached = localStorage.getItem('impostorGameCache');
+          if (cached) {
+            try {
+              const cacheData = JSON.parse(cached);
+              // Cargar los nombres del cache
+              if (cacheData.playerCount === playerCount && cacheData.names.length > 0) {
+                setPlayerNames(prev => {
+                  // Solo cargar si no hay nombres ya escritos
+                  const hasNames = prev.length > 0 && prev.some(name => name && name.trim() !== '');
+                  return hasNames ? prev : [...cacheData.names];
+                });
+              } else if (cacheData.playerCount < playerCount && cacheData.names.length > 0) {
+                // Si hay menos jugadores ahora, cargar los que coincidan y agregar campos vacíos
+                setPlayerNames(prev => {
+                  const hasNames = prev.length > 0 && prev.some(name => name && name.trim() !== '');
+                  if (hasNames) return prev;
+                  const namesToLoad = [...cacheData.names];
+                  while (namesToLoad.length < playerCount) {
+                    namesToLoad.push('');
+                  }
+                  return namesToLoad.slice(0, playerCount);
+                });
+              } else if (cacheData.playerCount > playerCount && cacheData.names.length > 0) {
+                // Si hay más jugadores ahora, cargar los primeros
+                setPlayerNames(prev => {
+                  const hasNames = prev.length > 0 && prev.some(name => name && name.trim() !== '');
+                  return hasNames ? prev : cacheData.names.slice(0, playerCount);
+                });
+              } else {
+                // Si no hay cache válido, inicializar con campos vacíos
+                setPlayerNames(prev => prev.length === 0 ? Array(playerCount).fill('') : prev);
+              }
+            } catch (e) {
+              console.error('Error loading cache:', e);
+              setPlayerNames(prev => prev.length === 0 ? Array(playerCount).fill('') : prev);
+            }
+          } else {
+            // Si no hay cache, inicializar con campos vacíos solo si no hay nombres
+            setPlayerNames(prev => prev.length === 0 ? Array(playerCount).fill('') : prev);
+          }
+        }
+      }, [useNames, playerCount]);
+
+      const saveProfile = () => {
+        if (playerNames.length === 0 || playerNames.every(name => !name.trim())) {
+          alert('Por favor, ingresa al menos un nombre antes de guardar');
+          return;
+        }
+        
+        const profileName = prompt('Ingresa un nombre para este perfil:');
+        if (!profileName || !profileName.trim()) {
+          return;
+        }
+
+        const profile = {
+          id: Date.now().toString(),
+          name: profileName.trim(),
+          playerCount: playerCount,
+          names: [...playerNames],
+          createdAt: new Date().toISOString()
+        };
+
+        const updated = [...savedProfiles, profile];
+        setSavedProfiles(updated);
+        localStorage.setItem('impostorGameProfiles', JSON.stringify(updated));
+        setSelectedProfile(profile.id);
+      };
+
+      const loadProfile = (profileId) => {
+        const profile = savedProfiles.find(p => p.id === profileId);
+        if (profile) {
+          setPlayerCount(profile.playerCount);
+          setPlayerNames([...profile.names]);
+          setSelectedProfile(profileId);
+          if (!useNames) {
+            setUseNames(true);
+          }
+        }
+      };
+
+      const deleteProfile = (profileId, e) => {
+        e.stopPropagation();
+        if (confirm('¿Estás seguro de que quieres eliminar este perfil?')) {
+          const updated = savedProfiles.filter(p => p.id !== profileId);
+          setSavedProfiles(updated);
+          localStorage.setItem('impostorGameProfiles', JSON.stringify(updated));
+          if (selectedProfile === profileId) {
+            setSelectedProfile(null);
+          }
+        }
+      };
+
+      const startGame = () => {
+        // Validar nombres duplicados si se usan nombres personalizados
+        if (useNames) {
+          const duplicateIndices = getDuplicateNameIndices();
+          if (duplicateIndices.length > 0) {
+            alert('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador.');
+            return;
+          }
+        }
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:startGame',message:'Iniciando juego',data:{categoryMode,categoriesLength:categories.length,playerCount,impostorCount,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+
+        let selectedCat;
+        
+        if (categoryMode === 'random') {
+          // Incluir categorías personalizadas en la selección aleatoria
+          const allCategories = [...categoryList, ...customCategories];
+          selectedCat = allCategories[Math.floor(Math.random() * allCategories.length)].name;
+        } else {
+          selectedCat = categories[Math.floor(Math.random() * categories.length)];
+        }
+        
+        const words = categoryWords[selectedCat];
+        const secretWord = words[Math.floor(Math.random() * words.length)];
+        // Obtener pista(s) - puede ser string, array de strings, o vacío
+        const hintData = wordHints[selectedCat] && wordHints[selectedCat][secretWord] ? wordHints[selectedCat][secretWord] : '';
+        // Si es array, seleccionar una pista al azar; si es string, usarlo directamente
+        const hint = Array.isArray(hintData) && hintData.length > 0 
+          ? hintData[Math.floor(Math.random() * hintData.length)]
+          : (hintData || '');
+        
+        // Verificar si se activa el modo "todos impostores"
+        const allImpostorsTriggered = checkAllImpostorsTrigger();
+        console.log('All impostors triggered:', allImpostorsTriggered, 'Player count:', playerCount);
+        
+        const playerNumbers = Array.from({ length: playerCount }, (_, i) => i + 1);
+        const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
+        const impostors = allImpostorsTriggered 
+          ? playerNumbers // Todos son impostores
+          : shuffled.slice(0, impostorCount);
+        
+        console.log('Impostors assigned:', impostors, 'All impostors mode:', allImpostorsTriggered);
+        
+        const roles = playerNumbers.map(num => ({
+          number: num,
+          name: useNames ? playerNames[num - 1] || `Jugador ${num}` : null,
+          isImpostor: impostors.includes(num),
+          word: impostors.includes(num) ? null : secretWord,
+          hint: impostors.includes(num) && impostorHints && PISTAS_HABILITADAS ? hint : null,
+          isEliminated: false
+        }));
+        
+        const randomOrder = [...roles].sort(() => Math.random() - 0.5);
+        const finalImpostorCount = allImpostorsTriggered ? playerCount : impostorCount;
+        
+        setGameStarted(randomOrder);
+        setSelectedWord(secretWord);
+        setSelectedCategory(selectedCat);
+        setCurrentPlayerIndex(0);
+        setRevealedPlayers([]);
+        setRoleRevealed(false);
+        setAllRolesRevealed(false);
+        setFirstPlayer(null);
+        setShowDiscussion(false);
+        setShowFinalReveal(false);
+        setEliminatedPlayers([]);
+        setVotingPlayer(null);
+        setRevealingVote(false);
+        setImpostorsRemaining(finalImpostorCount);
+        setStep(4);
+      };
+
+      const revealRole = () => {
+        setRoleRevealed(true);
+      };
+
+      const nextPlayer = () => {
+        const newRevealed = [...revealedPlayers, gameStarted[currentPlayerIndex].number];
+        setRevealedPlayers(newRevealed);
+        setRoleRevealed(false);
+        
+        if (currentPlayerIndex + 1 < gameStarted.length) {
+          setCurrentPlayerIndex(currentPlayerIndex + 1);
+        } else {
+          // Seleccionar el primer jugador
+          let eligiblePlayers = gameStarted;
+          // Si la opción está activada, excluir a los impostores
+          if (impostorNeverFirst) {
+            eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
+          }
+          // Si no hay jugadores elegibles (todos son impostores), usar todos
+          if (eligiblePlayers.length === 0) {
+            eligiblePlayers = gameStarted;
+          }
+          const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
+          setFirstPlayer(randomFirst);
+          setAllRolesRevealed(true);
+        }
+      };
+
+      const startDiscussion = () => {
+        setShowDiscussion(true);
+      };
+
+      const votePlayer = (player) => {
+        setVotingPlayer(player);
+      };
+
+      const confirmVote = () => {
+        setRevealingVote(true);
+      };
+
+      const continueAfterVote = () => {
+        const updatedPlayers = gameStarted.map(p => 
+          p.number === votingPlayer.number 
+            ? { ...p, isEliminated: true }
+            : p
+        );
+        
+        setGameStarted(updatedPlayers);
+        setEliminatedPlayers([...eliminatedPlayers, votingPlayer.number]);
+        
+        let newImpostorsRemaining = impostorsRemaining;
+        if (votingPlayer.isImpostor) {
+          newImpostorsRemaining = impostorsRemaining - 1;
+          setImpostorsRemaining(newImpostorsRemaining);
+        }
+        
+        // Verificar si todos son impostores (después de eliminar)
+        const allAreImpostors = updatedPlayers.filter(p => !p.isEliminated).every(p => p.isImpostor);
+        const remainingPlayers = updatedPlayers.filter(p => !p.isEliminated).length;
+        
+        // Si todos son impostores y quedan 2 o menos jugadores, ir a resultados finales
+        if (allAreImpostors && remainingPlayers <= 2) {
+          setWinners('impostors');
+          setShowFinalReveal(true);
+          return;
+        }
+        
+        // Si todos son impostores y quedan más de 2, continuar la partida
+        if (allAreImpostors && remainingPlayers > 2) {
+          setVotingPlayer(null);
+          setRevealingVote(false);
+          return;
+        }
+        
+        // Si todos son impostores y no quedan más, ganan los impostores
+        if (allAreImpostors && newImpostorsRemaining === 0) {
+          setWinners('impostors');
+          setShowFinalReveal(true);
+          return;
+        }
+        
+        // Calcular jugadores honestos restantes (no eliminados y no impostores)
+        const honestPlayersRemaining = updatedPlayers.filter(p => !p.isEliminated && !p.isImpostor).length;
+        
+        // Verificar victoria
+        if (newImpostorsRemaining === 0) {
+          setWinners('players');
+          setShowFinalReveal(true);
+          return;
+        } else if (honestPlayersRemaining === 0) {
+          // Los impostores ganan solo cuando se eliminan TODOS los inocentes
+          setWinners('impostors');
+          setShowFinalReveal(true);
+          return;
+        }
+        
+        setVotingPlayer(null);
+        setRevealingVote(false);
+      };
+
+      const playAgain = () => {
+        setStep(1);
+        // Mantener playerCount, useNames y playerNames
+        // setPlayerCount(5); - NO resetear
+        setCategories([]);
+        setCategoryMode('multiple');
+        // Ajustar impostorCount si es necesario según el nuevo máximo permitido
+        const maxImpostors = getMaxImpostors(playerCount);
+        if (impostorCount > maxImpostors) {
+          setImpostorCount(maxImpostors);
+        }
+        // Mantener useNames y playerNames
+        // setUseNames(false); - NO resetear
+        // setPlayerNames([]); - NO resetear
+        // Mantener opciones guardadas (se cargan automáticamente desde localStorage)
+        // setImpostorHints(false); - NO resetear, se mantiene desde localStorage
+        // setImpostorNeverFirst(false); - NO resetear, se mantiene desde localStorage
+        // setImpostorsKnowEachOther(false); - NO resetear, se mantiene desde localStorage
+        setGameStarted(false);
+        setCurrentPlayerIndex(0);
+        setRevealedPlayers([]);
+        setRoleRevealed(false);
+        setAllRolesRevealed(false);
+        setFirstPlayer(null);
+        setShowDiscussion(false);
+        setShowFinalReveal(false);
+        setEliminatedPlayers([]);
+        setVotingPlayer(null);
+        setRevealingVote(false);
+        setImpostorsRemaining(0);
+        setWinners(null);
+        setSelectedProfile(null);
+      };
+
+      const getPlayerDisplay = (player) => {
+        if (useNames && player.name) {
+          return player.name;
+        }
+        return `Jugador ${player.number}`;
+      };
+
+      const StepIndicator = () => (
+        <div className="flex items-center justify-center gap-2 mb-6 sm:mb-8 md:mb-12 flex-wrap px-2 sm:px-4">
+          {[1, 2, 3].map((s) => (
+            <div key={s} className="flex items-center">
+              <div className={`w-8 h-8 sm:w-9 md:w-10 sm:h-9 md:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base md:text-lg transition-all ${
+                step >= s 
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/50' 
+                  : `${isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-800 text-gray-400'}`
+              }`}>
+                {s}
+              </div>
+              {s < 3 && <div className={`w-6 sm:w-8 h-1 mx-1 ${step > s ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-800'}`} />}
+            </div>
+          ))}
+        </div>
+      );
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:before-render',message:'Antes de renderizar JSX',data:{step,gameStarted:!!gameStarted,allRolesRevealed,showDiscussion,showFinalReveal,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+
+      return (
+        <div className={`min-h-screen w-full transition-colors duration-300 ${isLightMode ? 'bg-gradient-to-br from-gray-100 to-gray-200' : 'bg-black'} text-white p-3 sm:p-4 md:p-6`} style={{minHeight: '100dvh'}}>
+          <div className="max-w-2xl mx-auto w-full px-2 sm:px-4">
+            {/* Theme Toggle Button */}
+            <div className="flex justify-center sm:justify-end gap-2 mb-4">
+              {showInstallButton && !gameStarted && step === 1 && (
+                <button
+                  onClick={handleInstallClick}
+                  className={`px-4 py-2 rounded-xl transition-all duration-300 shadow-lg text-sm font-semibold ${
+                    isLightMode 
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
+                >
+                  📱 Instalar App
+                </button>
+              )}
+              {(gameStarted || step > 1) && (
+                <button
+                  onClick={playAgain}
+                  className={`p-2 rounded-xl transition-all duration-300 shadow-lg ${
+                    isLightMode 
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  title="Volver al inicio"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => setIsLightMode(!isLightMode)}
+                className={`p-2 rounded-xl transition-all duration-300 shadow-lg ${
+                  isLightMode 
+                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+                    : 'bg-gray-800 hover:bg-gray-700 text-yellow-400'
+                }`}
+              >
+                {isLightMode ? <MoonIcon size={20} /> : <SunIcon size={20} />}
+              </button>
+            </div>
+
+            {/* Header */}
+            <div className="text-center mb-6 sm:mb-8 md:mb-12">
+              <h1 className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent ${isLightMode ? 'from-purple-600 to-pink-600' : ''}`}>
+                ARGENTORES
+              </h1>
+              <p className={`text-base sm:text-lg md:text-xl ${isLightMode ? 'text-gray-700' : 'text-purple-200'}`}>Encuentra al impostor.</p>
+            </div>
+
+            {!gameStarted ? (
+              <>
+                <StepIndicator />
+
+                {/* Step 1: Player Count & Names */}
+                {step === 1 && (
+                  <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
+                    <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-4 sm:mb-5 md:mb-6 flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      <GamepadIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={24} />
+                      Configuraciones del juego
+                    </h2>
+                    
+                    <div className="mb-6 sm:mb-8">
+                      <p className={`text-sm sm:text-base mb-4 flex items-center gap-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                        <UsersIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={16} />
+                        Cantidad de jugadores (mínimo 3)
+                      </p>
+                      <div className="flex items-center justify-center gap-4 sm:gap-6 mb-6">
+                        <button
+                          onClick={() => setPlayerCount(Math.max(3, playerCount - 1))}
+                          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
+                        >
+                          -
+                        </button>
+                        <div className={`text-4xl sm:text-5xl md:text-6xl font-bold ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>{playerCount}</div>
+                        <button
+                          onClick={() => setPlayerCount(Math.min(20, playerCount + 1))}
+                          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
+                      <label className="flex items-center gap-4 cursor-pointer mb-4 group">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={useNames}
+                            onChange={(e) => {
+                              setUseNames(e.target.checked);
+                              if (e.target.checked) {
+                                setPlayerNames(Array(playerCount).fill(''));
+                              } else {
+                                setSelectedProfile(null);
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${useNames ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${useNames ? 'left-7' : 'left-0.5'}`}></div>
+                          </div>
+                        </div>
+                        <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>Usar nombres personalizados</span>
+                      </label>
+                      
+                      {useNames && (
+                        <>
+                          {/* Perfiles guardados */}
+                          <div className="mt-5 mb-5">
+                            <p className={`text-sm sm:text-base mb-3 font-semibold ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              Perfiles guardados:
+                            </p>
+                            {savedProfiles.length > 0 ? (
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {savedProfiles.map((profile) => (
+                                  <div
+                                    key={profile.id}
+                                    onClick={() => loadProfile(profile.id)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                      selectedProfile === profile.id
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white ring-2 ring-purple-400'
+                                        : isLightMode
+                                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                                        : 'bg-gray-700 hover:bg-gray-600 text-white'
+                                    }`}
+                                  >
+                                    <span className="text-sm font-semibold">{profile.name}</span>
+                                    <span className={`text-xs ${selectedProfile === profile.id ? 'text-white/80' : isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                      ({profile.playerCount} jugadores)
+                                    </span>
+                                    <button
+                                      onClick={(e) => deleteProfile(profile.id, e)}
+                                      title="Eliminar perfil"
+                                      className={`ml-1 px-2 py-0.5 rounded text-xs font-bold transition-colors hover:scale-110 ${
+                                        selectedProfile === profile.id
+                                          ? 'bg-red-500 hover:bg-red-600 text-white'
+                                          : isLightMode
+                                          ? 'bg-red-200 hover:bg-red-300 text-red-800'
+                                          : 'bg-red-700 hover:bg-red-600 text-white'
+                                      }`}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className={`text-xs sm:text-sm mb-4 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                No hay perfiles guardados. Completa los nombres y haz clic en "Guardar perfil" para crear uno.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Inputs de nombres */}
+                          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 animate-in fade-in duration-300">
+                            {Array.from({ length: playerCount }, (_, i) => {
+                              const duplicateIndices = getDuplicateNameIndices();
+                              const isDuplicate = duplicateIndices.includes(i);
+                              return (
+                                <div key={i} className="relative">
+                                  <input
+                                    type="text"
+                                    placeholder={`Jugador ${i + 1}`}
+                                    value={playerNames[i] || ''}
+                                    onChange={(e) => handleNameChange(i, e.target.value)}
+                                    className={`px-4 py-2.5 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm sm:text-base transition-all duration-200 w-full ${
+                                      isDuplicate
+                                        ? `${isLightMode ? 'bg-red-50 border-2 border-red-400 text-red-800' : 'bg-red-900/30 border-2 border-red-500 text-red-300'} focus:ring-red-500`
+                                        : `${isLightMode ? 'bg-white border-2 border-gray-300 text-gray-800 hover:border-purple-400' : 'bg-gray-700 border-2 border-gray-600 text-white hover:border-purple-500'} focus:ring-purple-500`
+                                    }`}
+                                  />
+                                  {isDuplicate && (
+                                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center pointer-events-none z-10" title="Nombre duplicado">
+                                      !
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {(() => {
+                            const duplicateIndices = getDuplicateNameIndices();
+                            return duplicateIndices.length > 0 ? (
+                              <div className={`mt-3 p-3 rounded-lg ${isLightMode ? 'bg-red-50 border-2 border-red-300' : 'bg-red-900/30 border-2 border-red-600'}`}>
+                                <p className={`text-xs sm:text-sm font-semibold ${isLightMode ? 'text-red-700' : 'text-red-300'}`}>
+                                  ⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador.
+                                </p>
+                              </div>
+                            ) : null;
+                          })()}
+
+                          {/* Botón para guardar perfil */}
+                          <div className="mt-4 flex justify-end">
+                            <button
+                              onClick={saveProfile}
+                              disabled={playerNames.length === 0 || playerNames.every(name => !name.trim())}
+                              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                                playerNames.length === 0 || playerNames.every(name => !name.trim())
+                                  ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/50 hover:shadow-xl hover:scale-105'
+                              }`}
+                            >
+                              💾 Guardar perfil
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${
+                      PISTAS_HABILITADAS 
+                        ? `${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`
+                        : `${isLightMode ? 'bg-gray-100 border-gray-300 opacity-60' : 'bg-gray-800/40 border-gray-700 opacity-50'}`
+                    }`}>
+                      <label className={`flex items-center gap-4 ${PISTAS_HABILITADAS ? 'cursor-pointer group' : 'cursor-not-allowed'}`}>
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={impostorHints}
+                            onChange={(e) => PISTAS_HABILITADAS && setImpostorHints(e.target.checked)}
+                            disabled={!PISTAS_HABILITADAS}
+                            className="sr-only"
+                          />
+                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                            !PISTAS_HABILITADAS
+                              ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                              : impostorHints 
+                                ? 'bg-gradient-to-r from-purple-600 to-pink-600' 
+                                : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                          }`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                              impostorHints ? 'left-7' : 'left-0.5'
+                            } ${!PISTAS_HABILITADAS ? 'opacity-50' : ''}`}></div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className={`text-base sm:text-lg font-bold transition-colors ${
+                            PISTAS_HABILITADAS
+                              ? `${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`
+                              : `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
+                          }`}>Dar pistas a los impostores</span>
+                          {!PISTAS_HABILITADAS && (
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                              isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              Deshabilitado
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${
+                        PISTAS_HABILITADAS
+                          ? `${isLightMode ? 'text-gray-600' : 'text-gray-400'}`
+                          : `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
+                      }`}>
+                        {PISTAS_HABILITADAS 
+                          ? (impostorHints 
+                              ? 'Los impostores recibirán una pista sobre la palabra' 
+                              : 'Los impostores no tendrán ninguna pista')
+                          : 'Las pistas están deshabilitadas temporalmente'}
+                      </p>
+                    </div>
+
+                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
+                      <label className="flex items-center gap-4 cursor-pointer group">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={impostorNeverFirst}
+                            onChange={(e) => setImpostorNeverFirst(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorNeverFirst ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorNeverFirst ? 'left-7' : 'left-0.5'}`}></div>
+                          </div>
+                        </div>
+                        <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>El impostor nunca comienza</span>
+                      </label>
+                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {impostorNeverFirst 
+                          ? 'El jugador que comienza la discusión nunca será un impostor' 
+                          : 'Cualquier jugador puede comenzar la discusión'}
+                      </p>
+                    </div>
+
+                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
+                      <label className="flex items-center gap-4 cursor-pointer group">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={impostorsKnowEachOther}
+                            onChange={(e) => setImpostorsKnowEachOther(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorsKnowEachOther ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorsKnowEachOther ? 'left-7' : 'left-0.5'}`}></div>
+                          </div>
+                        </div>
+                        <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>Los impostores se conocen entre sí</span>
+                      </label>
+                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {impostorsKnowEachOther 
+                          ? 'Los impostores sabrán quiénes son los otros impostores' 
+                          : 'Los impostores no sabrán quiénes son los otros impostores'}
+                      </p>
+                    </div>
+
+                    <div className={`flex justify-end pt-4 border-t ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
+                      <button
+                        onClick={() => {
+                          if (useNames && getDuplicateNameIndices().length > 0) {
+                            alert('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador antes de continuar.');
+                            return;
+                          }
+                          setStep(2);
+                        }}
+                        disabled={playerCount < 3 || (useNames && getDuplicateNameIndices().length > 0)}
+                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                          playerCount >= 3 && !(useNames && getDuplicateNameIndices().length > 0)
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                            : 'bg-gray-600 cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        Continuar →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Select Categories */}
+                {step === 2 && (
+                  <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
+                    <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Seleccionar Categorías</h2>
+                    
+                    <div className="mb-4 sm:mb-6 flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setCategoryMode('single');
+                          setCategories([]);
+                        }}
+                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg ${
+                          categoryMode === 'single'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                            : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                        }`}
+                      >
+                        Una categoría
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCategoryMode('multiple');
+                          setCategories([]);
+                        }}
+                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg ${
+                          categoryMode === 'multiple'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                            : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                        }`}
+                      >
+                        Múltiples
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCategoryMode('random');
+                          setCategories(['random']);
+                        }}
+                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 text-xs sm:text-sm shadow-lg ${
+                          categoryMode === 'random'
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 ring-2 ring-green-400 shadow-green-500/50 transform scale-105'
+                            : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                        }`}
+                      >
+                        <ShuffleIcon size={16} />
+                        Aleatorio
+                      </button>
+                    </div>
+
+                    {categoryMode !== 'random' && (
+                      <>
+                        <p className={`text-sm sm:text-base mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                          {categoryMode === 'single' 
+                            ? 'Elige una categoría' 
+                            : 'Elige una o más categorías (se elegirá una al azar)'}
+                        </p>
+                        
+                        {/* Botón Importar en el centro */}
+                        <div className="flex justify-center mb-4 sm:mb-6">
+                          <button
+                            onClick={importCustomCategory}
+                            className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-2 ${
+                              isLightMode 
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            } hover:shadow-xl hover:scale-105`}
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            Importar Categoría
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-6 sm:mb-8">
+                          {categoryList.map((cat) => {
+                            // Calcular el conteo de manera explícita y forzar evaluación
+                            const wordsArray = categoryWords[cat.name];
+                            const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
+                            return (
+                            <button
+                              key={cat.name}
+                              onClick={() => toggleCategory(cat.name)}
+                              className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
+                                categories.includes(cat.name)
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                                  : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                              }`}
+                            >
+                              <span className="text-xl sm:text-2xl">{cat.emoji}</span>
+                              <span className="flex-1 text-left">{cat.name}</span>
+                              <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                {wordCount}
+                              </span>
+                            </button>
+                            );
+                          })}
+                          
+                          {/* Botón Personalizado */}
+                          <button
+                            onClick={() => {
+                              setEditingCustomCategory(null);
+                              setCustomCategoryName('');
+                              setCustomCategoryWords('');
+                              setShowCustomCategoryEditor(true);
+                            }}
+                            className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
+                              isLightMode 
+                                ? 'bg-yellow-200 hover:bg-yellow-300 text-gray-800 border-2 border-yellow-400' 
+                                : 'bg-yellow-900/60 hover:bg-yellow-900/70 text-white border-2 border-yellow-600'
+                            } hover:shadow-xl hover:scale-105`}
+                          >
+                            <span className="text-xl sm:text-2xl">⭐</span>
+                            <span className="flex-1 text-left">Personalizado</span>
+                            <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                              +
+                            </span>
+                          </button>
+                          
+                          {/* Categorías personalizadas */}
+                          {customCategories.map((cat) => {
+                            const wordsArray = categoryWords[cat.name] || cat.words || [];
+                            const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
+                            return (
+                              <div key={cat.name} className="relative group">
+                                <button
+                                  onClick={() => toggleCategory(cat.name)}
+                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
+                                    categories.includes(cat.name)
+                                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                                      : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                  }`}
+                                >
+                                  <span className="text-xl sm:text-2xl">{cat.emoji || '⭐'}</span>
+                                  <span className="flex-1 text-left">{cat.name}</span>
+                                  <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                    {wordCount}
+                                  </span>
+                                </button>
+                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      editCustomCategory(cat);
+                                    }}
+                                    className={`p-1.5 rounded ${isLightMode ? 'bg-blue-500 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-xs`}
+                                    title="Editar"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportCustomCategory(cat);
+                                    }}
+                                    className={`p-1.5 rounded ${isLightMode ? 'bg-green-500 hover:bg-green-600' : 'bg-green-600 hover:bg-green-700'} text-white text-xs`}
+                                    title="Exportar"
+                                  >
+                                    💾
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteCustomCategory(cat.name);
+                                    }}
+                                    className={`p-1.5 rounded ${isLightMode ? 'bg-red-500 hover:bg-red-600' : 'bg-red-600 hover:bg-red-700'} text-white text-xs`}
+                                    title="Eliminar"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    {categoryMode === 'random' && (
+                      <div className={`p-4 sm:p-6 rounded-xl mb-6 sm:mb-8 text-center ${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/30'}`}>
+                        <ShuffleIcon size={40} className={`mx-auto mb-4 ${isLightMode ? 'text-green-700' : 'text-green-400'}`} />
+                        <p className={`text-sm sm:text-lg ${isLightMode ? 'text-green-800' : 'text-green-300'}`}>
+                          Se seleccionará una categoría completamente al azar al iniciar el juego
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Editor de Categoría Personalizada */}
+                    {showCustomCategoryEditor && (
+                      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`}>
+                        <div className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
+                          <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            {editingCustomCategory ? 'Editar Categoría Personalizada' : 'Crear Categoría Personalizada'}
+                          </h3>
+                          
+                          <div className="mb-4">
+                            <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              Nombre de la categoría:
+                            </label>
+                            <input
+                              type="text"
+                              value={customCategoryName}
+                              onChange={(e) => setCustomCategoryName(e.target.value)}
+                              placeholder="Ej: Mis Amigos"
+                              className={`w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base ${
+                                isLightMode 
+                                  ? 'bg-white border-2 border-gray-300 text-gray-800' 
+                                  : 'bg-gray-700 border-2 border-gray-600 text-white'
+                              }`}
+                            />
+                          </div>
+                          
+                          <div className="mb-4">
+                            <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              Palabras (una por línea, mínimo 6):
+                            </label>
+                            <textarea
+                              value={customCategoryWords}
+                              onChange={(e) => setCustomCategoryWords(e.target.value)}
+                              placeholder="Palabra 1&#10;Palabra 2&#10;Palabra 3&#10;..."
+                              rows={10}
+                              className={`w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base resize-y ${
+                                isLightMode 
+                                  ? 'bg-white border-2 border-gray-300 text-gray-800' 
+                                  : 'bg-gray-700 border-2 border-gray-600 text-white'
+                              }`}
+                            />
+                            <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                              {(() => {
+                                const wordCount = customCategoryWords.split('\n').filter(w => w.trim().length > 0).length;
+                                return `${wordCount} palabra${wordCount !== 1 ? 's' : ''} (mínimo 6)`;
+                              })()}
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-3 justify-end">
+                            <button
+                              onClick={() => {
+                                setShowCustomCategoryEditor(false);
+                                setEditingCustomCategory(null);
+                                setCustomCategoryName('');
+                                setCustomCategoryWords('');
+                              }}
+                              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                                isLightMode 
+                                  ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' 
+                                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                              }`}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={saveCustomCategory}
+                              disabled={customCategoryWords.split('\n').filter(w => w.trim().length > 0).length < 6 || !customCategoryName.trim()}
+                              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                                customCategoryWords.split('\n').filter(w => w.trim().length > 0).length >= 6 && customCategoryName.trim()
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                                  : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
+                              }`}
+                            >
+                              {editingCustomCategory ? 'Guardar Cambios' : 'Crear Categoría'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-700 gap-2">
+                      <button
+                        onClick={() => setStep(1)}
+                        className="px-4 sm:px-6 py-3 bg-gray-700/80 hover:bg-gray-600/90 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm"
+                      >
+                        ← Volver
+                      </button>
+                      <button
+                        onClick={() => setStep(3)}
+                        disabled={categoryMode !== 'random' && categories.length === 0}
+                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                          categoryMode === 'random' || categories.length > 0
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                            : 'bg-gray-600 cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        Continuar →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Select Impostor Count */}
+                {step === 3 && (
+                  <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
+                    <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Cantidad de Impostores</h2>
+                    <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Cuántos impostores habrá en el juego?</p>
+                    
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8">
+                      {(() => {
+                        const maxImpostors = getMaxImpostors(playerCount);
+                        const maxOptions = Math.min(maxImpostors, playerCount - 1, 10); // Máximo 10 opciones para no saturar
+                        const options = Array.from({ length: maxOptions }, (_, i) => i + 1);
+                        return options.map((count) => {
+                          const recommendedCount = getRecommendedImpostors(playerCount);
+                          const isRecommended = count === recommendedCount && count <= maxImpostors;
+                          const isDisabled = count >= playerCount || count > maxImpostors;
+                          console.log(`Count: ${count}, Recommended: ${recommendedCount}, Max: ${maxImpostors}, PlayerCount: ${playerCount}, IsRecommended: ${isRecommended}, IsDisabled: ${isDisabled}`);
+                          return (
+                            <button
+                            key={count}
+                            onClick={() => setImpostorCount(count)}
+                            disabled={isDisabled}
+                            className={`p-4 sm:p-6 rounded-xl font-bold text-xl sm:text-2xl transition-all duration-300 shadow-lg ${
+                              isDisabled
+                                ? 'bg-gray-700 opacity-30 cursor-not-allowed'
+                                : impostorCount === count
+                                ? `bg-gradient-to-r from-red-600 to-red-700 ring-4 ${isRecommended ? 'ring-yellow-400' : 'ring-red-400'} shadow-red-500/50 transform scale-105`
+                                : isRecommended
+                                ? `${isLightMode ? 'bg-yellow-200 hover:bg-yellow-300 text-gray-800 ring-4 ring-yellow-500 border-2 border-yellow-500' : 'bg-yellow-900/60 hover:bg-yellow-900/70 ring-4 ring-yellow-400 border-2 border-yellow-400'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                            }`}
+                            style={{
+                              position: 'relative',
+                              ...(isRecommended ? {
+                                border: '3px solid #fbbf24',
+                                boxShadow: '0 0 0 3px rgba(251, 191, 36, 0.5), 0 0 10px rgba(251, 191, 36, 0.3)',
+                                backgroundColor: isLightMode ? '#fef3c7' : 'rgba(234, 179, 8, 0.3)'
+                              } : {})
+                            }}
+                          >
+                            {isRecommended && (
+                              <span 
+                                className="bg-yellow-400 text-black font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-lg border-2 border-yellow-600 text-[9px] sm:text-[11px]" 
+                                title="Recomendado" 
+                                style={{
+                                  position: 'absolute',
+                                  top: '4px',
+                                  right: '4px',
+                                  zIndex: 10,
+                                  lineHeight: '1.2',
+                                  display: 'inline-block',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                ⭐ REC
+                              </span>
+                            )}
+                            <div className="flex items-center justify-center">
+                              {count}
+                            </div>
+                          </button>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-800/70'} rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border-2 ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="text-center">
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Jugadores</p>
+                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>{playerCount}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Impostores</p>
+                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>{impostorCount}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Jugadores</p>
+                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{playerCount - impostorCount}</p>
+                        </div>
+                      </div>
+                      <p className={`text-xs sm:text-sm text-center ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                        Los jugadores conocen la palabra secreta. ¡Los impostores deben fingir que la conocen!
+                      </p>
+                    </div>
+
+                    <div className={`flex justify-between items-center pt-4 border-t gap-2 ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
+                      <button
+                        onClick={() => setStep(2)}
+                        className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                      >
+                        ← Volver
+                      </button>
+                      <button
+                        onClick={startGame}
+                        disabled={impostorCount > getMaxImpostors(playerCount) || (useNames && getDuplicateNameIndices().length > 0)}
+                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                          impostorCount > getMaxImpostors(playerCount) || (useNames && getDuplicateNameIndices().length > 0)
+                            ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-green-500/50 hover:shadow-xl hover:scale-105'
+                        }`}
+                      >
+                        Iniciar Juego 🎮
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : !allRolesRevealed ? (
+              <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
+                <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Revelando Roles</h2>
+                <p className={`text-sm sm:text-base mb-6 sm:mb-8 text-center ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                  Jugador {currentPlayerIndex + 1} de {gameStarted.length}
+                </p>
+
+                {!roleRevealed ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <div className="relative inline-block mb-6 sm:mb-8">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto backdrop-blur-xl">
+                        <LockIcon size={48} className="text-white sm:w-16 sm:h-16" />
+                      </div>
+                    </div>
+                    <h3 className={`text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>{getPlayerDisplay(gameStarted[currentPlayerIndex])}</h3>
+                    <p className={`text-sm sm:text-base mb-6 sm:mb-8 px-4 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Toca el candado para revelar tu rol</p>
+                    <button
+                      onClick={revealRole}
+                      className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/50 hover:shadow-xl"
+                    >
+                      <EyeIcon className="inline mr-2" size={20} />
+                      Revelar mi rol
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 sm:py-12">
+                    <h3 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{getPlayerDisplay(gameStarted[currentPlayerIndex])}</h3>
+                    {gameStarted[currentPlayerIndex].isImpostor ? (
+                      <div className={`${isLightMode ? 'bg-red-100 border-2 border-red-300' : 'bg-red-900/50'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
+                        <p className="text-5xl sm:text-6xl mb-4">🕵️</p>
+                        <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>¡Eres el IMPOSTOR!</p>
+                        {impostorsKnowEachOther && (() => {
+                          const otherImpostors = gameStarted.filter(p => p.isImpostor && p.number !== gameStarted[currentPlayerIndex].number);
+                          return otherImpostors.length > 0 ? (
+                            <div className={`mt-4 mb-4 p-4 rounded-xl ${isLightMode ? 'bg-red-200 border-2 border-red-400' : 'bg-red-800/70 border-2 border-red-600'}`}>
+                              <p className={`text-sm sm:text-base font-bold mb-2 ${isLightMode ? 'text-red-700' : 'text-red-300'}`}>Los otros impostores son:</p>
+                              <div className="flex flex-wrap justify-center gap-2">
+                                {otherImpostors.map((impostor) => (
+                                  <span key={impostor.number} className={`px-3 py-1 rounded-lg font-bold text-sm sm:text-base ${isLightMode ? 'bg-red-300 text-red-800' : 'bg-red-700 text-white'}`}>
+                                    {getPlayerDisplay(impostor)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
+                        {PISTAS_HABILITADAS && impostorHints && gameStarted[currentPlayerIndex].hint ? (
+                          <>
+                            <p className={`text-sm sm:text-base mt-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>Tu pista:</p>
+                            <p className={`text-lg sm:text-xl font-bold mt-2 ${isLightMode ? 'text-orange-600' : 'text-orange-400'}`}>"{gameStarted[currentPlayerIndex].hint}"</p>
+                            <p className={`text-xs sm:text-sm mt-3 px-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Intenta deducir la palabra exacta escuchando a los demás</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-sm sm:text-base mt-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>No conoces la palabra secreta</p>
+                            <p className={`text-xs sm:text-sm mt-2 px-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Intenta deducir la palabra escuchando a los demás</p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
+                        <p className="text-5xl sm:text-6xl mb-4">✅</p>
+                        <p className={`text-base sm:text-xl mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>Tu palabra es:</p>
+                        <p className={`text-4xl sm:text-5xl font-bold mb-4 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{gameStarted[currentPlayerIndex].word}</p>
+                        <p className={`text-xs sm:text-sm px-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Descríbela sin decirla directamente</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={nextPlayer}
+                      className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                    >
+                      {currentPlayerIndex + 1 < gameStarted.length ? 'Siguiente Jugador →' : 'Ver quién comienza →'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : !showDiscussion ? (
+              <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
+                <div className="text-center py-8 sm:py-12">
+                  <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Todos conocen su rol!</h2>
+                  <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-6 sm:p-8 rounded-xl mb-6 sm:mb-8">
+                    <p className="text-base sm:text-xl text-gray-100 mb-4">El jugador que comienza es:</p>
+                    <p className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white break-words">
+                      {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
+                    </p>
+                  </div>
+                  <button
+                    onClick={startDiscussion}
+                    className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-green-500/50 hover:shadow-xl hover:scale-105"
+                  >
+                    Comenzar Discusión 💬
+                  </button>
+                </div>
+              </div>
+            ) : !showFinalReveal ? (
+              <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
+                {!votingPlayer ? (
+                  <>
+                    <div className="text-center mb-6 sm:mb-8">
+                      <h2 className={`text-3xl sm:text-4xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Hora de Discutir!</h2>
+                      <p className={`text-lg sm:text-xl ${isLightMode ? 'text-purple-600' : 'text-purple-300'}`}>Voten para eliminar a un jugador</p>
+                    </div>
+
+                    <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+                      <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-4 sm:p-6 rounded-xl`}>
+                        <p className={`text-sm sm:text-base mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Comienza la discusión</p>
+                        <p className={`text-xl sm:text-2xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                          👉 {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
+                        </p>
+                      </div>
+
+                      <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl`}>
+                        <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Jugadores (Toca para votar)</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                          {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => (
+                            <button
+                              key={player.number}
+                              onClick={() => !player.isEliminated && votePlayer(player)}
+                              disabled={player.isEliminated}
+                              className={`p-3 sm:p-4 rounded-xl text-center font-bold text-sm transition-all duration-300 relative shadow-lg ${
+                                player.isEliminated
+                                  ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50 cursor-not-allowed`
+                                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer ring-2 ring-purple-400 hover:ring-purple-300 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                              }`}
+                            >
+                              <div className="break-words">
+                                {useNames ? player.name : `Jugador ${player.number}`}
+                              </div>
+                              {!player.isEliminated && (
+                                <div className="text-xs mt-1 opacity-75">👆 Votar</div>
+                              )}
+                              {player.isEliminated && (
+                                <div className="text-xs mt-1">💀 Eliminado</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowFinalReveal(true)}
+                      className={`w-full px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                    >
+                      Terminar Juego y Ver Resultados
+                    </button>
+                  </>
+                ) : !revealingVote ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Votación</h2>
+                    <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
+                      <p className={`text-lg sm:text-xl mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Eliminar a este jugador?</p>
+                      <p className={`text-4xl sm:text-5xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                        {getPlayerDisplay(votingPlayer)}
+                      </p>
+                    </div>
+                    <div className="flex gap-3 sm:gap-4 justify-center">
+                      <button
+                        onClick={() => setVotingPlayer(null)}
+                        className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={confirmVote}
+                        className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105"
+                      >
+                        Confirmar Eliminación
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 sm:py-12">
+                    <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
+                    <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
+                      votingPlayer.isImpostor 
+                        ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
+                        : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
+                    }`}>
+                      <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
+                      <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        {getPlayerDisplay(votingPlayer)}
+                      </p>
+                      {votingPlayer.isImpostor ? (
+                        <>
+                          <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
+                          {(() => {
+                            const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                            const newImpostorsRemaining = impostorsRemaining - 1;
+                            
+                            // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
+                            if (allAreImpostors && newImpostorsRemaining <= 2) {
+                              return (
+                                <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
+                                  <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
+                                  <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
+                                    ¡TODOS SON IMPOSTORES!
+                                  </p>
+                                </div>
+                              );
+                            }
+                            
+                            if (newImpostorsRemaining === 0) {
+                              return (
+                                <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                  🎊 ¡GANARON LOS JUGADORES! 🎊
+                                </p>
+                              );
+                            }
+                            
+                            return null;
+                          })()}
+                        </>
+                      ) : (
+                        <>
+                          <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
+                          {(() => {
+                            // Calcular jugadores honestos restantes después de eliminar este jugador
+                            const honestPlayersRemaining = gameStarted.filter(p => 
+                              !p.isEliminated && 
+                              p.number !== votingPlayer.number && 
+                              !p.isImpostor
+                            ).length;
+                            // Los impostores ganan solo cuando se eliminan TODOS los inocentes
+                            if (honestPlayersRemaining === 0) {
+                              return (
+                                <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                                  🎊 ¡GANARON {impostorCount === 1 ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}! 🎊
+                                </p>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </>
+                      )}
+                    </div>
+                    <button
+                      onClick={continueAfterVote}
+                      className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                    >
+                      {(() => {
+                        const newImpostorsRemaining = impostorsRemaining - (votingPlayer.isImpostor ? 1 : 0);
+                        // Calcular jugadores honestos restantes después de eliminar este jugador
+                        const honestPlayersRemaining = gameStarted.filter(p => 
+                          !p.isEliminated && 
+                          p.number !== votingPlayer.number && 
+                          !p.isImpostor
+                        ).length;
+                        // Verificar si todos son impostores
+                        const remainingPlayers = gameStarted.filter(p => 
+                          !p.isEliminated && 
+                          p.number !== votingPlayer.number
+                        );
+                        const allAreImpostors = remainingPlayers.length > 0 && remainingPlayers.every(p => p.isImpostor);
+                        if (newImpostorsRemaining === 0 || honestPlayersRemaining === 0 || allAreImpostors) {
+                          return 'Ver Resultados Finales';
+                        }
+                        return 'Continuar Juego';
+                      })()}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
+                <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Resultados Finales!</h2>
+
+                {(() => {
+                  const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                  return allAreImpostors ? (
+                    <div className={`${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 text-center shadow-2xl animate-pulse`}>
+                      <p className="text-6xl sm:text-7xl mb-4">🕵️🕵️🕵️</p>
+                      <p className={`text-4xl sm:text-5xl md:text-6xl font-bold text-white drop-shadow-lg`}>
+                        ¡TODOS SON IMPOSTORES!
+                      </p>
+                    </div>
+                  ) : null;
+                })()}
+
+                {winners === 'players' && (
+                  <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-6 sm:p-8 rounded-xl mb-4 sm:mb-6 text-center`}>
+                    <p className={`text-3xl sm:text-4xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                      🎊 ¡GANARON LOS JUGADORES! 🎊
+                    </p>
+                    <p className={`text-lg sm:text-xl ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                      Todos los impostores fueron eliminados
+                    </p>
+                  </div>
+                )}
+
+                {winners === 'impostors' && (
+                  <div className={`${isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-500'} p-6 sm:p-8 rounded-xl mb-4 sm:mb-6 text-center`}>
+                    <p className={`text-3xl sm:text-4xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                      🎊 ¡GANARON {impostorCount === 1 ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}! 🎊
+                    </p>
+                    <p className={`text-lg sm:text-xl ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                      {impostorCount === 1 
+                        ? 'El impostor superó en número a los jugadores honestos'
+                        : 'Los impostores superaron en número a los jugadores honestos'}
+                    </p>
+                  </div>
+                )}
+
+                {(() => {
+                  const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                  return !allAreImpostors ? (
+                    <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50'} p-6 sm:p-8 rounded-xl mb-4 sm:mb-6`}>
+                      <p className={`text-base sm:text-xl mb-3 text-center ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>La palabra secreta era:</p>
+                      <p className={`text-4xl sm:text-5xl font-bold text-center break-words ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{selectedWord}</p>
+                      <p className={`text-sm sm:text-lg mt-3 text-center ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Categoría: {selectedCategory}</p>
+                    </div>
+                  ) : null;
+                })()}
+
+                <div className={`${isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                  <p className={`text-lg sm:text-xl font-bold mb-4 text-center ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>🕵️ IMPOSTORES 🕵️</p>
+                  <div className="flex justify-center gap-2 sm:gap-3 flex-wrap">
+                    {gameStarted.filter(p => p.isImpostor).map((player) => (
+                      <div key={player.number} className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-base sm:text-xl break-words ${isLightMode ? 'bg-red-200 text-red-800' : 'bg-red-700 text-white'}`}>
+                        {getPlayerDisplay(player)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {(() => {
+                  const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                  const honestPlayers = gameStarted.filter(p => !p.isImpostor);
+                  
+                  return allAreImpostors ? (
+                    <div className={`${isLightMode ? 'bg-gray-100 border-2 border-gray-300' : 'bg-gray-800/50 border-2 border-gray-700'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8`}>
+                      <p className={`text-lg sm:text-xl font-bold mb-2 text-center ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>✅ JUGADORES HONESTOS ✅</p>
+                      <p className={`text-base sm:text-lg text-center ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                        No hay jugadores honestos en esta partida
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-400' : 'bg-blue-900/50'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8`}>
+                      <p className={`text-lg sm:text-xl font-bold mb-4 text-center ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>✅ JUGADORES HONESTOS ✅</p>
+                      <div className="flex justify-center gap-2 flex-wrap">
+                        {honestPlayers.map((player) => (
+                          <div key={player.number} className={`px-3 sm:px-4 py-2 rounded-lg font-bold text-sm sm:text-base break-words ${isLightMode ? 'bg-blue-200 text-blue-800' : 'bg-blue-700 text-white'}`}>
+                            {useNames ? player.name : player.number}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <button
+                  onClick={playAgain}
+                  className="w-full px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                >
+                  🎮 Jugar de Nuevo
+                </button>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
+              <p>Made by LosTomobri • <a href="https://github.com/juanlucaspajin" className="hover:text-purple-400 transition-colors">GitHub</a></p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:before-render-root',message:'Antes de renderizar en root',data:{hasReact:typeof React !== 'undefined',hasReactDOM:typeof ReactDOM !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+
+    // Verificar que React y ReactDOM estén cargados
+    function checkDependencies() {
+      if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+        const rootEl = document.getElementById('root');
+        if (rootEl) {
+          rootEl.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+              <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error de Carga</h1>
+              <p style="margin-bottom: 10px;">No se pudieron cargar las dependencias necesarias.</p>
+              <p style="margin-bottom: 20px; font-size: 14px; color: #999;">Si usas Brave, verifica que los scripts no estén bloqueados.</p>
+              <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+                Recargar Página
+              </button>
+            </div>
+          `;
+        }
+        return false;
+      }
+      return true;
+    }
+
+    // Esperar a que los scripts se carguen
+    function initApp() {
+      if (!checkDependencies()) {
+        setTimeout(initApp, 100);
+        return;
+      }
+
+      try {
+        const rootElement = document.getElementById('root');
+        if (!rootElement) {
+          throw new Error('Root element not found');
+        }
+
+        // Intentar usar createRoot (React 18+)
+        if (typeof ReactDOM.createRoot !== 'undefined') {
+          const root = ReactDOM.createRoot(rootElement);
+          root.render(<ImpostorGame />);
+        } 
+        // Fallback a render (React 17 y anteriores)
+        else if (typeof ReactDOM.render !== 'undefined') {
+          ReactDOM.render(<ImpostorGame />, rootElement);
+        } 
+        else {
+          throw new Error('ReactDOM method not available');
+        }
+      } catch (error) {
+        console.error('Error rendering app:', error);
+        const rootEl = document.getElementById('root');
+        if (rootEl) {
+          rootEl.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+              <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error</h1>
+              <p style="margin-bottom: 20px;">${error.message}</p>
+              <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+                Recargar Página
+              </button>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Intentar inicializar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      // Si ya está cargado, esperar un poco para que los scripts externos se carguen
+      setTimeout(initApp, 100);
+    }
+
+    // También intentar después de que la ventana cargue completamente
+    window.addEventListener('load', () => {
+      setTimeout(initApp, 200);
+    });
+
+    // Service Worker con mejor manejo de errores
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Desregistrar service workers antiguos para forzar actualización
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            if (registration.active && registration.active.scriptURL.includes('sw.js')) {
+              registration.update();
+            }
+          });
+        });
+        
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+            // Forzar actualización del service worker
+            registration.update();
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
