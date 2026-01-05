@@ -327,23 +327,124 @@
         fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:useEffect-tailwind',message:'Verificando Tailwind CSS',data:{hasTailwind:typeof tailwind !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
 
+        // Verificar si ya está instalada
+        const checkInstalled = () => {
+          if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            setIsInstalled(true);
+            return true;
+          }
+          return false;
+        };
+
+        if (!checkInstalled()) {
+          const isChrome = /Chrome/.test(navigator.userAgent);
+          const isEdge = /Edg/.test(navigator.userAgent);
+          const isFirefox = /Firefox/.test(navigator.userAgent);
+          const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          const isAndroid = /Android/.test(navigator.userAgent);
+          
+          // Mostrar botón en navegadores que soportan PWA
+          if (isMobile || ((isChrome || isEdge || isFirefox || isSafari) && 'serviceWorker' in navigator)) {
+            setShowInstallButton(true);
+          }
+        }
+
+        let installPrompt = null;
+        
         const handler = (e) => {
           e.preventDefault();
+          installPrompt = e;
           setDeferredPrompt(e);
           setShowInstallButton(true);
         };
+        
         window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+        
+        // Esperar más tiempo para que se dispare el evento (a veces tarda en móviles)
+        const timeoutId = setTimeout(() => {
+          if (!installPrompt && !checkInstalled()) {
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isChrome = /Chrome/.test(navigator.userAgent);
+            // En Android Chrome, el evento puede tardar, pero aún podemos mostrar el botón
+            if (isAndroid && isChrome && 'serviceWorker' in navigator) {
+              setShowInstallButton(true);
+            }
+          }
+        }, 3000);
+        
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handler);
+          clearTimeout(timeoutId);
+        };
       }, []);
 
       const handleInstallClick = async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          setShowInstallButton(false);
+        if (deferredPrompt) {
+          try {
+            // Usar el prompt nativo directamente (funciona en Android Chrome y otros navegadores)
+            await deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              setShowInstallButton(false);
+              setIsInstalled(true);
+              setDeferredPrompt(null);
+              // No mostrar alert, la instalación es silenciosa
+              return;
+            }
+            setDeferredPrompt(null);
+          } catch (error) {
+            console.error('Error al mostrar prompt de instalación:', error);
+            setDeferredPrompt(null);
+          }
         }
-        setDeferredPrompt(null);
+        
+        // Si llegamos aquí, no hay prompt disponible o fue cancelado
+        // Intentar métodos alternativos según el dispositivo
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        
+        if (isIOS) {
+          // En iOS, intentar abrir el menú de compartir (limitado por políticas del navegador)
+          // Mostrar instrucciones visuales en lugar de alert
+          const message = 'Para instalar:\n\n1. Toca el botón de compartir (⬆️) abajo\n2. Selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir"';
+          if (window.navigator.share) {
+            try {
+              await window.navigator.share({
+                title: 'ARGENTORES',
+                text: 'Instala ARGENTORES',
+                url: window.location.href
+              });
+            } catch (e) {
+              alert(message);
+            }
+          } else {
+            alert(message);
+          }
+        } else if (isAndroid) {
+          // En Android, el navegador debería mostrar el banner automáticamente
+          // Si no aparece, mostrar instrucciones mínimas
+          alert('Busca el icono de instalación (➕) en la barra de direcciones o en el menú (⋮) → "Instalar aplicación"');
+        } else {
+          // PC - mostrar instrucciones mínimas
+          alert('Busca el icono de instalación (➕) en la barra de direcciones');
+        }
+      };
+
+      const showInstallInstructions = () => {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isIOS) {
+          alert('Para instalar en iOS:\n\n1. Toca el botón de compartir (cuadrado con flecha) en la parte inferior\n2. Desplázate y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
+        } else if (isAndroid) {
+          alert('Para instalar en Android:\n\n1. Toca el menú (⋮) en la esquina superior derecha del navegador\n2. Busca y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\nTambién puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
+        } else if (isMobile) {
+          alert('Para instalar:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones de tu navegador\n2. O ve al menú del navegador y busca "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
+        } else {
+          alert('Para instalar en PC:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones (esquina derecha)\n2. O ve al menú del navegador (⋮) y busca "Instalar ARGENTORES"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como aplicación de escritorio.');
+        }
       };
 
       const [step, setStep] = useState(1);
@@ -381,6 +482,7 @@
       const [isLightMode, setIsLightMode] = useState(false);
       const [deferredPrompt, setDeferredPrompt] = useState(null);
       const [showInstallButton, setShowInstallButton] = useState(false);
+      const [isInstalled, setIsInstalled] = useState(false);
       const [savedProfiles, setSavedProfiles] = useState([]);
       const [selectedProfile, setSelectedProfile] = useState(null);
 
@@ -2637,7 +2739,7 @@
                         <GamepadIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={24} />
                         Configuraciones del juego
                       </h2>
-                      {showInstallButton && (
+                      {!isInstalled && (
                         <button
                           onClick={handleInstallClick}
                           className={`px-3 sm:px-4 py-2 rounded-xl transition-all duration-300 shadow-lg text-xs sm:text-sm font-semibold flex items-center gap-2 ${
@@ -2645,6 +2747,7 @@
                               ? 'bg-purple-600 hover:bg-purple-700 text-white' 
                               : 'bg-purple-600 hover:bg-purple-700 text-white'
                           } hover:shadow-xl hover:scale-105`}
+                          title="Instalar aplicación"
                         >
                           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
