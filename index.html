@@ -354,13 +354,18 @@
         let installPromptTimeout = null;
         
         const handler = (e) => {
+          console.log('🎉 beforeinstallprompt event fired!', e);
           e.preventDefault();
           installPrompt = e;
           setDeferredPrompt(e);
           setShowInstallButton(true);
-          console.log('beforeinstallprompt event fired!');
+          console.log('✅ Install prompt captured and stored');
         };
         
+        // Agregar listener con capture para asegurar que se capture
+        window.addEventListener('beforeinstallprompt', handler, { capture: true });
+        
+        // También agregar sin capture por si acaso
         window.addEventListener('beforeinstallprompt', handler);
         
         // Verificar requisitos para PWA instalable
@@ -458,35 +463,79 @@
         // Si no hay prompt disponible, verificar requisitos y mostrar instrucciones
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
-        const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         
         // Verificar requisitos para PWA instalable
-        const hasServiceWorker = 'serviceWorker' in navigator;
-        const hasManifest = document.querySelector('link[rel="manifest"]');
+        const checkPWARequirements = async () => {
+          const checks = {
+            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+            manifest: !!document.querySelector('link[rel="manifest"]'),
+            serviceWorker: 'serviceWorker' in navigator,
+            icons: false,
+            swActive: false
+          };
+          
+          // Verificar iconos y service worker activo
+          try {
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+              const manifestResponse = await fetch(manifestLink.href);
+              const manifest = await manifestResponse.json();
+              checks.icons = manifest.icons && manifest.icons.length > 0;
+            }
+            
+            // Verificar si el service worker está activo
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              checks.swActive = registrations.some(reg => reg.active !== null);
+            }
+          } catch (e) {
+            console.error('Error checking requirements:', e);
+          }
+          
+          return checks;
+        };
         
         if (isAndroid) {
-          let message = 'Para instalar la aplicación:\n\n';
+          // Diagnóstico completo
+          const diagnostic = await checkPWARequirements();
+          let message = '🔍 DIAGNÓSTICO DE INSTALACIÓN:\n\n';
           
-          if (!isHTTPS) {
-            message += '⚠️ IMPORTANTE: La página debe estar en HTTPS para poder instalar.\n\n';
+          message += `HTTPS: ${diagnostic.https ? '✅' : '❌'}\n`;
+          message += `Manifest: ${diagnostic.manifest ? '✅' : '❌'}\n`;
+          message += `Service Worker: ${diagnostic.serviceWorker ? '✅' : '❌'}\n`;
+          message += `SW Activo: ${diagnostic.swActive ? '✅' : '❌'}\n`;
+          message += `Iconos: ${diagnostic.icons ? '✅' : '❌'}\n`;
+          message += `DeferredPrompt: ${deferredPrompt ? '✅' : '❌'}\n\n`;
+          
+          if (!diagnostic.https) {
+            message += '⚠️ CRÍTICO: La página debe estar en HTTPS\n';
+          }
+          if (!diagnostic.manifest) {
+            message += '⚠️ CRÍTICO: Manifest no encontrado\n';
+          }
+          if (!diagnostic.serviceWorker) {
+            message += '⚠️ CRÍTICO: Service Worker no disponible\n';
+          }
+          if (!diagnostic.swActive) {
+            message += '⚠️ CRÍTICO: Service Worker no está activo\n';
+          }
+          if (!diagnostic.icons) {
+            message += '⚠️ CRÍTICO: Iconos no encontrados\n';
+          }
+          if (!deferredPrompt) {
+            message += '⚠️ El evento beforeinstallprompt no se ha disparado\n';
+            message += 'Posibles causas:\n';
+            message += '- Chrome ya mostró el banner antes\n';
+            message += '- La app no cumple todos los requisitos\n';
+            message += '- Necesitas interactuar más con la página\n';
+            message += '- Los iconos no son accesibles\n';
           }
           
-          if (!hasServiceWorker) {
-            message += '⚠️ Service Worker no disponible.\n\n';
-          }
-          
-          if (!hasManifest) {
-            message += '⚠️ Manifest no encontrado.\n\n';
-          }
-          
-          message += '1. Toca el menú (⋮) en la esquina superior derecha del navegador\n';
-          message += '2. Busca y selecciona "Instalar aplicación"\n';
-          message += '3. Confirma la instalación\n\n';
-          message += 'También puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\n';
-          message += 'Si no aparece "Instalar aplicación", verifica:\n';
-          message += '- Que la página esté en HTTPS\n';
-          message += '- Que hayas interactuado con la página\n';
-          message += '- Recarga la página varias veces';
+          message += '\n📱 INSTRUCCIONES:\n';
+          message += '1. Toca el menú (⋮) en la esquina superior derecha\n';
+          message += '2. Busca "Instalar aplicación"\n';
+          message += '3. O busca el icono (➕) en la barra de direcciones\n\n';
+          message += '💡 Abre la consola (F12) para ver más detalles';
           
           alert(message);
         } else if (isIOS) {
@@ -3920,21 +3969,33 @@
       setTimeout(initApp, 200);
     });
 
-    // Service Worker con mejor manejo de errores
+    // Service Worker - Registrar INMEDIATAMENTE (no esperar a 'load')
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        // Registrar service worker inmediatamente
+      // Registrar tan pronto como sea posible
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', registerSW);
+      } else {
+        registerSW();
+      }
+      
+      function registerSW() {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
           .then((registration) => {
-            console.log('SW registered successfully:', registration.scope);
+            console.log('✅ SW registered successfully:', registration.scope);
             
-            // Verificar que el service worker esté activo
+            // Verificar estado del service worker
             if (registration.installing) {
-              console.log('Service Worker installing');
+              console.log('⏳ Service Worker installing...');
+              registration.installing.addEventListener('statechange', function() {
+                console.log('🔄 SW state changed to:', this.state);
+                if (this.state === 'activated') {
+                  console.log('✅ Service Worker activated!');
+                }
+              });
             } else if (registration.waiting) {
-              console.log('Service Worker waiting');
+              console.log('⏳ Service Worker waiting...');
             } else if (registration.active) {
-              console.log('Service Worker active');
+              console.log('✅ Service Worker active!');
             }
             
             // Forzar actualización
@@ -3942,25 +4003,34 @@
             
             // Escuchar actualizaciones
             registration.addEventListener('updatefound', () => {
-              console.log('Service Worker update found');
+              console.log('🔄 Service Worker update found');
             });
           })
           .catch((registrationError) => {
-            console.error('SW registration failed: ', registrationError);
+            console.error('❌ SW registration failed:', registrationError);
           });
-        
-        // Verificar registros existentes
+      }
+      
+      // También verificar en load
+      window.addEventListener('load', () => {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
-          console.log('Existing SW registrations:', registrations.length);
-          registrations.forEach((registration) => {
-            if (registration.active) {
-              console.log('Active SW:', registration.active.scriptURL);
-            }
-          });
+          console.log('📋 Existing SW registrations:', registrations.length);
+          if (registrations.length === 0) {
+            console.warn('⚠️ No service workers found, trying to register...');
+            registerSW();
+          } else {
+            registrations.forEach((registration) => {
+              if (registration.active) {
+                console.log('✅ Active SW:', registration.active.scriptURL);
+              } else {
+                console.log('⏳ SW not active yet');
+              }
+            });
+          }
         });
       });
     } else {
-      console.warn('Service Workers not supported');
+      console.warn('⚠️ Service Workers not supported in this browser');
     }
   </script>
 </body>
