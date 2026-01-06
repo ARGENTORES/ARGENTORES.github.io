@@ -1,8 +1,8 @@
-const CACHE_NAME = 'argentores-v6';
+const CACHE_NAME = 'argentores-v7';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -45,7 +45,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   // Para index.html, siempre buscar primero en la red para obtener la versión más reciente
-  if (event.request.url.includes('index.html') || event.request.url === self.location.origin + '/') {
+  const url = new URL(event.request.url);
+  if (url.pathname.includes('index.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
