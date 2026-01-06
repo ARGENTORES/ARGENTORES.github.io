@@ -10,7 +10,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ARGENTORES">
-  <meta name="fullscreen" content="yes">
   <meta name="browsermode" content="application">
   <title>ARGENTORES - El juego del impostor</title>
   <link rel="manifest" href="manifest.json">
@@ -49,11 +48,9 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       overflow-x: hidden;
-      height: 100%;
-      height: -webkit-fill-available;
-      position: fixed;
+      min-height: 100%;
+      min-height: -webkit-fill-available;
       width: 100%;
-      overscroll-behavior: none;
     }
     
     h1, h2, h3, h4, h5, h6,
@@ -579,7 +576,8 @@
       const [showCustomCategoryEditor, setShowCustomCategoryEditor] = useState(false);
       const [editingCustomCategory, setEditingCustomCategory] = useState(null);
       const [customCategoryName, setCustomCategoryName] = useState('');
-      const [customCategoryWords, setCustomCategoryWords] = useState('');
+      const [customCategoryWords, setCustomCategoryWords] = useState([]);
+      const [newWord, setNewWord] = useState('');
       const [impostorCount, setImpostorCount] = useState(1);
       const [useNames, setUseNames] = useState(false);
       const [playerNames, setPlayerNames] = useState([]);
@@ -604,6 +602,22 @@
       const [impostorsRemaining, setImpostorsRemaining] = useState(0);
       const [winners, setWinners] = useState(null);
       const [isLightMode, setIsLightMode] = useState(false);
+      const [isAllImpostorsMode, setIsAllImpostorsMode] = useState(false);
+      const [originalImpostorCount, setOriginalImpostorCount] = useState(0);
+      // Estados para modales modernos
+      const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+      const [categoryToDelete, setCategoryToDelete] = useState(null);
+      const [showImportSuccessModal, setShowImportSuccessModal] = useState(false);
+      const [importedCategoryName, setImportedCategoryName] = useState('');
+      const [showImportErrorModal, setShowImportErrorModal] = useState(false);
+      const [importErrorMsg, setImportErrorMsg] = useState('');
+      const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+      const [profileToDelete, setProfileToDelete] = useState(null);
+      const [showSaveProfileModal, setShowSaveProfileModal] = useState(false);
+      const [profileNameInput, setProfileNameInput] = useState('');
+      const [pendingImport, setPendingImport] = useState(null);
+      const [showReplaceCategoryModal, setShowReplaceCategoryModal] = useState(false);
+      const [showHowToPlayModal, setShowHowToPlayModal] = useState(false);
       const [deferredPrompt, setDeferredPrompt] = useState(null);
       const [showInstallButton, setShowInstallButton] = useState(false);
       const [isInstalled, setIsInstalled] = useState(false);
@@ -2225,23 +2239,35 @@
       }, [customCategories, categoryMode]);
 
       // Funciones para categorías personalizadas
+      const addWord = () => {
+        const trimmedWord = newWord.trim();
+        if (trimmedWord && !customCategoryWords.includes(trimmedWord)) {
+          setCustomCategoryWords([...customCategoryWords, trimmedWord]);
+          setNewWord('');
+        }
+      };
+
+      const removeWord = (wordToRemove) => {
+        setCustomCategoryWords(customCategoryWords.filter(w => w !== wordToRemove));
+      };
+
       const saveCustomCategory = () => {
-        const wordsArray = customCategoryWords.split('\n').map(w => w.trim()).filter(w => w.length > 0);
-        
-        if (wordsArray.length < 6) {
-          alert('La categoría debe tener al menos 6 palabras.');
+        if (customCategoryWords.length < 6) {
+          setImportErrorMsg('La categoría debe tener al menos 6 palabras.');
+          setShowImportErrorModal(true);
           return;
         }
         
         if (!customCategoryName.trim()) {
-          alert('Por favor, ingresa un nombre para la categoría.');
+          setImportErrorMsg('Por favor, ingresa un nombre para la categoría.');
+          setShowImportErrorModal(true);
           return;
         }
         
         const categoryData = {
           name: customCategoryName.trim(),
           emoji: '⭐',
-          words: wordsArray
+          words: customCategoryWords
         };
         
         let updatedCategories;
@@ -2269,26 +2295,50 @@
         
         // Limpiar formulario
         setCustomCategoryName('');
-        setCustomCategoryWords('');
+        setCustomCategoryWords([]);
+        setNewWord('');
         setShowCustomCategoryEditor(false);
         setEditingCustomCategory(null);
       };
 
       const deleteCustomCategory = (categoryName) => {
-        if (confirm(`¿Estás seguro de que quieres eliminar la categoría "${categoryName}"?`)) {
-          const updated = customCategories.filter(cat => cat.name !== categoryName);
+        setCategoryToDelete(categoryName);
+        setShowDeleteCategoryModal(true);
+      };
+
+      const confirmDeleteCategory = () => {
+        if (categoryToDelete) {
+          const updated = customCategories.filter(cat => cat.name !== categoryToDelete);
           setCustomCategories(updated);
           localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
-          delete categoryWords[categoryName];
+          delete categoryWords[categoryToDelete];
           // Si estaba seleccionada, quitarla
-          setCategories(categories.filter(c => c !== categoryName));
+          setCategories(categories.filter(c => c !== categoryToDelete));
         }
+        setShowDeleteCategoryModal(false);
+        setCategoryToDelete(null);
+      };
+
+      const confirmReplaceCategory = () => {
+        if (pendingImport) {
+          const updated = customCategories.map(cat => 
+            cat.name === pendingImport.name ? pendingImport : cat
+          );
+          setCustomCategories(updated);
+          localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
+          categoryWords[pendingImport.name] = pendingImport.words;
+          setImportedCategoryName(pendingImport.name);
+          setShowImportSuccessModal(true);
+        }
+        setShowReplaceCategoryModal(false);
+        setPendingImport(null);
       };
 
       const editCustomCategory = (category) => {
         setEditingCustomCategory(category);
         setCustomCategoryName(category.name);
-        setCustomCategoryWords(category.words.join('\n'));
+        setCustomCategoryWords([...category.words]);
+        setNewWord('');
         setShowCustomCategoryEditor(true);
       };
 
@@ -2324,38 +2374,35 @@
               const imported = JSON.parse(event.target.result);
               
               if (!imported.name || !imported.words || !Array.isArray(imported.words)) {
-                alert('El archivo no tiene el formato correcto. Debe tener "name" y "words" (array).');
+                setImportErrorMsg('El archivo no tiene el formato correcto. Debe tener "name" y "words" (array).');
+                setShowImportErrorModal(true);
                 return;
               }
               
               if (imported.words.length < 6) {
-                alert('La categoría importada debe tener al menos 6 palabras.');
+                setImportErrorMsg('La categoría importada debe tener al menos 6 palabras.');
+                setShowImportErrorModal(true);
                 return;
               }
               
               // Verificar si ya existe
               const exists = customCategories.some(cat => cat.name === imported.name);
               if (exists) {
-                if (!confirm(`La categoría "${imported.name}" ya existe. ¿Quieres reemplazarla?`)) {
-                  return;
-                }
-                const updated = customCategories.map(cat => 
-                  cat.name === imported.name ? imported : cat
-                );
-                setCustomCategories(updated);
-                localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
-              } else {
-                const updated = [...customCategories, imported];
-                setCustomCategories(updated);
-                localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
+                setPendingImport(imported);
+                setShowReplaceCategoryModal(true);
+                return;
               }
               
-              // Actualizar categoryWords
+              // Importar directamente si no existe
+              const updated = [...customCategories, imported];
+              setCustomCategories(updated);
+              localStorage.setItem('impostorGameCustomCategories', JSON.stringify(updated));
               categoryWords[imported.name] = imported.words;
-              
-              alert(`Categoría "${imported.name}" importada correctamente.`);
+              setImportedCategoryName(imported.name);
+              setShowImportSuccessModal(true);
             } catch (error) {
-              alert('Error al importar la categoría. Verifica que el archivo sea válido.');
+              setImportErrorMsg('Error al importar la categoría. Verifica que el archivo sea válido.');
+              setShowImportErrorModal(true);
               console.error('Import error:', error);
             }
           };
@@ -2529,18 +2576,23 @@
 
       const saveProfile = () => {
         if (playerNames.length === 0 || playerNames.every(name => !name.trim())) {
-          alert('Por favor, ingresa al menos un nombre antes de guardar');
+          setImportErrorMsg('Por favor, ingresa al menos un nombre antes de guardar');
+          setShowImportErrorModal(true);
           return;
         }
         
-        const profileName = prompt('Ingresa un nombre para este perfil:');
-        if (!profileName || !profileName.trim()) {
+        setProfileNameInput('');
+        setShowSaveProfileModal(true);
+      };
+
+      const confirmSaveProfile = () => {
+        if (!profileNameInput || !profileNameInput.trim()) {
           return;
         }
 
         const profile = {
           id: Date.now().toString(),
-          name: profileName.trim(),
+          name: profileNameInput.trim(),
           playerCount: playerCount,
           names: [...playerNames],
           createdAt: new Date().toISOString()
@@ -2550,6 +2602,10 @@
         setSavedProfiles(updated);
         localStorage.setItem('impostorGameProfiles', JSON.stringify(updated));
         setSelectedProfile(profile.id);
+        setShowSaveProfileModal(false);
+        setProfileNameInput('');
+        setImportedCategoryName(`Perfil "${profile.name}" guardado correctamente`);
+        setShowImportSuccessModal(true);
       };
 
       const loadProfile = (profileId) => {
@@ -2566,14 +2622,21 @@
 
       const deleteProfile = (profileId, e) => {
         e.stopPropagation();
-        if (confirm('¿Estás seguro de que quieres eliminar este perfil?')) {
-          const updated = savedProfiles.filter(p => p.id !== profileId);
+        setProfileToDelete(profileId);
+        setShowDeleteProfileModal(true);
+      };
+
+      const confirmDeleteProfile = () => {
+        if (profileToDelete) {
+          const updated = savedProfiles.filter(p => p.id !== profileToDelete);
           setSavedProfiles(updated);
           localStorage.setItem('impostorGameProfiles', JSON.stringify(updated));
-          if (selectedProfile === profileId) {
+          if (selectedProfile === profileToDelete) {
             setSelectedProfile(null);
           }
         }
+        setShowDeleteProfileModal(false);
+        setProfileToDelete(null);
       };
 
       const startGame = () => {
@@ -2581,7 +2644,8 @@
         if (useNames) {
           const duplicateIndices = getDuplicateNameIndices();
           if (duplicateIndices.length > 0) {
-            alert('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador.');
+            setImportErrorMsg('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador.');
+            setShowImportErrorModal(true);
             return;
           }
         }
@@ -2647,6 +2711,9 @@
         setVotingPlayer(null);
         setRevealingVote(false);
         setImpostorsRemaining(finalImpostorCount);
+        setIsAllImpostorsMode(allImpostorsTriggered);
+        // Guardar el número de impostores configurado originalmente para el modo confusión
+        setOriginalImpostorCount(allImpostorsTriggered ? playerCount : impostorCount);
         setStep(4);
       };
 
@@ -2810,6 +2877,8 @@
         setImpostorsRemaining(0);
         setWinners(null);
         setSelectedProfile(null);
+        setIsAllImpostorsMode(false);
+        setOriginalImpostorCount(0);
       };
 
       const getPlayerDisplay = (player) => {
@@ -3163,11 +3232,22 @@
                       </p>
                     </div>
 
-                    <div className={`flex justify-end pt-4 border-t ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
+                    <div className={`flex justify-between items-center pt-4 border-t ${isLightMode ? 'border-gray-300' : 'border-gray-700'} gap-3`}>
+                      <button
+                        onClick={() => setShowHowToPlayModal(true)}
+                        className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 ${
+                          isLightMode 
+                            ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        ¿Cómo jugar?
+                      </button>
                       <button
                         onClick={() => {
                           if (useNames && getDuplicateNameIndices().length > 0) {
-                            alert('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador antes de continuar.');
+                            setImportErrorMsg('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador antes de continuar.');
+                            setShowImportErrorModal(true);
                             return;
                           }
                           setStep(2);
@@ -3290,7 +3370,8 @@
                             onClick={() => {
                               setEditingCustomCategory(null);
                               setCustomCategoryName('');
-                              setCustomCategoryWords('');
+                              setCustomCategoryWords([]);
+                              setNewWord('');
                               setShowCustomCategoryEditor(true);
                             }}
                             className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
@@ -3395,24 +3476,80 @@
                           
                           <div className="mb-4">
                             <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                              Palabras (una por línea, mínimo 6):
+                              Agregar palabras (mínimo 6):
                             </label>
-                            <textarea
-                              value={customCategoryWords}
-                              onChange={(e) => setCustomCategoryWords(e.target.value)}
-                              placeholder="Palabra 1&#10;Palabra 2&#10;Palabra 3&#10;..."
-                              rows={10}
-                              className={`w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base resize-y ${
+                            <div className="flex gap-2 mb-3">
+                              <input
+                                type="text"
+                                value={newWord}
+                                onChange={(e) => setNewWord(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addWord();
+                                  }
+                                }}
+                                placeholder="Escribe una palabra..."
+                                className={`flex-1 px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base ${
+                                  isLightMode 
+                                    ? 'bg-white border-2 border-gray-300 text-gray-800' 
+                                    : 'bg-gray-700 border-2 border-gray-600 text-white'
+                                }`}
+                              />
+                              <button
+                                onClick={addWord}
+                                disabled={!newWord.trim() || customCategoryWords.includes(newWord.trim())}
+                                className={`px-4 sm:px-6 py-2.5 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
+                                  newWord.trim() && !customCategoryWords.includes(newWord.trim())
+                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                                    : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
+                                }`}
+                              >
+                                Añadir
+                              </button>
+                            </div>
+                            
+                            {customCategoryWords.length > 0 && (
+                              <div className={`mt-4 p-4 rounded-lg border-2 ${
                                 isLightMode 
-                                  ? 'bg-white border-2 border-gray-300 text-gray-800' 
-                                  : 'bg-gray-700 border-2 border-gray-600 text-white'
-                              }`}
-                            />
+                                  ? 'bg-gray-50 border-gray-200' 
+                                  : 'bg-gray-800 border-gray-700'
+                              }`}>
+                                <p className={`text-sm font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                  Palabras agregadas ({customCategoryWords.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {customCategoryWords.map((word, index) => (
+                                    <div
+                                      key={index}
+                                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                                        isLightMode 
+                                          ? 'bg-white border border-gray-300' 
+                                          : 'bg-gray-700 border border-gray-600'
+                                      }`}
+                                    >
+                                      <span className={`text-sm ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                                        {word}
+                                      </span>
+                                      <button
+                                        onClick={() => removeWord(word)}
+                                        className={`text-red-500 hover:text-red-700 transition-colors ${
+                                          isLightMode ? 'hover:bg-red-50' : 'hover:bg-red-900/20'
+                                        } rounded p-0.5`}
+                                        title="Eliminar palabra"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
                             <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                              {(() => {
-                                const wordCount = customCategoryWords.split('\n').filter(w => w.trim().length > 0).length;
-                                return `${wordCount} palabra${wordCount !== 1 ? 's' : ''} (mínimo 6)`;
-                              })()}
+                              {customCategoryWords.length} palabra{customCategoryWords.length !== 1 ? 's' : ''} (mínimo 6)
                             </p>
                           </div>
                           
@@ -3422,7 +3559,8 @@
                                 setShowCustomCategoryEditor(false);
                                 setEditingCustomCategory(null);
                                 setCustomCategoryName('');
-                                setCustomCategoryWords('');
+                                setCustomCategoryWords([]);
+                                setNewWord('');
                               }}
                               className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                                 isLightMode 
@@ -3434,9 +3572,9 @@
                             </button>
                             <button
                               onClick={saveCustomCategory}
-                              disabled={customCategoryWords.split('\n').filter(w => w.trim().length > 0).length < 6 || !customCategoryName.trim()}
+                              disabled={customCategoryWords.length < 6 || !customCategoryName.trim()}
                               className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                                customCategoryWords.split('\n').filter(w => w.trim().length > 0).length >= 6 && customCategoryName.trim()
+                                customCategoryWords.length >= 6 && customCategoryName.trim()
                                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                                   : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
                               }`}
@@ -3624,12 +3762,48 @@
                         <p className="text-5xl sm:text-6xl mb-4">🕵️</p>
                         <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>¡Eres el IMPOSTOR!</p>
                         {impostorsKnowEachOther && (() => {
-                          const otherImpostors = gameStarted.filter(p => p.isImpostor && p.number !== gameStarted[currentPlayerIndex].number);
-                          return otherImpostors.length > 0 ? (
+                          // Solo mostrar compañeros si el jugador actual es impostor
+                          if (!gameStarted[currentPlayerIndex].isImpostor) {
+                            return null;
+                          }
+                          
+                          const otherImpostors = gameStarted.filter(p => p.isImpostor && !p.isEliminated && p.number !== gameStarted[currentPlayerIndex].number);
+                          
+                          // Si estamos en modo todos impostores, mostrar solo una cantidad aleatoria menor
+                          // basada en el número de impostores que se configuró originalmente
+                          let impostorsToShow = otherImpostors;
+                          
+                          if (isAllImpostorsMode && originalImpostorCount > 0) {
+                            // En modo todos impostores, mostrar solo algunos compañeros para generar confusión
+                            // Mostrar una cantidad basada en el número original de impostores configurado
+                            // Por ejemplo, si se configuraron 2 impostores, mostrar solo 1 aleatoriamente
+                            // Si se configuraron 3 impostores, mostrar solo 1-2 aleatoriamente
+                            const expectedOthers = originalImpostorCount - 1; // El número de compañeros que debería ver normalmente
+                            const totalOthers = otherImpostors.length;
+                            
+                            // Si hay más compañeros de los esperados (porque todos son impostores),
+                            // mostrar solo una cantidad aleatoria basada en el número esperado
+                            if (totalOthers > expectedOthers && expectedOthers > 0) {
+                              // Mostrar entre 1 y el número esperado de compañeros
+                              const minToShow = 1;
+                              const maxToShow = expectedOthers;
+                              const countToShow = Math.floor(Math.random() * (maxToShow - minToShow + 1)) + minToShow;
+                              
+                              // Mezclar y tomar solo los primeros countToShow aleatoriamente
+                              const shuffled = [...otherImpostors].sort(() => Math.random() - 0.5);
+                              impostorsToShow = shuffled.slice(0, countToShow);
+                            } else if (totalOthers > expectedOthers && expectedOthers === 0) {
+                              // Si se configuró 1 impostor pero todos son impostores, no mostrar ninguno
+                              impostorsToShow = [];
+                            }
+                          }
+                          // En modo normal (no todos impostores), mostrar TODOS los compañeros normalmente
+                          
+                          return impostorsToShow.length > 0 ? (
                             <div className={`mt-4 mb-4 p-4 rounded-xl ${isLightMode ? 'bg-red-200 border-2 border-red-400' : 'bg-red-800/70 border-2 border-red-600'}`}>
                               <p className={`text-sm sm:text-base font-bold mb-2 ${isLightMode ? 'text-red-700' : 'text-red-300'}`}>Los otros impostores son:</p>
                               <div className="flex flex-wrap justify-center gap-2">
-                                {otherImpostors.map((impostor) => (
+                                {impostorsToShow.map((impostor) => (
                                   <span key={impostor.number} className={`px-3 py-1 rounded-lg font-bold text-sm sm:text-base ${isLightMode ? 'bg-red-300 text-red-800' : 'bg-red-700 text-white'}`}>
                                     {getPlayerDisplay(impostor)}
                                   </span>
@@ -4067,6 +4241,354 @@
                     className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
                   >
                     Ver Resultados
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Confirmación para Eliminar Categoría */}
+          {showDeleteCategoryModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowDeleteCategoryModal(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">🗑️</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¿Eliminar categoría?
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    ¿Estás seguro de que quieres eliminar la categoría <strong className={isLightMode ? 'text-gray-800' : 'text-white'}>"{categoryToDelete}"</strong>? Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteCategoryModal(false);
+                      setCategoryToDelete(null);
+                    }}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDeleteCategory}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Éxito de Importación */}
+          {showImportSuccessModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowImportSuccessModal(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">✅</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¡Éxito!
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    {importedCategoryName.includes('Perfil') 
+                      ? importedCategoryName
+                      : `Categoría "${importedCategoryName}" importada correctamente.`}
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => setShowImportSuccessModal(false)}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-green-500/50 hover:shadow-xl hover:scale-105 text-white"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Error de Importación */}
+          {showImportErrorModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowImportErrorModal(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">⚠️</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    Error
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    {importErrorMsg}
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => setShowImportErrorModal(false)}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105 text-white"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Confirmación para Eliminar Perfil */}
+          {showDeleteProfileModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowDeleteProfileModal(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">🗑️</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¿Eliminar perfil?
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    ¿Estás seguro de que quieres eliminar este perfil? Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteProfileModal(false);
+                      setProfileToDelete(null);
+                    }}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDeleteProfile}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal para Guardar Perfil */}
+          {showSaveProfileModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => {
+              setShowSaveProfileModal(false);
+              setProfileNameInput('');
+            }}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">💾</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    Guardar Perfil
+                  </h3>
+                  <p className={`text-sm sm:text-base mb-4 ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    Ingresa un nombre para este perfil:
+                  </p>
+                  <input
+                    type="text"
+                    value={profileNameInput}
+                    onChange={(e) => setProfileNameInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && profileNameInput.trim()) {
+                        confirmSaveProfile();
+                      }
+                    }}
+                    placeholder="Ej: Amigos del trabajo"
+                    autoFocus
+                    className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base ${
+                      isLightMode 
+                        ? 'bg-white border-2 border-gray-300 text-gray-800' 
+                        : 'bg-gray-700 border-2 border-gray-600 text-white'
+                    }`}
+                  />
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      setShowSaveProfileModal(false);
+                      setProfileNameInput('');
+                    }}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmSaveProfile}
+                    disabled={!profileNameInput.trim()}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      profileNameInput.trim()
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                        : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
+                    }`}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Confirmación para Reemplazar Categoría */}
+          {showReplaceCategoryModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => {
+              setShowReplaceCategoryModal(false);
+              setPendingImport(null);
+            }}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">⚠️</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    Categoría existente
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    La categoría <strong className={isLightMode ? 'text-gray-800' : 'text-white'}>"{pendingImport?.name}"</strong> ya existe. ¿Quieres reemplazarla?
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      setShowReplaceCategoryModal(false);
+                      setPendingImport(null);
+                    }}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmReplaceCategory}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Reemplazar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de ¿Cómo jugar? */}
+          {showHowToPlayModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm overflow-y-auto`} onClick={() => setShowHowToPlayModal(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-2xl w-full my-8`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                    CÓMO JUGAR
+                  </h2>
+                  <button
+                    onClick={() => setShowHowToPlayModal(false)}
+                    className={`text-2xl hover:scale-110 transition-transform ${isLightMode ? 'text-gray-600 hover:text-gray-800' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Lista de reglas */}
+                <div className="space-y-3 sm:space-y-4 mb-8">
+                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-3xl sm:text-4xl">🎭</span>
+                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Los jugadores reciben una palabra secreta
+                    </p>
+                  </div>
+
+                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-3xl sm:text-4xl">🕵️</span>
+                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Los impostores no reciben nada
+                    </p>
+                  </div>
+
+                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-3xl sm:text-4xl">💬</span>
+                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Todos dicen una palabra relacionada
+                    </p>
+                  </div>
+
+                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-3xl sm:text-4xl">🗳️</span>
+                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Votan para eliminar sospechosos
+                    </p>
+                  </div>
+
+                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-3xl sm:text-4xl">🏆</span>
+                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Encuentra a todos los impostores para ganar
+                    </p>
+                  </div>
+                </div>
+
+                {/* Condiciones de victoria */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Jugador */}
+                  <div className={`p-5 rounded-xl border-2 ${isLightMode ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-800 border-yellow-500'}`}>
+                    <h3 className={`text-lg sm:text-xl font-bold mb-2 ${isLightMode ? 'text-yellow-700' : 'text-yellow-400'}`}>
+                      ✓ JUGADOR
+                    </h3>
+                    <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                      Los jugadores ganan si eliminan a todos los impostores
+                    </p>
+                  </div>
+
+                  {/* Impostor */}
+                  <div className={`p-5 rounded-xl border-2 ${isLightMode ? 'bg-red-50 border-red-400' : 'bg-gray-800 border-red-500'}`}>
+                    <h3 className={`text-lg sm:text-xl font-bold mb-2 ${isLightMode ? 'text-red-700' : 'text-red-400'}`}>
+                      ✗ IMPOSTOR
+                    </h3>
+                    <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                      Los impostores ganan si igualan o superan a los jugadores
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setShowHowToPlayModal(false)}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700 hover:bg-gray-600 text-white'
+                    }`}
+                  >
+                    Entendido
                   </button>
                 </div>
               </div>
