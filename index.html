@@ -9,6 +9,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ARGENTORES">
+  <meta name="fullscreen" content="yes">
+  <meta name="browsermode" content="application">
   <title>ARGENTORES - El juego del impostor</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
@@ -35,6 +38,8 @@
       -webkit-text-size-adjust: 100%;
       -ms-text-size-adjust: 100%;
       text-size-adjust: 100%;
+      height: 100%;
+      height: -webkit-fill-available;
     }
     
     body {
@@ -44,6 +49,11 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       overflow-x: hidden;
+      height: 100%;
+      height: -webkit-fill-available;
+      position: fixed;
+      width: 100%;
+      overscroll-behavior: none;
     }
     
     h1, h2, h3, h4, h5, h6,
@@ -599,6 +609,8 @@
       const [isInstalled, setIsInstalled] = useState(false);
       const [savedProfiles, setSavedProfiles] = useState([]);
       const [selectedProfile, setSelectedProfile] = useState(null);
+      const [showExitConfirm, setShowExitConfirm] = useState(false);
+      const [showResultsConfirm, setShowResultsConfirm] = useState(false);
 
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
@@ -2110,6 +2122,7 @@
             setCategories([...categories, cat]);
           }
         }
+        // En modo 'all', no se permite cambiar la selección (todas están siempre seleccionadas)
       };
 
       // Función para detectar nombres duplicados
@@ -2166,6 +2179,7 @@
             if (options.impostorHints !== undefined) setImpostorHints(options.impostorHints);
             if (options.impostorNeverFirst !== undefined) setImpostorNeverFirst(options.impostorNeverFirst);
             if (options.impostorsKnowEachOther !== undefined) setImpostorsKnowEachOther(options.impostorsKnowEachOther);
+            if (options.categoryMode !== undefined) setCategoryMode(options.categoryMode);
           } catch (e) {
             console.error('Error loading saved options:', e);
           }
@@ -2177,10 +2191,11 @@
         const options = {
           impostorHints,
           impostorNeverFirst,
-          impostorsKnowEachOther
+          impostorsKnowEachOther,
+          categoryMode
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, categoryMode]);
 
       // Cargar categorías personalizadas al inicio
       useEffect(() => {
@@ -2200,6 +2215,14 @@
           }
         }
       }, []);
+
+      // Actualizar categorías automáticamente cuando se está en modo 'all' y cambian las categorías personalizadas
+      useEffect(() => {
+        if (categoryMode === 'all') {
+          const allCatNames = [...categoryList.map(c => c.name), ...customCategories.map(c => c.name)];
+          setCategories(allCatNames);
+        }
+      }, [customCategories, categoryMode]);
 
       // Funciones para categorías personalizadas
       const saveCustomCategory = () => {
@@ -2569,8 +2592,8 @@
 
         let selectedCat;
         
-        if (categoryMode === 'random') {
-          // Incluir categorías personalizadas en la selección aleatoria
+        if (categoryMode === 'all') {
+          // En modo 'all', elegir una categoría al azar de todas las disponibles
           const allCategories = [...categoryList, ...customCategories];
           selectedCat = allCategories[Math.floor(Math.random() * allCategories.length)].name;
         } else {
@@ -2728,11 +2751,39 @@
       };
 
       const playAgain = () => {
+        // Reiniciar directamente una nueva partida con las mismas configuraciones
+        // Mantener playerCount, useNames, playerNames, categoryMode, categories, etc.
+        // Ajustar impostorCount si es necesario según el nuevo máximo permitido
+        const maxImpostors = getMaxImpostors(playerCount);
+        if (impostorCount > maxImpostors) {
+          setImpostorCount(maxImpostors);
+        }
+        
+        // Reiniciar estados del juego
+        setGameStarted(false);
+        setCurrentPlayerIndex(0);
+        setRevealedPlayers([]);
+        setRoleRevealed(false);
+        setAllRolesRevealed(false);
+        setFirstPlayer(null);
+        setShowDiscussion(false);
+        setShowFinalReveal(false);
+        setEliminatedPlayers([]);
+        setVotingPlayer(null);
+        setRevealingVote(false);
+        setImpostorsRemaining(0);
+        setWinners(null);
+        setSelectedProfile(null);
+        
+        // Iniciar directamente una nueva partida
+        startGame();
+      };
+
+      const goToStart = () => {
         setStep(1);
         // Mantener playerCount, useNames y playerNames
         // setPlayerCount(5); - NO resetear
         setCategories([]);
-        setCategoryMode('multiple');
         // Ajustar impostorCount si es necesario según el nuevo máximo permitido
         const maxImpostors = getMaxImpostors(playerCount);
         if (impostorCount > maxImpostors) {
@@ -2794,9 +2845,15 @@
           <div className="max-w-2xl mx-auto w-full px-2 sm:px-4">
             {/* Theme Toggle Button */}
             <div className="flex justify-center sm:justify-end gap-2 mb-4">
-              {(gameStarted || step > 1) && (
+              {(gameStarted || step > 1) && !showFinalReveal && (
                 <button
-                  onClick={playAgain}
+                  onClick={() => {
+                    if (gameStarted) {
+                      setShowExitConfirm(true);
+                    } else {
+                      goToStart();
+                    }
+                  }}
                   className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center ${
                     isLightMode 
                       ? 'bg-blue-500 hover:bg-blue-600 text-white' 
@@ -3162,49 +3219,69 @@
                       </button>
                       <button
                         onClick={() => {
-                          setCategoryMode('random');
-                          setCategories(['random']);
+                          setCategoryMode('all');
+                          // Seleccionar todas las categorías automáticamente
+                          const allCatNames = [...categoryList.map(c => c.name), ...customCategories.map(c => c.name)];
+                          setCategories(allCatNames);
                         }}
-                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 text-xs sm:text-sm shadow-lg ${
-                          categoryMode === 'random'
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 ring-2 ring-green-400 shadow-green-500/50 transform scale-105'
+                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg ${
+                          categoryMode === 'all'
+                            ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 transform scale-105'
                             : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
                         }`}
                       >
-                        <ShuffleIcon size={16} />
-                        Aleatorio
+                        Todas
                       </button>
                     </div>
 
-                    {categoryMode !== 'random' && (
-                      <>
-                        <p className={`text-sm sm:text-base mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                          {categoryMode === 'single' 
-                            ? 'Elige una categoría' 
-                            : 'Elige una o más categorías (se elegirá una al azar)'}
-                        </p>
+                    <>
+                      <p className={`text-sm sm:text-base mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                        {categoryMode === 'single' 
+                          ? 'Elige una categoría' 
+                          : categoryMode === 'all'
+                            ? (() => {
+                                const totalWords = categories.reduce((total, catName) => {
+                                  const words = categoryWords[catName];
+                                  return total + (Array.isArray(words) ? words.length : 0);
+                                }, 0);
+                                return `Seleccionaste ${totalWords} palabras`;
+                              })()
+                            : categories.length > 0
+                              ? (() => {
+                                  const totalWords = categories.reduce((total, catName) => {
+                                    const words = categoryWords[catName];
+                                    return total + (Array.isArray(words) ? words.length : 0);
+                                  }, 0);
+                                  return `Seleccionaste ${totalWords} palabras`;
+                                })()
+                              : 'Elige una o más categorías (se elegirá una al azar)'}
+                      </p>
 
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-6 sm:mb-8">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                           {categoryList.map((cat) => {
                             // Calcular el conteo de manera explícita y forzar evaluación
                             const wordsArray = categoryWords[cat.name];
                             const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
                             return (
-                            <button
-                              key={cat.name}
-                              onClick={() => toggleCategory(cat.name)}
-                              className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
-                                categories.includes(cat.name)
-                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
-                                  : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
-                              }`}
-                            >
-                              <span className="text-xl sm:text-2xl">{cat.emoji}</span>
-                              <span className="flex-1 text-left">{cat.name}</span>
-                              <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                {wordCount}
-                              </span>
-                            </button>
+                            <div key={cat.name} className="relative" style={{ zIndex: categories.includes(cat.name) || categoryMode === 'all' ? 10 : 1 }}>
+                              <button
+                                onClick={() => toggleCategory(cat.name)}
+                                disabled={categoryMode === 'all'}
+                                className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg relative ${
+                                  categories.includes(cat.name) || categoryMode === 'all'
+                                    ? categoryMode === 'all'
+                                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 transform scale-105 cursor-default'
+                                      : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                                    : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                }`}
+                              >
+                                <span className="text-xl sm:text-2xl">{cat.emoji}</span>
+                                <span className="flex-1 text-left">{cat.name}</span>
+                                <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  {wordCount}
+                                </span>
+                              </button>
+                            </div>
                             );
                           })}
                           
@@ -3234,12 +3311,15 @@
                             const wordsArray = categoryWords[cat.name] || cat.words || [];
                             const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
                             return (
-                              <div key={cat.name} className="relative group">
+                              <div key={cat.name} className="relative group" style={{ zIndex: categories.includes(cat.name) || categoryMode === 'all' ? 10 : 1 }}>
                                 <button
                                   onClick={() => toggleCategory(cat.name)}
-                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
-                                    categories.includes(cat.name)
-                                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
+                                  disabled={categoryMode === 'all'}
+                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg relative ${
+                                    categories.includes(cat.name) || categoryMode === 'all'
+                                      ? categoryMode === 'all'
+                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 transform scale-105 cursor-default'
+                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
                                       : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
                                   }`}
                                 >
@@ -3285,17 +3365,8 @@
                             );
                           })}
                         </div>
-                      </>
-                    )}
+                    </>
 
-                    {categoryMode === 'random' && (
-                      <div className={`p-4 sm:p-6 rounded-xl mb-6 sm:mb-8 text-center ${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/30'}`}>
-                        <ShuffleIcon size={40} className={`mx-auto mb-4 ${isLightMode ? 'text-green-700' : 'text-green-400'}`} />
-                        <p className={`text-sm sm:text-lg ${isLightMode ? 'text-green-800' : 'text-green-300'}`}>
-                          Se seleccionará una categoría completamente al azar al iniciar el juego
-                        </p>
-                      </div>
-                    )}
 
                     {/* Editor de Categoría Personalizada */}
                     {showCustomCategoryEditor && (
@@ -3400,9 +3471,9 @@
                       </button>
                       <button
                         onClick={() => setStep(3)}
-                        disabled={categoryMode !== 'random' && categories.length === 0}
+                        disabled={categoryMode !== 'all' && categories.length === 0}
                         className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
-                          categoryMode === 'random' || categories.length > 0
+                          categoryMode === 'all' || categories.length > 0
                             ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
                             : 'bg-gray-600 cursor-not-allowed opacity-50'
                         }`}
@@ -3662,7 +3733,7 @@
                     </div>
 
                     <button
-                      onClick={() => setShowFinalReveal(true)}
+                      onClick={() => setShowResultsConfirm(true)}
                       className={`w-full px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
                     >
                       Terminar Juego y Ver Resultados
@@ -3758,7 +3829,26 @@
                       )}
                     </div>
                     <button
-                      onClick={continueAfterVote}
+                      onClick={() => {
+                        const newImpostorsRemaining = impostorsRemaining - (votingPlayer.isImpostor ? 1 : 0);
+                        // Calcular jugadores honestos restantes después de eliminar este jugador
+                        const honestPlayersRemaining = gameStarted.filter(p => 
+                          !p.isEliminated && 
+                          p.number !== votingPlayer.number && 
+                          !p.isImpostor
+                        ).length;
+                        // Verificar si todos son impostores
+                        const remainingPlayers = gameStarted.filter(p => 
+                          !p.isEliminated && 
+                          p.number !== votingPlayer.number
+                        );
+                        const allAreImpostors = remainingPlayers.length > 0 && remainingPlayers.every(p => p.isImpostor);
+                        if (newImpostorsRemaining === 0 || honestPlayersRemaining === 0 || allAreImpostors) {
+                          setShowResultsConfirm(true);
+                        } else {
+                          continueAfterVote();
+                        }
+                      }}
                       className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
                     >
                       {(() => {
@@ -3871,20 +3961,117 @@
                   );
                 })()}
 
-                <button
-                  onClick={playAgain}
-                  className="w-full px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
-                >
-                  🎮 Jugar de Nuevo
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <button
+                    onClick={playAgain}
+                    className="flex-1 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                  >
+                    🎮 Jugar de Nuevo
+                  </button>
+                  <button
+                    onClick={goToStart}
+                    className="flex-1 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-gray-500/50 hover:shadow-xl hover:scale-105"
+                  >
+                    🏠 Volver al Inicio
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>Made by LosTomobri • <a href="https://github.com/juanlucaspajin" className="hover:text-purple-400 transition-colors">GitHub</a></p>
+              <p>Made by LosTomobri • <a href="https://github.com/ARGENTORES" target="_blank" rel="noopener noreferrer" className="hover:text-purple-400 transition-colors">GitHub</a></p>
             </div>
           </div>
+
+          {/* Modal de Confirmación para Salir */}
+          {showExitConfirm && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowExitConfirm(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">⚠️</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¿Salir de la partida?
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    Se perderá el progreso actual de la partida. ¿Estás seguro de que quieres continuar?
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => setShowExitConfirm(false)}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExitConfirm(false);
+                      goToStart();
+                    }}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Salir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Confirmación para Ver Resultados */}
+          {showResultsConfirm && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowResultsConfirm(false)}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">🏁</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¿Ver Resultados Finales?
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    Se terminará la partida y se mostrarán los resultados. ¿Estás seguro de que quieres continuar?
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => setShowResultsConfirm(false)}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowResultsConfirm(false);
+                      // Si hay una votación en curso, usar continueAfterVote, sino solo mostrar resultados
+                      if (votingPlayer) {
+                        continueAfterVote();
+                      } else {
+                        setShowFinalReveal(true);
+                      }
+                    }}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Ver Resultados
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
