@@ -493,7 +493,7 @@
       };
 
       const handleInstallClick = async () => {
-        console.log('Install button clicked, deferredPrompt:', !!deferredPrompt);
+        console.log('Install button clicked');
         
         // Verificar si ya está instalado antes de intentar instalar
         if (checkInstalledNow()) {
@@ -528,7 +528,7 @@
           }
         }
         
-        // Si no hay prompt disponible, mostrar instrucciones de instalación manual
+        // Siempre mostrar instrucciones de instalación manual (más confiable)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -565,53 +565,19 @@
         };
         
         if (isAndroid) {
-          // Diagnóstico completo
-          const diagnostic = await checkPWARequirements();
-          let message = '🔍 DIAGNÓSTICO DE INSTALACIÓN:\n\n';
+          // Mostrar instrucciones simples sin diagnóstico
+          const installMessage = '📱 INSTALAR ARGENTORES\n\n' +
+            'OPCIÓN 1 - Menú del navegador:\n' +
+            '1. Toca el menú (⋮) en la esquina superior derecha\n' +
+            '2. Busca "Instalar aplicación" o "Añadir a pantalla de inicio"\n' +
+            '3. Toca y confirma\n\n' +
+            'OPCIÓN 2 - Barra de direcciones:\n' +
+            '1. Busca el icono (➕) en la barra de direcciones\n' +
+            '2. Toca el icono\n' +
+            '3. Confirma la instalación\n\n' +
+            '💡 Si no ves opciones, recarga la página o busca en el menú.';
           
-          message += `HTTPS: ${diagnostic.https ? '✅' : '❌'}\n`;
-          message += `Manifest: ${diagnostic.manifest ? '✅' : '❌'}\n`;
-          message += `Service Worker: ${diagnostic.serviceWorker ? '✅' : '❌'}\n`;
-          message += `SW Activo: ${diagnostic.swActive ? '✅' : '❌'}\n`;
-          message += `Iconos: ${diagnostic.icons ? '✅' : '❌'}\n`;
-          message += `DeferredPrompt: ${deferredPrompt ? '✅' : '❌'}\n\n`;
-          
-          if (!diagnostic.https) {
-            message += '⚠️ CRÍTICO: La página debe estar en HTTPS\n';
-          }
-          if (!diagnostic.manifest) {
-            message += '⚠️ CRÍTICO: Manifest no encontrado\n';
-          }
-          if (!diagnostic.serviceWorker) {
-            message += '⚠️ CRÍTICO: Service Worker no disponible\n';
-          }
-          if (!diagnostic.swActive) {
-            message += '⚠️ CRÍTICO: Service Worker no está activo\n';
-          }
-          if (!diagnostic.icons) {
-            message += '⚠️ CRÍTICO: Iconos no encontrados\n';
-          }
-          if (!deferredPrompt) {
-            message += '⚠️ El evento beforeinstallprompt no se ha disparado\n';
-            message += 'Posibles causas:\n';
-            message += '- Chrome ya mostró el banner antes\n';
-            message += '- La app no cumple todos los requisitos\n';
-            message += '- Necesitas interactuar más con la página\n';
-            message += '- Los iconos no son accesibles\n';
-          }
-          
-          message += '\n📱 INSTRUCCIONES DE INSTALACIÓN MANUAL:\n\n';
-          message += 'OPCIÓN 1 - Menú del navegador:\n';
-          message += '1. Toca el menú (⋮) en la esquina superior derecha\n';
-          message += '2. Busca y toca "Instalar aplicación" o "Añadir a pantalla de inicio"\n';
-          message += '3. Confirma la instalación\n\n';
-          message += 'OPCIÓN 2 - Barra de direcciones:\n';
-          message += '1. Busca el icono de instalación (➕) en la barra de direcciones\n';
-          message += '2. Toca el icono\n';
-          message += '3. Confirma la instalación\n\n';
-          message += '💡 Si no ves ninguna opción, la app puede que ya esté instalada o necesitas recargar la página.';
-          
-          alert(message);
+          alert(installMessage);
         } else if (isIOS) {
           alert('📱 INSTALAR EN iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior de Safari\n2. Desplázate hacia abajo y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
         } else if (isMobile) {
@@ -4715,7 +4681,7 @@
       }
       
       function registerSW() {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
           .then((registration) => {
             console.log('✅ SW registered successfully:', registration.scope);
             
