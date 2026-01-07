@@ -367,13 +367,78 @@
         let installPrompt = null;
         let installPromptTimeout = null;
         
+        // Verificar requisitos para PWA instalable
+        const checkPWARequirements = async () => {
+          const checks = {
+            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+            manifest: !!document.querySelector('link[rel="manifest"]'),
+            serviceWorker: 'serviceWorker' in navigator,
+            swActive: false,
+            icons: false
+          };
+          
+          // Verificar iconos y service worker activo
+          try {
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+              const manifestResponse = await fetch(manifestLink.href);
+              const manifest = await manifestResponse.json();
+              checks.icons = manifest.icons && manifest.icons.length > 0;
+            }
+            
+            // Verificar si el service worker está activo
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              checks.swActive = registrations.some(reg => reg.active !== null);
+            }
+            
+            console.log('PWA Requirements check:', checks);
+          } catch (e) {
+            console.error('Error checking requirements:', e);
+          }
+          
+          return checks;
+        };
+        
+        // Verificar requisitos y solo mostrar botón si TODOS están cumplidos
+        const verifyAndShowButton = async () => {
+          if (checkInstalled()) {
+            return;
+          }
+          
+          const requirements = await checkPWARequirements();
+          const allRequirementsMet = requirements.https && 
+                                     requirements.manifest && 
+                                     requirements.serviceWorker && 
+                                     requirements.swActive && 
+                                     requirements.icons;
+          
+          if (allRequirementsMet) {
+            console.log('✅ Todos los requisitos PWA cumplidos');
+            // Solo mostrar si tenemos el evento beforeinstallprompt o después de esperar
+            if (installPrompt) {
+              setShowInstallButton(true);
+            }
+          } else {
+            console.log('⚠️ Faltan requisitos PWA:', {
+              https: requirements.https,
+              manifest: requirements.manifest,
+              serviceWorker: requirements.serviceWorker,
+              swActive: requirements.swActive,
+              icons: requirements.icons
+            });
+            setShowInstallButton(false);
+          }
+        };
+        
         // Handler mejorado para beforeinstallprompt
         const handler = (e) => {
           console.log('🎉 beforeinstallprompt event fired!', e);
           e.preventDefault();
           installPrompt = e;
           setDeferredPrompt(e);
-          setShowInstallButton(true);
+          // Verificar requisitos antes de mostrar el botón
+          verifyAndShowButton();
           console.log('✅ Install prompt captured and stored');
         };
         
@@ -384,79 +449,22 @@
         // 3. El usuario ha interactuado con la página
         window.addEventListener('beforeinstallprompt', handler, { capture: true, once: false });
         
-        // También mostrar el botón siempre en móviles, incluso sin el evento
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-          // Mostrar el botón después de un pequeño delay para dar tiempo al evento
-          setTimeout(() => {
-            if (!installPrompt && !checkInstalled()) {
-              setShowInstallButton(true);
-              console.log('Showing install button (mobile fallback)');
-            }
-          }, 3000);
-        }
-        
-        // Verificar requisitos para PWA instalable
-        const checkPWARequirements = async () => {
-          const checks = {
-            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
-            manifest: !!document.querySelector('link[rel="manifest"]'),
-            serviceWorker: 'serviceWorker' in navigator,
-            icons: false
-          };
-          
-          // Verificar iconos
-          try {
-            const manifestLink = document.querySelector('link[rel="manifest"]');
-            if (manifestLink) {
-              const manifestResponse = await fetch(manifestLink.href);
-              const manifest = await manifestResponse.json();
-              checks.icons = manifest.icons && manifest.icons.length > 0;
-              console.log('PWA Requirements check:', checks);
-            }
-          } catch (e) {
-            console.error('Error checking manifest:', e);
-          }
-          
-          return checks;
-        };
-        
-        // Verificar si el service worker está registrado
+        // Verificar requisitos después de que el Service Worker esté listo
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(async (registration) => {
-            console.log('Service Worker ready:', registration.scope);
-            const requirements = await checkPWARequirements();
-            console.log('PWA Requirements:', requirements);
-            
-            if (!requirements.https) {
-              console.warn('⚠️ PWA requiere HTTPS');
-            }
-            if (!requirements.manifest) {
-              console.warn('⚠️ Manifest no encontrado');
-            }
-            if (!requirements.icons) {
-              console.warn('⚠️ Iconos no encontrados en manifest');
-            }
+          navigator.serviceWorker.ready.then(async () => {
+            console.log('Service Worker ready, verifying requirements...');
+            await verifyAndShowButton();
           }).catch((err) => {
             console.error('Service Worker not ready:', err);
           });
         }
         
-        // Esperar más tiempo para que se dispare el evento (a veces tarda en móviles)
-        // Pero siempre mostrar el botón en móviles para permitir instalación manual
-        installPromptTimeout = setTimeout(() => {
+        // Esperar y verificar requisitos periódicamente
+        installPromptTimeout = setTimeout(async () => {
           if (!checkInstalled()) {
-            const isAndroid = /Android/.test(navigator.userAgent);
-            const isChrome = /Chrome/.test(navigator.userAgent);
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            // Siempre mostrar el botón en móviles para permitir instalación manual
-            if (isMobile || (isAndroid && isChrome)) {
-              setShowInstallButton(true);
-              console.log('Showing install button (timeout - will show manual instructions)');
-            }
+            await verifyAndShowButton();
           }
-        }, 5000);
+        }, 3000);
         
         // Verificar periódicamente si la app se instaló
         const checkInstallInterval = setInterval(() => {
@@ -2974,7 +2982,8 @@
                   </svg>
                 </button>
               )}
-              {!isInstalled && showInstallButton && (
+              {/* Botón de instalación solo en la pantalla de inicio (step === 1) */}
+              {step === 1 && !gameStarted && !isInstalled && showInstallButton && (
                 <button
                   onClick={handleInstallClick}
                   className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center ${
