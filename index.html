@@ -565,23 +565,26 @@
         };
         
         if (isAndroid) {
-          // Mostrar instrucciones simples sin diagnóstico
-          const installMessage = '📱 INSTALAR ARGENTORES\n\n' +
+          // Instrucciones específicas para INSTALAR como app (no solo añadir a pantalla)
+          const installMessage = '📱 INSTALAR COMO APLICACIÓN\n\n' +
+            'IMPORTANTE: Busca "INSTALAR APLICACIÓN" (no "Añadir a pantalla de inicio")\n\n' +
             'OPCIÓN 1 - Menú del navegador:\n' +
             '1. Toca el menú (⋮) en la esquina superior derecha\n' +
-            '2. Busca "Instalar aplicación" o "Añadir a pantalla de inicio"\n' +
-            '3. Toca y confirma\n\n' +
+            '2. Busca "INSTALAR APLICACIÓN" o "Install app"\n' +
+            '3. Si no aparece, busca el icono (➕) en la barra de direcciones\n' +
+            '4. Toca y confirma la instalación\n\n' +
             'OPCIÓN 2 - Barra de direcciones:\n' +
-            '1. Busca el icono (➕) en la barra de direcciones\n' +
+            '1. Busca el icono de instalación (➕) en la barra de direcciones\n' +
             '2. Toca el icono\n' +
-            '3. Confirma la instalación\n\n' +
-            '💡 Si no ves opciones, recarga la página o busca en el menú.';
+            '3. Confirma "INSTALAR"\n\n' +
+            '💡 Si solo ves "Añadir a pantalla de inicio", recarga la página y espera unos segundos. ' +
+            'La opción de "Instalar aplicación" aparecerá cuando la app cumpla todos los requisitos.';
           
           alert(installMessage);
         } else if (isIOS) {
-          alert('📱 INSTALAR EN iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior de Safari\n2. Desplázate hacia abajo y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
+          alert('📱 INSTALAR EN iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior de Safari\n2. Desplázate hacia abajo y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio como una aplicación.');
         } else if (isMobile) {
-          alert('📱 INSTALAR EN MÓVIL:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones\n2. O ve al menú del navegador (⋮) y busca "Instalar aplicación"\n3. Confirma la instalación\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
+          alert('📱 INSTALAR COMO APP:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones\n2. O ve al menú del navegador (⋮) y busca "INSTALAR APLICACIÓN"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como una aplicación real en tu dispositivo.');
         } else {
           alert('💻 INSTALAR EN PC:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones (esquina derecha)\n2. O ve al menú del navegador (⋮) y busca "Instalar ARGENTORES"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como aplicación de escritorio.');
         }
@@ -4681,7 +4684,7 @@
       }
       
       function registerSW() {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
           .then((registration) => {
             console.log('✅ SW registered successfully:', registration.scope);
             
