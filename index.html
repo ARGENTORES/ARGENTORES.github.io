@@ -3300,13 +3300,16 @@
                           setStep(2);
                         }}
                         disabled={playerCount < 3 || (useNames && getDuplicateNameIndices().length > 0)}
-                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                        className={`px-4 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-2 ${
                           playerCount >= 3 && !(useNames && getDuplicateNameIndices().length > 0)
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl'
                             : 'bg-gray-600 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        Continuar →
+                        <span>Continuar</span>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -3394,17 +3397,17 @@
                               <button
                                 onClick={() => toggleCategory(cat.name)}
                                 disabled={categoryMode === 'all'}
-                                className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg relative ${
+                                className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg relative ${
                                   categories.includes(cat.name) || categoryMode === 'all'
                                     ? categoryMode === 'all'
-                                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 transform scale-105 cursor-default'
-                                      : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
-                                    : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
+                                      : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
+                                    : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
                                 }`}
                               >
-                                <span className="text-xl sm:text-2xl">{cat.emoji}</span>
-                                <span className="flex-1 text-left">{cat.name}</span>
-                                <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                <span className="text-lg sm:text-2xl flex-shrink-0">{cat.emoji}</span>
+                                <span className="flex-1 text-left truncate text-xs sm:text-base">{cat.name}</span>
+                                <span className={`text-xs sm:text-sm font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${isLightMode ? 'bg-gray-300 text-gray-800' : 'bg-gray-600 text-white'}`}>
                                   {wordCount}
                                 </span>
                               </button>
@@ -3421,15 +3424,15 @@
                               setNewWord('');
                               setShowCustomCategoryEditor(true);
                             }}
-                            className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg ${
+                            className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg ${
                               isLightMode 
                                 ? 'bg-yellow-200 hover:bg-yellow-300 text-gray-800 border-2 border-yellow-400' 
                                 : 'bg-yellow-900/60 hover:bg-yellow-900/70 text-white border-2 border-yellow-600'
-                            } hover:shadow-xl hover:scale-105`}
+                            } hover:shadow-xl`}
                           >
-                            <span className="text-xl sm:text-2xl">⭐</span>
-                            <span className="flex-1 text-left">Personalizado</span>
-                            <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                            <span className="text-lg sm:text-2xl flex-shrink-0">⭐</span>
+                            <span className="flex-1 text-left truncate">Personalizado</span>
+                            <span className={`text-base sm:text-lg font-bold flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded ${isLightMode ? 'bg-yellow-300 text-gray-800' : 'bg-yellow-600 text-white'}`}>
                               +
                             </span>
                           </button>
@@ -3443,17 +3446,17 @@
                                 <button
                                   onClick={() => toggleCategory(cat.name)}
                                   disabled={categoryMode === 'all'}
-                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-sm sm:text-base shadow-lg relative ${
+                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg relative ${
                                     categories.includes(cat.name) || categoryMode === 'all'
                                       ? categoryMode === 'all'
-                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 transform scale-105 cursor-default'
-                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50 transform scale-105'
-                                      : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
+                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
+                                      : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
                                   }`}
                                 >
-                                  <span className="text-xl sm:text-2xl">{cat.emoji || '⭐'}</span>
-                                  <span className="flex-1 text-left">{cat.name}</span>
-                                  <span className={`text-xs font-medium ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  <span className="text-lg sm:text-2xl flex-shrink-0">{cat.emoji || '⭐'}</span>
+                                  <span className="flex-1 text-left truncate">{cat.name}</span>
+                                  <span className={`text-xs sm:text-sm font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${isLightMode ? 'bg-gray-300 text-gray-800' : 'bg-gray-600 text-white'}`}>
                                     {wordCount}
                                   </span>
                                 </button>
@@ -3633,23 +3636,26 @@
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center pt-4 border-t border-gray-700 gap-2">
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-700 gap-2 sm:gap-3">
                       <button
                         onClick={() => setStep(1)}
-                        className="px-4 sm:px-6 py-3 bg-gray-700/80 hover:bg-gray-600/90 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm"
+                        className="px-3 sm:px-6 py-3 bg-gray-700/80 hover:bg-gray-600/90 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl backdrop-blur-sm flex items-center gap-1.5 sm:gap-2"
                       >
-                        ← Volver
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span className="hidden xs:inline">Volver</span>
                       </button>
                       <button
                         onClick={importCustomCategory}
-                        className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg flex items-center gap-2 ${
+                        className={`px-3 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg flex items-center gap-1.5 sm:gap-2 ${
                           isLightMode 
                             ? 'bg-blue-500 hover:bg-blue-600 text-white' 
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        } hover:shadow-xl hover:scale-105`}
+                        } hover:shadow-xl`}
                       >
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
                         <span className="hidden sm:inline">Importar Categoría</span>
                         <span className="sm:hidden">Importar</span>
@@ -3657,13 +3663,16 @@
                       <button
                         onClick={() => setStep(3)}
                         disabled={categoryMode !== 'all' && categories.length === 0}
-                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
+                        className={`px-3 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-1.5 sm:gap-2 ${
                           categoryMode === 'all' || categories.length > 0
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl'
                             : 'bg-gray-600 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        Continuar →
+                        <span className="hidden xs:inline">Continuar</span>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -3710,12 +3719,12 @@
                           >
                             {isRecommended && (
                               <span 
-                                className="bg-yellow-400 text-black font-bold px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full leading-none shadow-lg border-2 border-yellow-600 text-[10px] sm:text-[11px] flex items-center justify-center" 
+                                className="bg-yellow-400 text-black font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-lg border-2 border-yellow-600 text-[9px] sm:text-[10px] flex items-center justify-center" 
                                 title="Recomendado" 
                                 style={{
                                   position: 'absolute',
-                                  top: '4px',
-                                  right: '4px',
+                                  top: '2px',
+                                  right: '2px',
                                   zIndex: 10,
                                   lineHeight: '1',
                                   display: 'flex',
@@ -3723,7 +3732,7 @@
                                   minWidth: 'fit-content'
                                 }}
                               >
-                                ⭐ REC
+                                ⭐
                               </span>
                             )}
                             <div className="flex items-center justify-center">
