@@ -2820,28 +2820,42 @@
           setImpostorsRemaining(newImpostorsRemaining);
         }
         
-        // Verificar si todos son impostores (después de eliminar)
-        const allAreImpostors = updatedPlayers.filter(p => !p.isEliminated).every(p => p.isImpostor);
-        const remainingPlayers = updatedPlayers.filter(p => !p.isEliminated).length;
+        // Calcular jugadores restantes
+        const remainingPlayers = updatedPlayers.filter(p => !p.isEliminated);
+        const remainingCount = remainingPlayers.length;
         
-        // Si todos son impostores y quedan 2 o menos jugadores, ir a resultados finales
-        if (allAreImpostors && remainingPlayers <= 2) {
-          setWinners('impostors');
+        // Si quedan 2 o menos jugadores, terminar automáticamente la partida
+        if (remainingCount <= 2) {
+          // Calcular jugadores honestos restantes
+          const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
+          const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
+          
+          // Determinar ganadores
+          if (newImpostorsRemaining === 0) {
+            // No quedan impostores, ganan los jugadores
+            setWinners('players');
+          } else if (honestPlayersRemaining === 0) {
+            // No quedan jugadores honestos, ganan los impostores
+            setWinners('impostors');
+          } else if (impostorsRemainingCount >= honestPlayersRemaining) {
+            // Hay más o igual cantidad de impostores que jugadores honestos, ganan impostores
+            setWinners('impostors');
+          } else {
+            // Hay más jugadores honestos que impostores, ganan jugadores
+            setWinners('players');
+          }
+          
           setShowFinalReveal(true);
           return;
         }
+        
+        // Verificar si todos son impostores (después de eliminar)
+        const allAreImpostors = remainingPlayers.every(p => p.isImpostor);
         
         // Si todos son impostores y quedan más de 2, continuar la partida
-        if (allAreImpostors && remainingPlayers > 2) {
+        if (allAreImpostors && remainingCount > 2) {
           setVotingPlayer(null);
           setRevealingVote(false);
-          return;
-        }
-        
-        // Si todos son impostores y no quedan más, ganan los impostores
-        if (allAreImpostors && newImpostorsRemaining === 0) {
-          setWinners('impostors');
-          setShowFinalReveal(true);
           return;
         }
         
@@ -3217,7 +3231,7 @@
                             <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                               isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
                             }`}>
-                              Deshabilitado
+                            Próximamente
                             </span>
                           )}
                         </div>
@@ -3719,7 +3733,7 @@
                           >
                             {isRecommended && (
                               <span 
-                                className="bg-yellow-400 text-black font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-lg border-2 border-yellow-600 text-[9px] sm:text-[10px] flex items-center justify-center" 
+                                className="bg-yellow-500 text-black font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-xl border-3 border-yellow-700 text-[10px] sm:text-[11px] flex items-center justify-center" 
                                 title="Recomendado" 
                                 style={{
                                   position: 'absolute',
@@ -3729,7 +3743,9 @@
                                   lineHeight: '1',
                                   display: 'flex',
                                   whiteSpace: 'nowrap',
-                                  minWidth: 'fit-content'
+                                  minWidth: 'fit-content',
+                                  borderWidth: '3px',
+                                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5), 0 0 8px rgba(251, 191, 36, 0.8)'
                                 }}
                               >
                                 ⭐
@@ -3769,7 +3785,7 @@
                         onClick={() => setStep(2)}
                         className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
                       >
-                        ← Volver
+                        {'<'} Volver
                       </button>
                       <button
                         onClick={startGame}
