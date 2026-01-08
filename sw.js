@@ -1,9 +1,11 @@
-const CACHE_NAME = 'argentores-v9';
+const CACHE_NAME = 'argentores-v10';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './sw.js'
+  './sw.js',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -45,9 +47,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Para index.html, siempre buscar primero en la red para obtener la versión más reciente
   const url = new URL(event.request.url);
   const pathname = url.pathname;
+  
+  // Para index.html y la raíz, usar estrategia Network First con fallback a cache
   if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
     event.respondWith(
       fetch(event.request)
@@ -64,11 +67,57 @@ self.addEventListener('fetch', (event) => {
           return caches.match(event.request);
         })
     );
-  } else {
-    // Para otros recursos, usar caché primero
+  } 
+  // Para recursos estáticos (iconos, manifest, etc), usar Cache First
+  else if (pathname.includes('.png') || pathname.includes('.jpg') || pathname.includes('.svg') || 
+           pathname.includes('manifest.json') || pathname.includes('sw.js')) {
     event.respondWith(
       caches.match(event.request)
-        .then((response) => response || fetch(event.request))
+        .then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request).then((response) => {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+            return response;
+          });
+        })
     );
+  }
+  // Para recursos externos (CDNs), intentar cachear pero permitir fallback
+  else {
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request)
+            .then((response) => {
+              // Solo cachear respuestas exitosas y del mismo origen o CORS válidas
+              if (response.status === 200 && response.type === 'basic') {
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+              }
+              return response;
+            })
+            .catch(() => {
+              // Si es un recurso externo y falla, devolver una respuesta vacía o error
+              return new Response('Offline', { status: 503 });
+            });
+        })
+    );
+  }
+});
+
+// Escuchar mensajes para actualización
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
