@@ -413,7 +413,8 @@
         
         // Verificar requisitos PWA antes de intentar instalar
         const checkPWARequirements = async () => {
-          const errors = [];
+          const criticalErrors = [];
+          const warnings = [];
           
           // Verificar HTTPS
           const isHTTPS = location.protocol === 'https:' || 
@@ -421,63 +422,67 @@
                          location.hostname === '127.0.0.1' ||
                          location.hostname === '[::1]';
           if (!isHTTPS) {
-            errors.push('❌ No estás usando HTTPS. Las PWA requieren HTTPS (o localhost).');
+            criticalErrors.push('❌ No estás usando HTTPS. Las PWA requieren HTTPS (o localhost).');
           }
           
           // Verificar manifest
           const manifestLink = document.querySelector('link[rel="manifest"]');
           if (!manifestLink) {
-            errors.push('❌ No se encontró el archivo manifest.json en el HTML.');
+            criticalErrors.push('❌ No se encontró el archivo manifest.json en el HTML.');
           } else {
             try {
               const manifestResponse = await fetch(manifestLink.href);
               if (!manifestResponse.ok) {
-                errors.push(`❌ Error al cargar manifest.json: ${manifestResponse.status} ${manifestResponse.statusText}`);
+                criticalErrors.push(`❌ Error al cargar manifest.json: ${manifestResponse.status} ${manifestResponse.statusText}`);
               } else {
                 const manifest = await manifestResponse.json();
                 if (!manifest.icons || manifest.icons.length === 0) {
-                  errors.push('❌ El manifest.json no tiene iconos definidos.');
+                  criticalErrors.push('❌ El manifest.json no tiene iconos definidos.');
                 }
                 if (!manifest.name && !manifest.short_name) {
-                  errors.push('❌ El manifest.json no tiene nombre definido.');
+                  criticalErrors.push('❌ El manifest.json no tiene nombre definido.');
                 }
               }
             } catch (e) {
-              errors.push(`❌ Error al leer manifest.json: ${e.message}`);
+              criticalErrors.push(`❌ Error al leer manifest.json: ${e.message}`);
             }
           }
           
           // Verificar Service Worker
           if (!('serviceWorker' in navigator)) {
-            errors.push('❌ El navegador no soporta Service Workers.');
+            criticalErrors.push('❌ El navegador no soporta Service Workers.');
           } else {
             try {
               const registrations = await navigator.serviceWorker.getRegistrations();
               const hasActiveSW = registrations.some(reg => reg.active !== null);
               if (!hasActiveSW) {
-                errors.push('❌ No hay Service Worker activo. Verifica que sw.js esté registrado correctamente.');
+                warnings.push('⚠️ No hay Service Worker activo. Esto puede impedir la instalación automática.');
               }
             } catch (e) {
-              errors.push(`❌ Error al verificar Service Worker: ${e.message}`);
+              warnings.push(`⚠️ Error al verificar Service Worker: ${e.message}`);
             }
           }
           
-          // Verificar si hay prompt disponible
+          // Verificar si hay prompt disponible (esto es solo un aviso, no un error crítico)
           if (!deferredPrompt) {
-            errors.push('❌ No se recibió el evento beforeinstallprompt. Esto puede deberse a:\n   - La app ya fue rechazada anteriormente\n   - El navegador no soporta instalación PWA\n   - Faltan requisitos PWA (ver errores arriba)');
+            warnings.push('ℹ️ No se recibió el evento beforeinstallprompt. Puedes instalar manualmente desde el menú del navegador.');
           }
           
-          return errors;
+          return { criticalErrors, warnings };
         };
         
         // Verificar requisitos
-        const errors = await checkPWARequirements();
+        const { criticalErrors, warnings } = await checkPWARequirements();
         
-        // Si hay errores, mostrarlos
-        if (errors.length > 0) {
-          const errorMessage = 'No es posible instalar la aplicación:\n\n' + errors.join('\n\n');
-          alert(errorMessage);
-          console.error('Errores de instalación PWA:', errors);
+        // Si hay errores críticos, mostrarlos y salir
+        if (criticalErrors.length > 0) {
+          const errorMessage = 'No es posible instalar la aplicación:\n\n' + criticalErrors.join('\n\n');
+          if (warnings.length > 0) {
+            alert(errorMessage + '\n\n' + warnings.join('\n\n'));
+          } else {
+            alert(errorMessage);
+          }
+          console.error('Errores críticos de instalación PWA:', criticalErrors);
           return;
         }
         
@@ -501,9 +506,24 @@
           } catch (error) {
             console.error('Error al mostrar prompt:', error);
             setDeferredPrompt(null);
-            alert(`Error al intentar instalar:\n\n❌ ${error.name}: ${error.message}\n\nVerifica la consola para más detalles.`);
-            return;
+            // Continuar con instrucciones manuales
           }
+        }
+        
+        // Si no hay prompt nativo pero los requisitos básicos están OK, mostrar instrucciones para Android
+        const isAndroid = /Android/.test(navigator.userAgent);
+        if (isAndroid) {
+          let message = 'Para instalar la aplicación en Android:\n\n';
+          message += '1. Toca el menú (⋮) en la esquina superior derecha del navegador\n';
+          message += '2. Busca "Instalar aplicación" o "Install app"\n';
+          message += '3. O busca el icono (➕) en la barra de direcciones\n';
+          message += '4. Confirma la instalación\n\n';
+          if (warnings.length > 0) {
+            message += 'Nota: ' + warnings.join(' ');
+          }
+          alert(message);
+        } else if (warnings.length > 0) {
+          alert('Instalación manual requerida:\n\n' + warnings.join('\n\n'));
         }
       };
 
