@@ -162,6 +162,29 @@
       }
     }
     
+    /* Mejorar visibilidad de placeholders en móviles */
+    input::placeholder {
+      opacity: 0.7;
+      font-size: inherit;
+    }
+    
+    @media (max-width: 640px) {
+      input::placeholder {
+        opacity: 0.8;
+        font-weight: 500;
+      }
+    }
+    
+    /* Ocultar scrollbars pero mantener funcionalidad */
+    .hide-scrollbar {
+      -ms-overflow-style: none;  /* IE y Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+    
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;  /* Chrome, Safari y Opera */
+    }
+    
     /* Asegurar que los textos largos no se salgan */
     * {
       word-wrap: break-word;
@@ -671,6 +694,7 @@
       const [selectedProfile, setSelectedProfile] = useState(null);
       const [showExitConfirm, setShowExitConfirm] = useState(false);
       const [showResultsConfirm, setShowResultsConfirm] = useState(false);
+      const [openMenuCategory, setOpenMenuCategory] = useState(null);
 
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
@@ -2284,6 +2308,19 @@
         }
       }, [customCategories, categoryMode]);
 
+      // Cerrar menú al hacer clic fuera
+      useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (openMenuCategory && !event.target.closest('.category-menu-container')) {
+            setOpenMenuCategory(null);
+          }
+        };
+        if (openMenuCategory) {
+          document.addEventListener('click', handleClickOutside);
+          return () => document.removeEventListener('click', handleClickOutside);
+        }
+      }, [openMenuCategory]);
+
       // Funciones para categorías personalizadas
       const addWord = () => {
         const trimmedWord = newWord.trim();
@@ -2781,6 +2818,23 @@
           // Si la opción está activada, excluir a los impostores
           if (impostorNeverFirst) {
             eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
+          } else {
+            // Si la opción está desactivada, 15% de probabilidad de elegir un impostor
+            const impostors = gameStarted.filter(p => p.isImpostor);
+            const honestPlayers = gameStarted.filter(p => !p.isImpostor);
+            const chance = Math.random() * 100;
+            
+            if (chance < 15 && impostors.length > 0) {
+              // 15% de probabilidad: elegir un impostor
+              eligiblePlayers = impostors;
+            } else if (honestPlayers.length > 0) {
+              // 85% de probabilidad: elegir un jugador honesto
+              eligiblePlayers = honestPlayers;
+            }
+            // Si no hay jugadores honestos (todos son impostores), usar todos
+            if (eligiblePlayers.length === 0) {
+              eligiblePlayers = gameStarted;
+            }
           }
           // Si no hay jugadores elegibles (todos son impostores), usar todos
           if (eligiblePlayers.length === 0) {
@@ -2861,6 +2915,7 @@
         
         // Calcular jugadores honestos restantes (no eliminados y no impostores)
         const honestPlayersRemaining = updatedPlayers.filter(p => !p.isEliminated && !p.isImpostor).length;
+        const impostorsRemainingCount = updatedPlayers.filter(p => !p.isEliminated && p.isImpostor).length;
         
         // Verificar victoria
         if (newImpostorsRemaining === 0) {
@@ -2869,6 +2924,11 @@
           return;
         } else if (honestPlayersRemaining === 0) {
           // Los impostores ganan solo cuando se eliminan TODOS los inocentes
+          setWinners('impostors');
+          setShowFinalReveal(true);
+          return;
+        } else if (impostorsRemainingCount >= honestPlayersRemaining) {
+          // Los impostores ganan cuando igualan o superan la cantidad de jugadores honestos
           setWinners('impostors');
           setShowFinalReveal(true);
           return;
@@ -3041,7 +3101,16 @@
                   <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
                     <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
                       <h2 className={`text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                        <GamepadIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={24} />
+                        <span 
+                          className={`text-2xl sm:text-3xl inline-block ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}
+                          style={{
+                            filter: isLightMode 
+                              ? 'brightness(0) saturate(100%) invert(27%) sepia(95%) saturate(1352%) hue-rotate(258deg) brightness(95%) contrast(91%)'
+                              : 'brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(230deg) brightness(118%) contrast(119%)'
+                          }}
+                        >
+                          🧮
+                        </span>
                         Configuraciones del juego
                       </h2>
                     </div>
@@ -3146,16 +3215,24 @@
                               const isDuplicate = duplicateIndices.includes(i);
                               return (
                                 <div key={i} className="relative">
+                                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                                    <span className={`text-xs sm:text-sm font-semibold ${isLightMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      #{i + 1}
+                                    </span>
+                                  </div>
                                   <input
                                     type="text"
-                                    placeholder={`Jugador ${i + 1}`}
+                                    placeholder="Nombre del jugador"
                                     value={playerNames[i] || ''}
                                     onChange={(e) => handleNameChange(i, e.target.value)}
-                                    className={`px-4 py-2.5 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm sm:text-base transition-all duration-200 w-full ${
+                                    className={`pl-10 sm:pl-12 px-4 py-2.5 sm:py-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base sm:text-base transition-all duration-200 w-full ${
                                       isDuplicate
-                                        ? `${isLightMode ? 'bg-red-50 border-2 border-red-400 text-red-800' : 'bg-red-900/30 border-2 border-red-500 text-red-300'} focus:ring-red-500`
-                                        : `${isLightMode ? 'bg-white border-2 border-gray-300 text-gray-800 hover:border-purple-400' : 'bg-gray-700 border-2 border-gray-600 text-white hover:border-purple-500'} focus:ring-purple-500`
+                                        ? `${isLightMode ? 'bg-red-50 border-2 border-red-400 text-red-800 placeholder:text-red-400 placeholder:opacity-70' : 'bg-red-900/30 border-2 border-red-500 text-red-300 placeholder:text-red-400 placeholder:opacity-70'} focus:ring-red-500`
+                                        : `${isLightMode ? 'bg-white border-2 border-gray-300 text-gray-800 placeholder:text-gray-500 placeholder:opacity-70 hover:border-purple-400' : 'bg-gray-700 border-2 border-gray-600 text-white placeholder:text-gray-400 placeholder:opacity-70 hover:border-purple-500'} focus:ring-purple-500`
                                     }`}
+                                    style={{
+                                      fontSize: '16px' // Prevenir zoom en iOS
+                                    }}
                                   />
                                   {isDuplicate && (
                                     <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center pointer-events-none z-10" title="Nombre duplicado">
@@ -3200,43 +3277,43 @@
                         ? `${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`
                         : `${isLightMode ? 'bg-gray-100 border-gray-300 opacity-60' : 'bg-gray-800/40 border-gray-700 opacity-50'}`
                     }`}>
-                      <label className={`flex items-center gap-4 ${PISTAS_HABILITADAS ? 'cursor-pointer group' : 'cursor-not-allowed'}`}>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={impostorHints}
-                            onChange={(e) => PISTAS_HABILITADAS && setImpostorHints(e.target.checked)}
-                            disabled={!PISTAS_HABILITADAS}
-                            className="sr-only"
-                          />
-                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                            !PISTAS_HABILITADAS
-                              ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                              : impostorHints 
-                                ? 'bg-gradient-to-r from-purple-600 to-pink-600' 
-                                : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
-                          }`}>
-                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                              impostorHints ? 'left-7' : 'left-0.5'
-                            } ${!PISTAS_HABILITADAS ? 'opacity-50' : ''}`}></div>
+                      <label className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${PISTAS_HABILITADAS ? 'cursor-pointer group' : 'cursor-not-allowed'}`}>
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="relative flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={impostorHints}
+                              onChange={(e) => PISTAS_HABILITADAS && setImpostorHints(e.target.checked)}
+                              disabled={!PISTAS_HABILITADAS}
+                              className="sr-only"
+                            />
+                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                              !PISTAS_HABILITADAS
+                                ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                : impostorHints 
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600' 
+                                  : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                            }`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                impostorHints ? 'left-7' : 'left-0.5'
+                              } ${!PISTAS_HABILITADAS ? 'opacity-50' : ''}`}></div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-1">
                           <span className={`text-base sm:text-lg font-bold transition-colors ${
                             PISTAS_HABILITADAS
                               ? `${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`
                               : `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
                           }`}>Dar pistas a los impostores</span>
-                          {!PISTAS_HABILITADAS && (
-                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
-                              isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
-                            }`}>
-                            Próximamente
-                            </span>
-                          )}
                         </div>
+                        {!PISTAS_HABILITADAS && (
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold self-start sm:self-center ${
+                            isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
+                          }`}>
+                            Próximamente
+                          </span>
+                        )}
                       </label>
-                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${
+                      <p className={`text-xs sm:text-sm mt-3 ml-0 sm:ml-16 ${
                         PISTAS_HABILITADAS
                           ? `${isLightMode ? 'text-gray-600' : 'text-gray-400'}`
                           : `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
@@ -3330,7 +3407,7 @@
                 )}
 
                 {/* Step 2: Select Categories */}
-                {step === 2 && (
+                {step === 2 && !showCustomCategoryEditor && (
                   <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
                     <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Seleccionar Categorías</h2>
                     
@@ -3385,7 +3462,12 @@
                           : categoryMode === 'all'
                             ? (() => {
                                 const totalWords = categories.reduce((total, catName) => {
-                                  const words = categoryWords[catName];
+                                  // Buscar en categoryWords primero, luego en customCategories
+                                  let words = categoryWords[catName];
+                                  if (!words || !Array.isArray(words)) {
+                                    const customCat = customCategories.find(c => c.name === catName);
+                                    words = customCat ? customCat.words : [];
+                                  }
                                   return total + (Array.isArray(words) ? words.length : 0);
                                 }, 0);
                                 return `Seleccionaste ${totalWords} palabras`;
@@ -3393,7 +3475,12 @@
                             : categories.length > 0
                               ? (() => {
                                   const totalWords = categories.reduce((total, catName) => {
-                                    const words = categoryWords[catName];
+                                    // Buscar en categoryWords primero, luego en customCategories
+                                    let words = categoryWords[catName];
+                                    if (!words || !Array.isArray(words)) {
+                                      const customCat = customCategories.find(c => c.name === catName);
+                                      words = customCat ? customCat.words : [];
+                                    }
                                     return total + (Array.isArray(words) ? words.length : 0);
                                   }, 0);
                                   return `Seleccionaste ${totalWords} palabras`;
@@ -3455,74 +3542,129 @@
                           {customCategories.map((cat) => {
                             const wordsArray = categoryWords[cat.name] || cat.words || [];
                             const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
+                            const isMenuOpen = openMenuCategory === cat.name;
                             return (
-                              <div key={cat.name} className="relative group" style={{ zIndex: categories.includes(cat.name) || categoryMode === 'all' ? 10 : 1 }}>
-                                <button
-                                  onClick={() => toggleCategory(cat.name)}
-                                  disabled={categoryMode === 'all'}
-                                  className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg relative ${
-                                    categories.includes(cat.name) || categoryMode === 'all'
-                                      ? categoryMode === 'all'
-                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
-                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
-                                      : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
-                                  }`}
-                                >
-                                  <span className="text-lg sm:text-2xl flex-shrink-0">{cat.emoji || '⭐'}</span>
-                                  <span className="flex-1 text-left truncate">{cat.name}</span>
-                                  <span className={`text-xs sm:text-sm font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${isLightMode ? 'bg-gray-300 text-gray-800' : 'bg-gray-600 text-white'}`}>
-                                    {wordCount}
-                                  </span>
-                                </button>
-                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div key={cat.name} className="relative category-menu-container" style={{ zIndex: categories.includes(cat.name) || categoryMode === 'all' ? 10 : 1 }}>
+                                <div className="flex items-center gap-2">
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      editCustomCategory(cat);
-                                    }}
-                                    className={`p-1.5 rounded ${isLightMode ? 'bg-blue-500 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-xs`}
-                                    title="Editar"
+                                    onClick={() => toggleCategory(cat.name)}
+                                    disabled={categoryMode === 'all'}
+                                    className={`flex-1 p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg ${
+                                      categories.includes(cat.name) || categoryMode === 'all'
+                                        ? categoryMode === 'all'
+                                          ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
+                                          : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
+                                        : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
+                                    }`}
                                   >
-                                    ✏️
+                                    <span className="text-lg sm:text-2xl flex-shrink-0">{cat.emoji || '⭐'}</span>
+                                    <span className="flex-1 text-left truncate">{cat.name}</span>
+                                    <span className={`text-xs sm:text-sm font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${isLightMode ? 'bg-gray-300 text-gray-800' : 'bg-gray-600 text-white'}`}>
+                                      {wordCount}
+                                    </span>
                                   </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      exportCustomCategory(cat);
+                                      setOpenMenuCategory(isMenuOpen ? null : cat.name);
                                     }}
-                                    className={`p-1.5 rounded ${isLightMode ? 'bg-green-500 hover:bg-green-600' : 'bg-green-600 hover:bg-green-700'} text-white text-xs`}
-                                    title="Exportar"
+                                    className={`p-2 sm:p-3 rounded-lg text-white text-lg sm:text-xl min-w-[44px] min-h-[44px] flex items-center justify-center transition-all ${
+                                      isMenuOpen
+                                        ? isLightMode ? 'bg-gray-400' : 'bg-gray-500'
+                                        : isLightMode ? 'bg-gray-400 hover:bg-gray-500' : 'bg-gray-600 hover:bg-gray-500'
+                                    } shadow-lg`}
+                                    title="Opciones"
+                                    aria-label="Menú de opciones"
                                   >
-                                    💾
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteCustomCategory(cat.name);
-                                    }}
-                                    className={`p-1.5 rounded ${isLightMode ? 'bg-red-500 hover:bg-red-600' : 'bg-red-600 hover:bg-red-700'} text-white text-xs`}
-                                    title="Eliminar"
-                                  >
-                                    🗑️
+                                    <span>⋯</span>
                                   </button>
                                 </div>
+                                {isMenuOpen && (
+                                  <div className="absolute right-0 top-full mt-2 w-48 sm:w-56 rounded-lg shadow-2xl z-30 overflow-hidden" style={{ transform: 'translateY(4px)' }}>
+                                    <div className={`${isLightMode ? 'bg-white border border-gray-200' : 'bg-gray-800 border border-gray-700'} rounded-lg overflow-hidden`}>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenMenuCategory(null);
+                                          editCustomCategory(cat);
+                                        }}
+                                        className={`w-full px-4 py-3 sm:py-3.5 text-left flex items-center gap-3 text-sm sm:text-base transition-colors ${
+                                          isLightMode 
+                                            ? 'bg-white hover:bg-blue-50 text-gray-800' 
+                                            : 'bg-gray-800 hover:bg-blue-600 text-white'
+                                        }`}
+                                      >
+                                        <span className="text-lg sm:text-xl">✏️</span>
+                                        <span>Editar</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenMenuCategory(null);
+                                          exportCustomCategory(cat);
+                                        }}
+                                        className={`w-full px-4 py-3 sm:py-3.5 text-left flex items-center gap-3 text-sm sm:text-base transition-colors border-t ${
+                                          isLightMode 
+                                            ? 'bg-white hover:bg-green-50 text-gray-800 border-gray-200' 
+                                            : 'bg-gray-800 hover:bg-green-600 text-white border-gray-700'
+                                        }`}
+                                      >
+                                        <span className="text-lg sm:text-xl">💾</span>
+                                        <span>Exportar</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenMenuCategory(null);
+                                          deleteCustomCategory(cat.name);
+                                        }}
+                                        className={`w-full px-4 py-3 sm:py-3.5 text-left flex items-center gap-3 text-sm sm:text-base transition-colors border-t ${
+                                          isLightMode 
+                                            ? 'bg-white hover:bg-red-50 text-gray-800 border-gray-200' 
+                                            : 'bg-gray-800 hover:bg-red-600 text-white border-gray-700'
+                                        }`}
+                                      >
+                                        <span className="text-lg sm:text-xl">🗑️</span>
+                                        <span>Eliminar</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
-                          })}
+                          })}  
                         </div>
                     </>
-
+                  </div>
+                )}
 
                     {/* Editor de Categoría Personalizada */}
-                    {showCustomCategoryEditor && (
-                      <div className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`}>
-                        <div className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-5 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto`}>
-                          <h3 className={`text-lg sm:text-2xl font-bold mb-5 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                            {editingCustomCategory ? 'Editar Categoría Personalizada' : 'Crear Categoría Personalizada'}
-                          </h3>
+                {step === 2 && showCustomCategoryEditor && (
+                  <div className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
+                    <div className="mb-4 sm:mb-6">
+                      <button
+                        onClick={() => {
+                          setShowCustomCategoryEditor(false);
+                          setEditingCustomCategory(null);
+                          setCustomCategoryName('');
+                          setCustomCategoryWords([]);
+                          setNewWord('');
+                        }}
+                        className="mb-4 sm:mb-6 cursor-pointer inline-flex items-center gap-2 text-sm sm:text-base hover:opacity-80 transition-opacity"
+                      >
+                        <svg className={`w-5 h-5 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span className={isLightMode ? 'text-gray-700' : 'text-gray-300'}>Volver a categorías</span>
+                      </button>
+                      
+                      <h3 className={`text-lg sm:text-xl md:text-2xl font-bold mb-4 sm:mb-5 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        {editingCustomCategory ? 'Editar Categoría Personalizada' : 'Crear Categoría Personalizada'}
+                      </h3>
+                    </div>
                           
-                          <div className="mb-5 sm:mb-4">
-                            <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                          <div className="mb-4 sm:mb-5">
+                            <label className={`block text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
                               Nombre de la categoría:
                             </label>
                             <input
@@ -3530,19 +3672,20 @@
                               value={customCategoryName}
                               onChange={(e) => setCustomCategoryName(e.target.value)}
                               placeholder="Ej: Mis Amigos"
-                              className={`w-full px-4 py-3 sm:py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base sm:text-base ${
+                              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base ${
                                 isLightMode 
                                   ? 'bg-white border-2 border-gray-300 text-gray-800' 
                                   : 'bg-gray-700 border-2 border-gray-600 text-white'
                               }`}
+                              style={{ fontSize: '16px' }}
                             />
                           </div>
                           
-                          <div className="mb-5 sm:mb-4">
-                            <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                          <div className="mb-4 sm:mb-5">
+                            <label className={`block text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
                               Agregar palabras (mínimo 6):
                             </label>
-                            <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-3">
                               <input
                                 type="text"
                                 value={newWord}
@@ -3554,16 +3697,17 @@
                                   }
                                 }}
                                 placeholder="Escribe una palabra..."
-                                className={`flex-1 px-4 py-3 sm:py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base sm:text-base ${
+                                className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base ${
                                   isLightMode 
                                     ? 'bg-white border-2 border-gray-300 text-gray-800' 
                                     : 'bg-gray-700 border-2 border-gray-600 text-white'
                                 }`}
+                                style={{ fontSize: '16px' }}
                               />
                               <button
                                 onClick={addWord}
                                 disabled={!newWord.trim() || customCategoryWords.includes(newWord.trim())}
-                                className={`px-6 sm:px-8 py-3.5 sm:py-2.5 rounded-xl font-bold transition-all duration-300 text-base sm:text-base shadow-lg min-w-full sm:min-w-[120px] ${
+                                className={`px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base shadow-lg min-w-full sm:min-w-[100px] md:min-w-[120px] ${
                                   newWord.trim() && !customCategoryWords.includes(newWord.trim())
                                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-purple-500/50 hover:shadow-xl hover:scale-105 active:scale-95'
                                     : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
@@ -3574,35 +3718,35 @@
                             </div>
                             
                             {customCategoryWords.length > 0 && (
-                              <div className={`mt-4 p-4 rounded-lg border-2 ${
+                              <div className={`mt-3 sm:mt-4 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 ${
                                 isLightMode 
                                   ? 'bg-gray-50 border-gray-200' 
                                   : 'bg-gray-800 border-gray-700'
                               }`}>
-                                <p className={`text-sm font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                <p className={`text-xs sm:text-sm font-semibold mb-2 sm:mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
                                   Palabras agregadas ({customCategoryWords.length}):
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                   {customCategoryWords.map((word, index) => (
                                     <div
                                       key={index}
-                                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                                      className={`inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg ${
                                         isLightMode 
                                           ? 'bg-white border border-gray-300' 
                                           : 'bg-gray-700 border border-gray-600'
                                       }`}
                                     >
-                                      <span className={`text-sm ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                                      <span className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                                         {word}
                                       </span>
                                       <button
                                         onClick={() => removeWord(word)}
                                         className={`text-red-500 hover:text-red-700 transition-colors ${
                                           isLightMode ? 'hover:bg-red-50' : 'hover:bg-red-900/20'
-                                        } rounded p-0.5`}
+                                        } rounded p-0.5 flex-shrink-0`}
                                         title="Eliminar palabra"
                                       >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                       </button>
@@ -3617,7 +3761,7 @@
                             </p>
                           </div>
                           
-                          <div className="flex flex-col sm:flex-row gap-3 justify-end mt-6">
+                          <div className={`flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 pt-4 border-t ${isLightMode ? 'border-gray-200' : 'border-gray-700'}`}>
                             <button
                               onClick={() => {
                                 setShowCustomCategoryEditor(false);
@@ -3626,7 +3770,7 @@
                                 setCustomCategoryWords([]);
                                 setNewWord('');
                               }}
-                              className={`px-6 py-3.5 sm:py-3 rounded-xl font-semibold transition-all duration-300 text-base ${
+                              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base ${
                                 isLightMode 
                                   ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' 
                                   : 'bg-gray-700 hover:bg-gray-600 text-white'
@@ -3637,7 +3781,7 @@
                             <button
                               onClick={saveCustomCategory}
                               disabled={customCategoryWords.length < 6 || !customCategoryName.trim()}
-                              className={`px-6 py-3.5 sm:py-3 rounded-xl font-bold transition-all duration-300 text-base shadow-lg ${
+                              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base shadow-lg ${
                                 customCategoryWords.length >= 6 && customCategoryName.trim()
                                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-purple-500/50 hover:shadow-xl hover:scale-105 active:scale-95'
                                   : 'bg-gray-600 cursor-not-allowed opacity-50 text-white'
@@ -3646,49 +3790,49 @@
                               {editingCustomCategory ? 'Guardar Cambios' : 'Crear Categoría'}
                             </button>
                           </div>
-                        </div>
-                      </div>
-                    )}
+                  </div>
+                )}
 
-                    <div className="flex justify-between items-center pt-4 border-t border-gray-700 gap-2 sm:gap-3">
-                      <button
-                        onClick={() => setStep(1)}
-                        className="px-3 sm:px-6 py-3 bg-gray-700/80 hover:bg-gray-600/90 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl backdrop-blur-sm flex items-center gap-1.5 sm:gap-2"
-                      >
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        <span className="hidden xs:inline">Volver</span>
-                      </button>
-                      <button
-                        onClick={importCustomCategory}
-                        className={`px-3 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg flex items-center gap-1.5 sm:gap-2 ${
-                          isLightMode 
-                            ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        } hover:shadow-xl`}
-                      >
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span className="hidden sm:inline">Importar Categoría</span>
-                        <span className="sm:hidden">Importar</span>
-                      </button>
-                      <button
-                        onClick={() => setStep(3)}
-                        disabled={categoryMode !== 'all' && categories.length === 0}
-                        className={`px-3 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-1.5 sm:gap-2 ${
-                          categoryMode === 'all' || categories.length > 0
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl'
-                            : 'bg-gray-600 cursor-not-allowed opacity-50'
-                        }`}
-                      >
-                        <span className="hidden xs:inline">Continuar</span>
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
+                {/* Botones de navegación del Step 2 */}
+                {step === 2 && !showCustomCategoryEditor && (
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-700 gap-2 sm:gap-3">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="px-3 sm:px-6 py-3 bg-gray-700/80 hover:bg-gray-600/90 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl backdrop-blur-sm flex items-center gap-1.5 sm:gap-2"
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                      <span className="hidden xs:inline">Volver</span>
+                    </button>
+                    <button
+                      onClick={importCustomCategory}
+                      className={`px-3 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm shadow-lg flex items-center gap-1.5 sm:gap-2 ${
+                        isLightMode 
+                          ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      } hover:shadow-xl`}
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="hidden sm:inline">Importar Categoría</span>
+                      <span className="sm:hidden">Importar</span>
+                    </button>
+                    <button
+                      onClick={() => setStep(3)}
+                      disabled={categoryMode !== 'all' && categories.length === 0}
+                      className={`px-3 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-1.5 sm:gap-2 ${
+                        categoryMode === 'all' || categories.length > 0
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50 hover:shadow-xl'
+                          : 'bg-gray-600 cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      <span className="hidden xs:inline">Continuar</span>
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                   </div>
                 )}
 
@@ -4067,14 +4211,42 @@
                         </>
                       )}
                     </div>
-                    <button
-                      onClick={() => {
-                        continueAfterVote();
-                      }}
-                      className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
-                    >
-                      Continuar Juego
-                    </button>
+                    {(() => {
+                      // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
+                      const remainingPlayers = gameStarted.filter(p => 
+                        !p.isEliminated && p.number !== votingPlayer.number
+                      );
+                      const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
+                      const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
+                      const isBalanced = honestPlayersRemaining > 0 && impostorsRemainingCount > 0 && impostorsRemainingCount === honestPlayersRemaining;
+                      
+                      return (
+                        <>
+                          <button
+                            onClick={() => {
+                              if (isBalanced) {
+                                // Si están equilibrados, ir directamente a resultados finales
+                                setShowFinalReveal(true);
+                                setVotingPlayer(null);
+                                setRevealingVote(false);
+                              } else {
+                                continueAfterVote();
+                              }
+                            }}
+                            className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                          >
+                            {isBalanced ? 'Ver Resultados Finales' : 'Continuar Juego'}
+                          </button>
+                          {isBalanced && (
+                            <div className={`mt-4 p-3 sm:p-4 rounded-xl text-center ${isLightMode ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-500'}`}>
+                              <p className={`text-sm sm:text-base font-semibold ${isLightMode ? 'text-yellow-800' : 'text-yellow-400'}`}>
+                                ⚖️ Los impostores e inocentes están equilibrados ({impostorsRemainingCount} vs {honestPlayersRemaining}). Los impostores ganan.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -4184,7 +4356,7 @@
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>Made by LosTomobri • <a href="https://github.com/ARGENTORES" target="_blank" rel="noopener noreferrer" className="hover:text-purple-400 transition-colors">GitHub</a></p>
+              <p>Made by LosTomobri</p>
             </div>
           </div>
 
@@ -4231,51 +4403,67 @@
           )}
 
           {/* Modal de Confirmación para Ver Resultados */}
-          {showResultsConfirm && (
-            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowResultsConfirm(false)}>
-              <div 
-                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="text-center mb-6">
-                  <div className="text-5xl sm:text-6xl mb-4">🏁</div>
-                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                    ¿Ver Resultados Finales?
-                  </h3>
-                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                    Se terminará la partida y se mostrarán los resultados. ¿Estás seguro de que quieres continuar?
-                  </p>
-                </div>
-                
-                <div className="flex gap-3 sm:gap-4">
-                  <button
-                    onClick={() => setShowResultsConfirm(false)}
-                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
-                      isLightMode 
-                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
-                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
-                    }`}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowResultsConfirm(false);
-                      // Si hay una votación en curso, usar continueAfterVote, sino solo mostrar resultados
-                      if (votingPlayer) {
-                        continueAfterVote();
-                      } else {
-                        setShowFinalReveal(true);
-                      }
-                    }}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
-                  >
-                    Ver Resultados
-                  </button>
+          {showResultsConfirm && (() => {
+            // Calcular si los impostores e inocentes están equilibrados
+            const remainingPlayers = gameStarted ? gameStarted.filter(p => !p.isEliminated) : [];
+            const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
+            const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
+            const isBalanced = honestPlayersRemaining > 0 && impostorsRemainingCount > 0 && impostorsRemainingCount === honestPlayersRemaining;
+            
+            return (
+              <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => setShowResultsConfirm(false)}>
+                <div 
+                  className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-center mb-6">
+                    <div className="text-5xl sm:text-6xl mb-4">🏁</div>
+                    <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      ¿Ver Resultados Finales?
+                    </h3>
+                    <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                      Se terminará la partida y se mostrarán los resultados. ¿Estás seguro de que quieres continuar?
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-3 sm:gap-4">
+                    <button
+                      onClick={() => setShowResultsConfirm(false)}
+                      className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                        isLightMode 
+                          ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                          : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                      }`}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowResultsConfirm(false);
+                        // Si hay una votación en curso, usar continueAfterVote, sino solo mostrar resultados
+                        if (votingPlayer) {
+                          continueAfterVote();
+                        } else {
+                          setShowFinalReveal(true);
+                        }
+                      }}
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
+                    >
+                      Ver Resultados
+                    </button>
+                  </div>
+                  
+                  {isBalanced && (
+                    <div className={`mt-4 p-3 sm:p-4 rounded-xl text-center ${isLightMode ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-500'}`}>
+                      <p className={`text-sm sm:text-base font-semibold ${isLightMode ? 'text-yellow-800' : 'text-yellow-400'}`}>
+                        ⚖️ Los impostores e inocentes están equilibrados ({impostorsRemainingCount} vs {honestPlayersRemaining}). Los impostores ganan.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Modal de Confirmación para Eliminar Categoría */}
           {showDeleteCategoryModal && (
@@ -4531,88 +4719,88 @@
 
           {/* Modal de ¿Cómo jugar? */}
           {showHowToPlayModal && (
-            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm overflow-y-auto`} onClick={() => setShowHowToPlayModal(false)}>
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm overflow-y-auto`} onClick={() => setShowHowToPlayModal(false)}>
               <div 
-                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-2xl w-full my-8`}
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-2xl w-full my-4 sm:my-8 max-h-[95vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
                     CÓMO JUGAR
                   </h2>
                   <button
                     onClick={() => setShowHowToPlayModal(false)}
-                    className={`text-2xl hover:scale-110 transition-transform ${isLightMode ? 'text-gray-600 hover:text-gray-800' : 'text-gray-400 hover:text-white'}`}
+                    className={`text-2xl sm:text-3xl hover:scale-110 transition-transform ${isLightMode ? 'text-gray-600 hover:text-gray-800' : 'text-gray-400 hover:text-white'}`}
                   >
                     ×
                   </button>
                 </div>
 
                 {/* Lista de reglas */}
-                <div className="space-y-3 sm:space-y-4 mb-8">
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
-                    <span className="text-3xl sm:text-4xl">🎭</span>
-                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                <div className="space-y-2 sm:space-y-3 md:space-y-4 mb-6 sm:mb-8">
+                  <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">🎭</span>
+                    <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                       Los jugadores reciben una palabra secreta
                     </p>
                   </div>
 
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
-                    <span className="text-3xl sm:text-4xl">🕵️</span>
-                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                  <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">🕵️</span>
+                    <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                       Los impostores no reciben nada
                     </p>
                   </div>
 
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
-                    <span className="text-3xl sm:text-4xl">💬</span>
-                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                  <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">💬</span>
+                    <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                       Todos dicen una palabra relacionada
                     </p>
                   </div>
 
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
-                    <span className="text-3xl sm:text-4xl">🗳️</span>
-                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                      Votan para eliminar sospechosos
+                  <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">🗳️</span>
+                    <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Luego de una ronda votan para eliminar sospechosos
                     </p>
                   </div>
 
-                  <div className={`flex items-start gap-4 p-4 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
-                    <span className="text-3xl sm:text-4xl">🏆</span>
-                    <p className={`flex-1 text-sm sm:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                  <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
+                    <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">🏆</span>
+                    <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                       Encuentra a todos los impostores para ganar
                     </p>
                   </div>
                 </div>
 
                 {/* Condiciones de victoria */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {/* Jugador */}
-                  <div className={`p-5 rounded-xl border-2 ${isLightMode ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-800 border-yellow-500'}`}>
-                    <h3 className={`text-lg sm:text-xl font-bold mb-2 ${isLightMode ? 'text-yellow-700' : 'text-yellow-400'}`}>
+                  <div className={`p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl border-2 ${isLightMode ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-800 border-yellow-500'}`}>
+                    <h3 className={`text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2 ${isLightMode ? 'text-yellow-700' : 'text-yellow-400'}`}>
                       ✓ JUGADOR
                     </h3>
-                    <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                    <p className={`text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
                       Los jugadores ganan si eliminan a todos los impostores
                     </p>
                   </div>
 
                   {/* Impostor */}
-                  <div className={`p-5 rounded-xl border-2 ${isLightMode ? 'bg-red-50 border-red-400' : 'bg-gray-800 border-red-500'}`}>
-                    <h3 className={`text-lg sm:text-xl font-bold mb-2 ${isLightMode ? 'text-red-700' : 'text-red-400'}`}>
+                  <div className={`p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl border-2 ${isLightMode ? 'bg-red-50 border-red-400' : 'bg-gray-800 border-red-500'}`}>
+                    <h3 className={`text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2 ${isLightMode ? 'text-red-700' : 'text-red-400'}`}>
                       ✗ IMPOSTOR
                     </h3>
-                    <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                    <p className={`text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
                       Los impostores ganan si igualan o superan a los jugadores
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-4 sm:mt-6 flex justify-end">
                   <button
                     onClick={() => setShowHowToPlayModal(false)}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                    className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm sm:text-base ${
                       isLightMode 
                         ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
                         : 'bg-gray-700 hover:bg-gray-600 text-white'
