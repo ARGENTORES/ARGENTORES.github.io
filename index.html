@@ -53,6 +53,8 @@
       width: 100%;
       letter-spacing: 0.5px;
       font-weight: 400;
+      background-color: #0a0a0a;
+      color: #ffffff;
     }
     
     /* Aplicar Russo One a todos los elementos de texto */
@@ -135,6 +137,9 @@
       width: 100%;
       max-width: 100%;
       overflow-x: hidden;
+      background-color: #0a0a0a;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
     }
     
     /* Mejorar renderizado en Safari */
@@ -610,7 +615,7 @@
           console.log('✅ beforeinstallprompt event recibido');
           e.preventDefault();
           setDeferredPrompt(e);
-          // El botón ya está visible siempre, solo guardamos el prompt
+          setShowInstallButton(true);
         };
 
         // Handler para cuando la app se instala
@@ -704,9 +709,8 @@
           return;
         }
         
-        // Si no hay prompt nativo disponible, informar que no es posible
+        // Si no hay prompt nativo disponible, no hacer nada (el botón no debería estar visible)
         if (!deferredPrompt) {
-          showToast('No es posible instalar la aplicación en este momento', 'warning', 4000);
           return;
         }
         
@@ -3171,8 +3175,8 @@
                   </svg>
                 </button>
               )}
-              {/* Botón de instalación - siempre visible cuando no está instalado */}
-              {!isInstalled && (
+              {/* Botón de instalación - solo visible cuando la app es instalable */}
+              {!isInstalled && showInstallButton && deferredPrompt && (
                 <button
                   onClick={handleInstallClick}
                   className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 font-semibold text-sm sm:text-base ${
