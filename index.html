@@ -378,6 +378,7 @@
           console.log('✅ beforeinstallprompt event recibido');
           e.preventDefault();
           setDeferredPrompt(e);
+          setShowInstallButton(true); // Mostrar el botón de instalación
         };
 
         // Handler para cuando la app se instala
@@ -392,6 +393,42 @@
         // Agregar listeners
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.addEventListener('appinstalled', handleAppInstalled);
+
+        // Verificación periódica para detectar si la app es instalable
+        // (útil si el evento beforeinstallprompt tarda en llegar)
+        const checkInstallability = async () => {
+          try {
+            // Verificar que tenemos manifest y service worker
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+              const manifestResponse = await fetch(manifestLink.href);
+              if (manifestResponse.ok) {
+                const manifest = await manifestResponse.json();
+                // Verificar que tenemos iconos
+                if (manifest.icons && manifest.icons.length > 0) {
+                  // Verificar service worker
+                  if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    const hasActiveSW = registrations.some(reg => reg.active !== null);
+                    if (hasActiveSW) {
+                      // Si tenemos todos los requisitos, mostrar botón después de un delay
+                      // (el navegador decidirá si mostrar el prompt nativo)
+                      setTimeout(() => {
+                        console.log('ℹ️ App tiene todos los requisitos PWA, botón de instalación disponible');
+                        setShowInstallButton(true);
+                      }, 3000); // Esperar 3 segundos después de cargar
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Verificación de instalabilidad:', e);
+          }
+        };
+
+        // Ejecutar verificación después de que la página cargue
+        setTimeout(checkInstallability, 2000);
 
         // Limpiar listeners al desmontar
         return () => {
@@ -2947,7 +2984,7 @@
                 </button>
               )}
               {/* Botón de instalación siempre visible en la pantalla de inicio */}
-              {step === 1 && !gameStarted && !isInstalled && (
+              {!isInstalled && showInstallButton && (
                 <button
                   onClick={handleInstallClick}
                   className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 font-semibold text-sm sm:text-base ${
