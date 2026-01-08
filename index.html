@@ -220,6 +220,157 @@
         -webkit-font-smoothing: antialiased;
       }
     }
+    
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    
+    .toast {
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      min-width: 280px;
+      max-width: 400px;
+      pointer-events: auto;
+      animation: slideInRight 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 2px solid transparent;
+    }
+    
+    .toast.success {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.95);
+    }
+    
+    .toast.error {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.95);
+    }
+    
+    .toast.info {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.95);
+    }
+    
+    .toast.warning {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.95);
+    }
+    
+    .toast-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    
+    .toast-content {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .toast-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    
+    .toast-close:hover {
+      opacity: 1;
+    }
+    
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOutRight {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    
+    .toast.hiding {
+      animation: slideOutRight 0.3s ease-in forwards;
+    }
+    
+    /* Update Banner */
+    .update-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #9333ea 0%, #7c2d9a 100%);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(147, 51, 234, 0.4);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 300px;
+      max-width: 90%;
+      animation: slideInUp 0.3s ease-out;
+    }
+    
+    @keyframes slideInUp {
+      from {
+        transform: translate(-50%, 100%);
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+    
+    .update-banner button {
+      background: white;
+      color: #9333ea;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .update-banner button:hover {
+      transform: scale(1.05);
+    }
   </style>
   <script>
     // Verificar carga de recursos críticos
@@ -339,6 +490,64 @@
       );
     };
 
+    // Componente Toast para notificaciones
+    const Toast = ({ message, type = 'info', onClose, duration = 4000 }) => {
+      useEffect(() => {
+        if (duration > 0) {
+          const timer = setTimeout(() => {
+            onClose();
+          }, duration);
+          return () => clearTimeout(timer);
+        }
+      }, [duration, onClose]);
+
+      const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+
+      return (
+        <div className={`toast ${type}`}>
+          <span className="toast-icon">{icons[type] || icons.info}</span>
+          <span className="toast-content">{message}</span>
+          <button className="toast-close" onClick={onClose}>×</button>
+        </div>
+      );
+    };
+
+    // Hook para manejar toasts
+    const useToast = () => {
+      const [toasts, setToasts] = useState([]);
+
+      const showToast = (message, type = 'info', duration = 4000) => {
+        const id = Date.now() + Math.random();
+        setToasts(prev => [...prev, { id, message, type, duration }]);
+        return id;
+      };
+
+      const removeToast = (id) => {
+        setToasts(prev => prev.filter(toast => toast.id !== id));
+      };
+
+      const ToastContainer = () => (
+        <div className="toast-container">
+          {toasts.map(toast => (
+            <Toast
+              key={toast.id}
+              message={toast.message}
+              type={toast.type}
+              duration={toast.duration}
+              onClose={() => removeToast(toast.id)}
+            />
+          ))}
+        </div>
+      );
+
+      return { showToast, ToastContainer };
+    };
+
     function ImpostorGame() {
       // ============================================
       // CONFIGURACIÓN DE PISTAS
@@ -346,6 +555,9 @@
       // ============================================
       const PISTAS_HABILITADAS = false;
       // ============================================
+      
+      // Toast system
+      const { showToast, ToastContainer } = useToast();
       
       // ============================================
       // MODO PRUEBA: TODOS IMPOSTORES SIEMPRE ACTIVO
@@ -358,27 +570,47 @@
       fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:ImpostorGame-render',message:'Componente renderizando',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
 
+      // Detección mejorada de instalación
+      const checkInstalled = () => {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const isIOSStandalone = window.navigator.standalone === true;
+        const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches || 
+                          window.matchMedia('(display-mode: minimal-ui)').matches;
+        // También verificar si está en modo PWA guardando en localStorage
+        const wasInstalled = localStorage.getItem('pwa_installed') === 'true';
+        return isStandalone || isIOSStandalone || isInWebApp || wasInstalled;
+      };
+
       useEffect(() => {
-        // Verificar si ya está instalada
-        const checkInstalled = () => {
-          const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-          const isIOSStandalone = window.navigator.standalone === true;
-          return isStandalone || isIOSStandalone;
+        // Verificar si ya está instalada al inicio y continuamente
+        const verifyInstalled = () => {
+          if (checkInstalled()) {
+            setIsInstalled(true);
+            setShowInstallButton(false);
+            localStorage.setItem('pwa_installed', 'true');
+            return true;
+          }
+          return false;
         };
 
         // Verificar al inicio
-        if (checkInstalled()) {
-          setIsInstalled(true);
-          setShowInstallButton(false);
-          return;
+        if (verifyInstalled()) {
+          showToast('Aplicación instalada detectada', 'success', 3000);
         }
+
+        // Verificar periódicamente (cada 2 segundos) para detectar cambios
+        const installCheckInterval = setInterval(() => {
+          if (!isInstalled && verifyInstalled()) {
+            showToast('¡Aplicación instalada correctamente!', 'success', 5000);
+          }
+        }, 2000);
 
         // Handler para beforeinstallprompt - evento que se dispara cuando la app es instalable
         const handleBeforeInstallPrompt = (e) => {
           console.log('✅ beforeinstallprompt event recibido');
           e.preventDefault();
           setDeferredPrompt(e);
-          setShowInstallButton(true); // Mostrar el botón de instalación
+          setShowInstallButton(true);
         };
 
         // Handler para cuando la app se instala
@@ -387,55 +619,80 @@
           setIsInstalled(true);
           setShowInstallButton(false);
           setDeferredPrompt(null);
-          alert('¡Gracias por instalar la aplicación!');
+          localStorage.setItem('pwa_installed', 'true');
+          showToast('¡Gracias por instalar ARGENTORES! La app funciona sin internet.', 'success', 6000);
         };
 
         // Agregar listeners
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.addEventListener('appinstalled', handleAppInstalled);
 
-        // Verificación periódica para detectar si la app es instalable
-        // (útil si el evento beforeinstallprompt tarda en llegar)
-        const checkInstallability = async () => {
-          try {
-            // Verificar que tenemos manifest y service worker
-            const manifestLink = document.querySelector('link[rel="manifest"]');
-            if (manifestLink) {
-              const manifestResponse = await fetch(manifestLink.href);
-              if (manifestResponse.ok) {
-                const manifest = await manifestResponse.json();
-                // Verificar que tenemos iconos
-                if (manifest.icons && manifest.icons.length > 0) {
-                  // Verificar service worker
-                  if ('serviceWorker' in navigator) {
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    const hasActiveSW = registrations.some(reg => reg.active !== null);
-                    if (hasActiveSW) {
-                      // Si tenemos todos los requisitos, mostrar botón después de un delay
-                      // (el navegador decidirá si mostrar el prompt nativo)
-                      setTimeout(() => {
-                        console.log('ℹ️ App tiene todos los requisitos PWA, botón de instalación disponible');
-                        setShowInstallButton(true);
-                      }, 3000); // Esperar 3 segundos después de cargar
-                    }
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.log('Verificación de instalabilidad:', e);
-          }
-        };
-
-        // Ejecutar verificación después de que la página cargue
-        setTimeout(checkInstallability, 2000);
-
         // Limpiar listeners al desmontar
         return () => {
+          clearInterval(installCheckInterval);
           window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
           window.removeEventListener('appinstalled', handleAppInstalled);
         };
+      }, [isInstalled, showToast]);
+
+      // Sistema de actualización del Service Worker
+      useEffect(() => {
+        if ('serviceWorker' in navigator) {
+          let registration = null;
+
+          const checkForUpdates = async () => {
+            try {
+              registration = await navigator.serviceWorker.getRegistration();
+              if (registration) {
+                // Escuchar actualizaciones
+                registration.addEventListener('updatefound', () => {
+                  const newWorker = registration.installing;
+                  if (newWorker) {
+                    newWorker.addEventListener('statechange', () => {
+                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Hay una nueva versión disponible
+                        setUpdateAvailable(true);
+                        setWaitingWorker(newWorker);
+                        showToast('Nueva versión disponible. Recarga para actualizar.', 'info', 8000);
+                      }
+                    });
+                  }
+                });
+
+                // Verificar actualizaciones periódicamente (cada hora)
+                setInterval(() => {
+                  registration.update();
+                }, 3600000); // 1 hora
+
+                // Verificar actualizaciones al cargar
+                await registration.update();
+              }
+            } catch (error) {
+              console.error('Error checking for updates:', error);
+            }
+          };
+
+          // Verificar cuando el service worker está listo
+          navigator.serviceWorker.ready.then(() => {
+            checkForUpdates();
+          });
+
+          // También verificar después de un delay
+          setTimeout(checkForUpdates, 5000);
+        }
       }, []);
+
+      const handleUpdate = () => {
+        if (waitingWorker) {
+          waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+          setUpdateAvailable(false);
+          setWaitingWorker(null);
+          showToast('Actualizando aplicación...', 'info', 2000);
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      };
 
       const handleInstallClick = async () => {
         // Verificar si ya está instalado
@@ -444,123 +701,42 @@
         if (isStandalone || isIOSStandalone) {
           setIsInstalled(true);
           setShowInstallButton(false);
-          alert('¡Gracias por instalar la aplicación!');
           return;
         }
         
-        // Verificar requisitos PWA antes de intentar instalar
-        const checkPWARequirements = async () => {
-          const criticalErrors = [];
-          const warnings = [];
-          
-          // Verificar HTTPS
-          const isHTTPS = location.protocol === 'https:' || 
-                         location.hostname === 'localhost' || 
-                         location.hostname === '127.0.0.1' ||
-                         location.hostname === '[::1]';
-          if (!isHTTPS) {
-            criticalErrors.push('❌ No estás usando HTTPS. Las PWA requieren HTTPS (o localhost).');
-          }
-          
-          // Verificar manifest
-          const manifestLink = document.querySelector('link[rel="manifest"]');
-          if (!manifestLink) {
-            criticalErrors.push('❌ No se encontró el archivo manifest.json en el HTML.');
-          } else {
-            try {
-              const manifestResponse = await fetch(manifestLink.href);
-              if (!manifestResponse.ok) {
-                criticalErrors.push(`❌ Error al cargar manifest.json: ${manifestResponse.status} ${manifestResponse.statusText}`);
-              } else {
-                const manifest = await manifestResponse.json();
-                if (!manifest.icons || manifest.icons.length === 0) {
-                  criticalErrors.push('❌ El manifest.json no tiene iconos definidos.');
-                }
-                if (!manifest.name && !manifest.short_name) {
-                  criticalErrors.push('❌ El manifest.json no tiene nombre definido.');
-                }
-              }
-            } catch (e) {
-              criticalErrors.push(`❌ Error al leer manifest.json: ${e.message}`);
-            }
-          }
-          
-          // Verificar Service Worker
-          if (!('serviceWorker' in navigator)) {
-            criticalErrors.push('❌ El navegador no soporta Service Workers.');
-          } else {
-            try {
-              const registrations = await navigator.serviceWorker.getRegistrations();
-              const hasActiveSW = registrations.some(reg => reg.active !== null);
-              if (!hasActiveSW) {
-                warnings.push('⚠️ No hay Service Worker activo. Esto puede impedir la instalación automática.');
-              }
-            } catch (e) {
-              warnings.push(`⚠️ Error al verificar Service Worker: ${e.message}`);
-            }
-          }
-          
-          // Verificar si hay prompt disponible (esto es solo un aviso, no un error crítico)
-          if (!deferredPrompt) {
-            warnings.push('ℹ️ No se recibió el evento beforeinstallprompt. Puedes instalar manualmente desde el menú del navegador.');
-          }
-          
-          return { criticalErrors, warnings };
-        };
-        
-        // Verificar requisitos
-        const { criticalErrors, warnings } = await checkPWARequirements();
-        
-        // Si hay errores críticos, mostrarlos y salir
-        if (criticalErrors.length > 0) {
-          const errorMessage = 'No es posible instalar la aplicación:\n\n' + criticalErrors.join('\n\n');
-          if (warnings.length > 0) {
-            alert(errorMessage + '\n\n' + warnings.join('\n\n'));
-          } else {
-            alert(errorMessage);
-          }
-          console.error('Errores críticos de instalación PWA:', criticalErrors);
+        // Solo proceder si tenemos el prompt nativo disponible
+        // Si no hay prompt, el navegador puede no haber disparado beforeinstallprompt aún
+        // o el usuario canceló anteriormente y el navegador no volverá a dispararlo por un tiempo
+        if (!deferredPrompt) {
+          console.log('⚠️ No hay prompt de instalación disponible');
+          setShowInstallButton(false);
+          // No mostrar ningún mensaje - simplemente ocultar el botón
           return;
         }
         
-        // Si tenemos el prompt nativo, usarlo (Android Chrome, Edge, etc.)
-        if (deferredPrompt) {
-          try {
-            await deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log('Resultado de instalación:', outcome);
-            
-            if (outcome === 'accepted') {
-              setIsInstalled(true);
-              setShowInstallButton(false);
-              alert('¡Gracias por instalar la aplicación!');
-            } else {
-              alert('Instalación cancelada por el usuario.');
-            }
-            
-            setDeferredPrompt(null);
-            return;
-          } catch (error) {
-            console.error('Error al mostrar prompt:', error);
-            setDeferredPrompt(null);
-            // Continuar con instrucciones manuales
+        // Usar el prompt nativo
+        try {
+          await deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log('Resultado de instalación:', outcome);
+          
+          if (outcome === 'accepted') {
+            setIsInstalled(true);
+            setShowInstallButton(false);
+            localStorage.setItem('pwa_installed', 'true');
+            showToast('¡Instalación exitosa! La app funciona sin internet.', 'success', 6000);
+          } else {
+            // Si el usuario cancela, simplemente ocultar el botón
+            setShowInstallButton(false);
+            showToast('Instalación cancelada', 'info', 3000);
           }
-        }
-        
-        // Si no hay prompt nativo pero los requisitos básicos están OK, mostrar instrucciones para Android
-        const isAndroid = /Android/.test(navigator.userAgent);
-        if (isAndroid) {
-          let message = 'Para instalar la aplicación en Android:\n\n';
-          message += '1. Toca el menú (⋮) en la esquina superior derecha del navegador\n';
-          message += '2. Busca "Instalar aplicación" o "Install app"\n';
-          message += '3. O busca el icono (➕) en la barra de direcciones\n';
-          message += '4. Confirma la instalación\n\n';
-          if (warnings.length > 0) {
-            message += 'Nota: ' + warnings.join(' ');
-          }
-          alert(message);
-        } else if (warnings.length > 0) {
-          alert('Instalación manual requerida:\n\n' + warnings.join('\n\n'));
+          
+          // Limpiar el prompt después de usarlo (se haya aceptado o cancelado)
+          setDeferredPrompt(null);
+        } catch (error) {
+          console.error('Error al mostrar prompt:', error);
+          setDeferredPrompt(null);
+          setShowInstallButton(false);
         }
       };
 
@@ -617,6 +793,8 @@
       const [deferredPrompt, setDeferredPrompt] = useState(null);
       const [showInstallButton, setShowInstallButton] = useState(false);
       const [isInstalled, setIsInstalled] = useState(false);
+      const [updateAvailable, setUpdateAvailable] = useState(false);
+      const [waitingWorker, setWaitingWorker] = useState(null);
       const [savedProfiles, setSavedProfiles] = useState([]);
       const [selectedProfile, setSelectedProfile] = useState(null);
       const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -2191,6 +2369,9 @@
             if (options.impostorNeverFirst !== undefined) setImpostorNeverFirst(options.impostorNeverFirst);
             if (options.impostorsKnowEachOther !== undefined) setImpostorsKnowEachOther(options.impostorsKnowEachOther);
             if (options.categoryMode !== undefined) setCategoryMode(options.categoryMode);
+            if (options.playerCount !== undefined && options.playerCount >= 3 && options.playerCount <= 20) setPlayerCount(options.playerCount);
+            if (options.impostorCount !== undefined && options.impostorCount >= 1) setImpostorCount(options.impostorCount);
+            if (options.useNames !== undefined) setUseNames(options.useNames);
           } catch (e) {
             console.error('Error loading saved options:', e);
           }
@@ -2203,10 +2384,13 @@
           impostorHints,
           impostorNeverFirst,
           impostorsKnowEachOther,
-          categoryMode
+          categoryMode,
+          playerCount,
+          impostorCount,
+          useNames
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, categoryMode]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, categoryMode, playerCount, impostorCount, useNames]);
 
       // Cargar categorías personalizadas al inicio
       useEffect(() => {
@@ -2958,7 +3142,15 @@
       // #endregion
 
       return (
-        <div className={`min-h-screen w-full transition-colors duration-300 ${isLightMode ? 'bg-gradient-to-br from-gray-100 to-gray-200' : 'bg-black'} text-white p-3 sm:p-4 md:p-6`} style={{minHeight: '100dvh'}}>
+        <>
+          <ToastContainer />
+          {updateAvailable && (
+            <div className="update-banner">
+              <span>🔄 Nueva versión disponible</span>
+              <button onClick={handleUpdate}>Actualizar ahora</button>
+            </div>
+          )}
+          <div className={`min-h-screen w-full transition-colors duration-300 ${isLightMode ? 'bg-gradient-to-br from-gray-100 to-gray-200' : 'bg-black'} text-white p-3 sm:p-4 md:p-6`} style={{minHeight: '100dvh'}}>
           <div className="max-w-2xl mx-auto w-full px-2 sm:px-4">
             {/* Theme Toggle Button y Install Button */}
             <div className="flex justify-center sm:justify-end gap-2 mb-4">
@@ -2983,8 +3175,8 @@
                   </svg>
                 </button>
               )}
-              {/* Botón de instalación siempre visible en la pantalla de inicio */}
-              {!isInstalled && showInstallButton && (
+              {/* Botón de instalación - solo aparece cuando el navegador está listo para instalar */}
+              {!isInstalled && showInstallButton && deferredPrompt && (
                 <button
                   onClick={handleInstallClick}
                   className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 font-semibold text-sm sm:text-base ${
@@ -4741,6 +4933,7 @@
             </div>
           )}
         </div>
+        </>
       );
     }
 
