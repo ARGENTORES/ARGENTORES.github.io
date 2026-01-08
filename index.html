@@ -359,281 +359,151 @@
       // #endregion
 
       useEffect(() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:useEffect-tailwind',message:'Verificando Tailwind CSS',data:{hasTailwind:typeof tailwind !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-
         // Verificar si ya está instalada
         const checkInstalled = () => {
-          // Verificar múltiples formas de detectar si está instalado
           const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
           const isIOSStandalone = window.navigator.standalone === true;
-          const isInWebAppiOS = window.navigator.standalone === true;
-          const isInWebAppAndroid = window.matchMedia('(display-mode: standalone)').matches;
-          
-          if (isStandalone || isIOSStandalone || isInWebAppiOS || isInWebAppAndroid) {
-            setIsInstalled(true);
-            setShowInstallButton(false);
-            return true;
-          }
-          return false;
+          return isStandalone || isIOSStandalone;
         };
 
-        // Verificar si ya está instalado al inicio
+        // Verificar al inicio
         if (checkInstalled()) {
-          console.log('✅ App ya está instalada');
           setIsInstalled(true);
           setShowInstallButton(false);
           return;
         }
 
-        let installPrompt = null;
-        let installPromptTimeout = null;
-        
-        // Verificar requisitos para PWA instalable
-        const checkPWARequirements = async () => {
-          const checks = {
-            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
-            manifest: !!document.querySelector('link[rel="manifest"]'),
-            serviceWorker: 'serviceWorker' in navigator,
-            swActive: false,
-            icons: false
-          };
-          
-          // Verificar iconos y service worker activo
-          try {
-            const manifestLink = document.querySelector('link[rel="manifest"]');
-            if (manifestLink) {
-              const manifestResponse = await fetch(manifestLink.href);
-              const manifest = await manifestResponse.json();
-              checks.icons = manifest.icons && manifest.icons.length > 0;
-            }
-            
-            // Verificar si el service worker está activo
-            if ('serviceWorker' in navigator) {
-              const registrations = await navigator.serviceWorker.getRegistrations();
-              checks.swActive = registrations.some(reg => reg.active !== null);
-            }
-            
-            console.log('PWA Requirements check:', checks);
-          } catch (e) {
-            console.error('Error checking requirements:', e);
-          }
-          
-          return checks;
-        };
-        
-        // Verificar requisitos y solo mostrar botón si TODOS están cumplidos
-        const verifyAndShowButton = async () => {
-          if (checkInstalled()) {
-            return;
-          }
-          
-          const requirements = await checkPWARequirements();
-          const allRequirementsMet = requirements.https && 
-                                     requirements.manifest && 
-                                     requirements.serviceWorker && 
-                                     requirements.swActive && 
-                                     requirements.icons;
-          
-          if (allRequirementsMet) {
-            console.log('✅ Todos los requisitos PWA cumplidos');
-            // Solo mostrar si tenemos el evento beforeinstallprompt o después de esperar
-            if (installPrompt) {
-              setShowInstallButton(true);
-            }
-          } else {
-            console.log('⚠️ Faltan requisitos PWA:', {
-              https: requirements.https,
-              manifest: requirements.manifest,
-              serviceWorker: requirements.serviceWorker,
-              swActive: requirements.swActive,
-              icons: requirements.icons
-            });
-            setShowInstallButton(false);
-          }
-        };
-        
-        // Handler mejorado para beforeinstallprompt
-        const handler = (e) => {
-          console.log('🎉 beforeinstallprompt event fired!', e);
+        // Handler para beforeinstallprompt - evento que se dispara cuando la app es instalable
+        const handleBeforeInstallPrompt = (e) => {
+          console.log('✅ beforeinstallprompt event recibido');
           e.preventDefault();
-          installPrompt = e;
           setDeferredPrompt(e);
-          // Verificar requisitos antes de mostrar el botón
-          verifyAndShowButton();
-          console.log('✅ Install prompt captured and stored');
         };
-        
-        // Agregar listener una sola vez, pero con capture para asegurar que se capture temprano
-        // IMPORTANTE: El evento solo se dispara si:
-        // 1. La app cumple todos los requisitos PWA
-        // 2. El usuario NO ha rechazado la instalación antes
-        // 3. El usuario ha interactuado con la página
-        window.addEventListener('beforeinstallprompt', handler, { capture: true, once: false });
-        
-        // Verificar requisitos después de que el Service Worker esté listo
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(async () => {
-            console.log('Service Worker ready, verifying requirements...');
-            await verifyAndShowButton();
-          }).catch((err) => {
-            console.error('Service Worker not ready:', err);
-          });
-        }
-        
-        // Esperar y verificar requisitos periódicamente
-        installPromptTimeout = setTimeout(async () => {
-          if (!checkInstalled()) {
-            await verifyAndShowButton();
-          }
-        }, 3000);
-        
-        // Verificar periódicamente si la app se instaló
-        const checkInstallInterval = setInterval(() => {
-          if (checkInstalled()) {
-            clearInterval(checkInstallInterval);
-          }
-        }, 2000);
-        
-        // También escuchar el evento appinstalled para detectar cuando se instala
-        const appInstalledHandler = () => {
-          console.log('✅ App instalada exitosamente');
+
+        // Handler para cuando la app se instala
+        const handleAppInstalled = () => {
+          console.log('✅ App instalada');
           setIsInstalled(true);
           setShowInstallButton(false);
           setDeferredPrompt(null);
+          alert('¡Gracias por instalar la aplicación!');
         };
-        window.addEventListener('appinstalled', appInstalledHandler);
-        
+
+        // Agregar listeners
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleAppInstalled);
+
+        // Limpiar listeners al desmontar
         return () => {
-          window.removeEventListener('beforeinstallprompt', handler, { capture: true });
-          window.removeEventListener('appinstalled', appInstalledHandler);
-          if (installPromptTimeout) {
-            clearTimeout(installPromptTimeout);
-          }
-          if (checkInstallInterval) {
-            clearInterval(checkInstallInterval);
-          }
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.removeEventListener('appinstalled', handleAppInstalled);
         };
       }, []);
 
-      const checkInstalledNow = () => {
+      const handleInstallClick = async () => {
+        // Verificar si ya está instalado
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const isIOSStandalone = window.navigator.standalone === true;
-        return isStandalone || isIOSStandalone;
-      };
-
-      const handleInstallClick = async () => {
-        console.log('Install button clicked');
-        
-        // Verificar si ya está instalado antes de intentar instalar
-        if (checkInstalledNow()) {
-          console.log('App ya está instalada');
-          setShowInstallButton(false);
+        if (isStandalone || isIOSStandalone) {
           setIsInstalled(true);
-          alert('✅ La aplicación ya está instalada en tu dispositivo.');
+          setShowInstallButton(false);
+          alert('¡Gracias por instalar la aplicación!');
           return;
         }
         
-        // Intentar usar el prompt nativo primero (funciona en Android Chrome)
-        if (deferredPrompt) {
-          try {
-            console.log('Calling deferredPrompt.prompt()');
-            await deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log('User choice:', outcome);
-            if (outcome === 'accepted') {
-              setShowInstallButton(false);
-              setIsInstalled(true);
-              setDeferredPrompt(null);
-              console.log('✅ Instalación aceptada por el usuario');
-              return;
-            } else {
-              console.log('❌ Instalación rechazada por el usuario');
-            }
-            setDeferredPrompt(null);
-          } catch (error) {
-            console.error('Error al mostrar prompt de instalación:', error);
-            setDeferredPrompt(null);
-            // Continuar con instrucciones manuales
-          }
-        }
-        
-        // Siempre mostrar instrucciones de instalación manual (más confiable)
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        // Verificar requisitos para PWA instalable
+        // Verificar requisitos PWA antes de intentar instalar
         const checkPWARequirements = async () => {
-          const checks = {
-            https: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
-            manifest: !!document.querySelector('link[rel="manifest"]'),
-            serviceWorker: 'serviceWorker' in navigator,
-            icons: false,
-            swActive: false
-          };
+          const errors = [];
           
-          // Verificar iconos y service worker activo
-          try {
-            const manifestLink = document.querySelector('link[rel="manifest"]');
-            if (manifestLink) {
-              const manifestResponse = await fetch(manifestLink.href);
-              const manifest = await manifestResponse.json();
-              checks.icons = manifest.icons && manifest.icons.length > 0;
-            }
-            
-            // Verificar si el service worker está activo
-            if ('serviceWorker' in navigator) {
-              const registrations = await navigator.serviceWorker.getRegistrations();
-              checks.swActive = registrations.some(reg => reg.active !== null);
-            }
-          } catch (e) {
-            console.error('Error checking requirements:', e);
+          // Verificar HTTPS
+          const isHTTPS = location.protocol === 'https:' || 
+                         location.hostname === 'localhost' || 
+                         location.hostname === '127.0.0.1' ||
+                         location.hostname === '[::1]';
+          if (!isHTTPS) {
+            errors.push('❌ No estás usando HTTPS. Las PWA requieren HTTPS (o localhost).');
           }
           
-          return checks;
+          // Verificar manifest
+          const manifestLink = document.querySelector('link[rel="manifest"]');
+          if (!manifestLink) {
+            errors.push('❌ No se encontró el archivo manifest.json en el HTML.');
+          } else {
+            try {
+              const manifestResponse = await fetch(manifestLink.href);
+              if (!manifestResponse.ok) {
+                errors.push(`❌ Error al cargar manifest.json: ${manifestResponse.status} ${manifestResponse.statusText}`);
+              } else {
+                const manifest = await manifestResponse.json();
+                if (!manifest.icons || manifest.icons.length === 0) {
+                  errors.push('❌ El manifest.json no tiene iconos definidos.');
+                }
+                if (!manifest.name && !manifest.short_name) {
+                  errors.push('❌ El manifest.json no tiene nombre definido.');
+                }
+              }
+            } catch (e) {
+              errors.push(`❌ Error al leer manifest.json: ${e.message}`);
+            }
+          }
+          
+          // Verificar Service Worker
+          if (!('serviceWorker' in navigator)) {
+            errors.push('❌ El navegador no soporta Service Workers.');
+          } else {
+            try {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              const hasActiveSW = registrations.some(reg => reg.active !== null);
+              if (!hasActiveSW) {
+                errors.push('❌ No hay Service Worker activo. Verifica que sw.js esté registrado correctamente.');
+              }
+            } catch (e) {
+              errors.push(`❌ Error al verificar Service Worker: ${e.message}`);
+            }
+          }
+          
+          // Verificar si hay prompt disponible
+          if (!deferredPrompt) {
+            errors.push('❌ No se recibió el evento beforeinstallprompt. Esto puede deberse a:\n   - La app ya fue rechazada anteriormente\n   - El navegador no soporta instalación PWA\n   - Faltan requisitos PWA (ver errores arriba)');
+          }
+          
+          return errors;
         };
         
-        if (isAndroid) {
-          // Instrucciones específicas para INSTALAR como app (no solo añadir a pantalla)
-          const installMessage = '📱 INSTALAR COMO APLICACIÓN\n\n' +
-            'IMPORTANTE: Busca "INSTALAR APLICACIÓN" (no "Añadir a pantalla de inicio")\n\n' +
-            'OPCIÓN 1 - Menú del navegador:\n' +
-            '1. Toca el menú (⋮) en la esquina superior derecha\n' +
-            '2. Busca "INSTALAR APLICACIÓN" o "Install app"\n' +
-            '3. Si no aparece, busca el icono (➕) en la barra de direcciones\n' +
-            '4. Toca y confirma la instalación\n\n' +
-            'OPCIÓN 2 - Barra de direcciones:\n' +
-            '1. Busca el icono de instalación (➕) en la barra de direcciones\n' +
-            '2. Toca el icono\n' +
-            '3. Confirma "INSTALAR"\n\n' +
-            '💡 Si solo ves "Añadir a pantalla de inicio", recarga la página y espera unos segundos. ' +
-            'La opción de "Instalar aplicación" aparecerá cuando la app cumpla todos los requisitos.';
-          
-          alert(installMessage);
-        } else if (isIOS) {
-          alert('📱 INSTALAR EN iOS:\n\n1. Toca el botón de compartir (⬆️) en la parte inferior de Safari\n2. Desplázate hacia abajo y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio como una aplicación.');
-        } else if (isMobile) {
-          alert('📱 INSTALAR COMO APP:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones\n2. O ve al menú del navegador (⋮) y busca "INSTALAR APLICACIÓN"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como una aplicación real en tu dispositivo.');
-        } else {
-          alert('💻 INSTALAR EN PC:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones (esquina derecha)\n2. O ve al menú del navegador (⋮) y busca "Instalar ARGENTORES"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como aplicación de escritorio.');
-        }
-      };
-
-      const showInstallInstructions = () => {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Verificar requisitos
+        const errors = await checkPWARequirements();
         
-        if (isIOS) {
-          alert('Para instalar en iOS:\n\n1. Toca el botón de compartir (cuadrado con flecha) en la parte inferior\n2. Desplázate y selecciona "Añadir a pantalla de inicio"\n3. Toca "Añadir" en la esquina superior derecha\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
-        } else if (isAndroid) {
-          alert('Para instalar en Android:\n\n1. Toca el menú (⋮) en la esquina superior derecha del navegador\n2. Busca y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\nTambién puedes buscar el icono de instalación (➕) en la barra de direcciones.\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
-        } else if (isMobile) {
-          alert('Para instalar:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones de tu navegador\n2. O ve al menú del navegador y busca "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\n¡Listo! La app aparecerá en tu pantalla de inicio.');
-        } else {
-          alert('Para instalar en PC:\n\n1. Busca el icono de instalación (➕) en la barra de direcciones (esquina derecha)\n2. O ve al menú del navegador (⋮) y busca "Instalar ARGENTORES"\n3. Confirma la instalación\n\n¡Listo! La app se instalará como aplicación de escritorio.');
+        // Si hay errores, mostrarlos
+        if (errors.length > 0) {
+          const errorMessage = 'No es posible instalar la aplicación:\n\n' + errors.join('\n\n');
+          alert(errorMessage);
+          console.error('Errores de instalación PWA:', errors);
+          return;
+        }
+        
+        // Si tenemos el prompt nativo, usarlo (Android Chrome, Edge, etc.)
+        if (deferredPrompt) {
+          try {
+            await deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('Resultado de instalación:', outcome);
+            
+            if (outcome === 'accepted') {
+              setIsInstalled(true);
+              setShowInstallButton(false);
+              alert('¡Gracias por instalar la aplicación!');
+            } else {
+              alert('Instalación cancelada por el usuario.');
+            }
+            
+            setDeferredPrompt(null);
+            return;
+          } catch (error) {
+            console.error('Error al mostrar prompt:', error);
+            setDeferredPrompt(null);
+            alert(`Error al intentar instalar:\n\n❌ ${error.name}: ${error.message}\n\nVerifica la consola para más detalles.`);
+            return;
+          }
         }
       };
 
@@ -3056,20 +2926,21 @@
                   </svg>
                 </button>
               )}
-              {/* Botón de instalación solo en la pantalla de inicio (step === 1) */}
-              {step === 1 && !gameStarted && !isInstalled && showInstallButton && (
+              {/* Botón de instalación siempre visible en la pantalla de inicio */}
+              {step === 1 && !gameStarted && !isInstalled && (
                 <button
                   onClick={handleInstallClick}
-                  className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center ${
+                  className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 font-semibold text-sm sm:text-base ${
                     isLightMode 
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white' 
+                      : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                   } hover:shadow-xl hover:scale-105`}
                   title="Instalar aplicación"
                 >
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
+                  <span className="hidden sm:inline">Instalar</span>
                 </button>
               )}
               <button
@@ -3209,7 +3080,7 @@
                           </div>
 
                           {/* Inputs de nombres */}
-                          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 animate-in fade-in duration-300">
+                          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in duration-300">
                             {Array.from({ length: playerCount }, (_, i) => {
                               const duplicateIndices = getDuplicateNameIndices();
                               const isDuplicate = duplicateIndices.includes(i);
@@ -3225,7 +3096,7 @@
                                     placeholder="Nombre del jugador"
                                     value={playerNames[i] || ''}
                                     onChange={(e) => handleNameChange(i, e.target.value)}
-                                    className={`pl-10 sm:pl-12 px-4 py-2.5 sm:py-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base sm:text-base transition-all duration-200 w-full ${
+                                    className={`pl-10 sm:pl-12 px-4 py-2.5 sm:py-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-base sm:text-base transition-all duration-200 w-full min-w-0 ${
                                       isDuplicate
                                         ? `${isLightMode ? 'bg-red-50 border-2 border-red-400 text-red-800 placeholder:text-red-400 placeholder:opacity-70' : 'bg-red-900/30 border-2 border-red-500 text-red-300 placeholder:text-red-400 placeholder:opacity-70'} focus:ring-red-500`
                                         : `${isLightMode ? 'bg-white border-2 border-gray-300 text-gray-800 placeholder:text-gray-500 placeholder:opacity-70 hover:border-purple-400' : 'bg-gray-700 border-2 border-gray-600 text-white placeholder:text-gray-400 placeholder:opacity-70 hover:border-purple-500'} focus:ring-purple-500`
@@ -4088,26 +3959,26 @@
 
                       <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl`}>
                         <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Jugadores (Toca para votar)</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                           {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => (
                             <button
                               key={player.number}
                               onClick={() => !player.isEliminated && votePlayer(player)}
                               disabled={player.isEliminated}
-                              className={`p-3 sm:p-4 rounded-xl text-center font-bold text-sm transition-all duration-300 relative shadow-lg ${
+                              className={`px-4 py-3 sm:px-5 sm:py-4 rounded-xl text-center font-bold text-sm sm:text-base transition-all duration-300 relative shadow-lg min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${
                                 player.isEliminated
                                   ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50 cursor-not-allowed`
                                   : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer ring-2 ring-purple-400 hover:ring-purple-300 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
                               }`}
                             >
-                              <div className="break-words">
+                              <div className="break-words w-full px-2">
                                 {useNames ? player.name : `Jugador ${player.number}`}
                               </div>
                               {!player.isEliminated && (
-                                <div className="text-xs mt-1 opacity-75">👆 Votar</div>
+                                <div className="text-xs mt-2 opacity-75">👆 Votar</div>
                               )}
                               {player.isEliminated && (
-                                <div className="text-xs mt-1">💀 Eliminado</div>
+                                <div className="text-xs mt-2">💀 Eliminado</div>
                               )}
                             </button>
                           ))}
@@ -4326,9 +4197,9 @@
                   ) : (
                     <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-400' : 'bg-blue-900/50'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8`}>
                       <p className={`text-lg sm:text-xl font-bold mb-4 text-center ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>✅ JUGADORES HONESTOS ✅</p>
-                      <div className="flex justify-center gap-2 flex-wrap">
+                      <div className="flex justify-center gap-2 sm:gap-3 flex-wrap">
                         {honestPlayers.map((player) => (
-                          <div key={player.number} className={`px-3 sm:px-4 py-2 rounded-lg font-bold text-sm sm:text-base break-words ${isLightMode ? 'bg-blue-200 text-blue-800' : 'bg-blue-700 text-white'}`}>
+                          <div key={player.number} className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-bold text-sm sm:text-base break-words min-w-fit ${isLightMode ? 'bg-blue-200 text-blue-800' : 'bg-blue-700 text-white'}`}>
                             {useNames ? player.name : player.number}
                           </div>
                         ))}
@@ -4906,7 +4777,7 @@
       }
       
       function registerSW() {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
           .then((registration) => {
             console.log('✅ SW registered successfully:', registration.scope);
             
