@@ -1,8 +1,9 @@
-const CACHE_NAME = 'argentores-v8';
+const CACHE_NAME = 'argentores-v9';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json',
+  './sw.js'
 ];
 
 self.addEventListener('install', (event) => {
