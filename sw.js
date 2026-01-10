@@ -1,4 +1,4 @@
-const CACHE_NAME = 'argentores-v13';
+const CACHE_NAME = 'argentores-v14';
 // Cachear todos los recursos necesarios para funcionar offline
 const urlsToCache = [
   './',
@@ -85,8 +85,38 @@ self.addEventListener('fetch', (event) => {
   
   // Para recursos del mismo origen (index.html, iconos, manifest, etc)
   if (isSameOrigin) {
-    // Estrategia especial para manifest.json e index.html: Network First para asegurar actualizaciones
-    if (pathname.includes('manifest.json') || pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
+    // Estrategia especial para manifest.json: SIEMPRE obtener de la red, nunca cachear
+    if (pathname.includes('manifest.json')) {
+      event.respondWith(
+        fetch(event.request, { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+          .then((networkResponse) => {
+            // NO cachear el manifest.json para asegurar que siempre se obtenga la versión más reciente
+            return networkResponse;
+          })
+          .catch(() => {
+            // Si falla la red, intentar obtener del cache como último recurso
+            return caches.match(event.request).then((cachedResponse) => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              return new Response('Manifest unavailable offline', { 
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+              });
+            });
+          })
+      );
+      return;
+    }
+    
+    // Estrategia Network First para index.html: obtener de la red primero
+    if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
       event.respondWith(
         fetch(event.request, { cache: 'no-cache' })
           .then((networkResponse) => {
@@ -100,17 +130,13 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => {
             // Si falla la red, usar cache como fallback
-            return caches.match(event.request).then((cachedResponse) => {
+            return caches.match('./index.html').then((cachedResponse) => {
               if (cachedResponse) {
                 return cachedResponse;
               }
-              // Para index.html, intentar obtener cualquier versión cacheada
-              if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
-                return caches.match('./index.html');
-              }
-              return new Response('Resource unavailable offline', { 
+              return new Response('App unavailable offline', { 
                 status: 503,
-                headers: { 'Content-Type': 'text/plain' }
+                headers: { 'Content-Type': 'text/html' }
               });
             });
           })
