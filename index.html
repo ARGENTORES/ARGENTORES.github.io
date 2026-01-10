@@ -394,7 +394,24 @@
   </script>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+      <div style="position: relative; width: 200px; height: 200px;">
+        <img src="icon-512.png" alt="ARGENTORES" style="width: 100%; height: 100%; object-fit: contain; animation: pulse 2s ease-in-out infinite;" />
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; border: 3px solid #9333ea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    @keyframes spin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(0.95); }
+    }
+  </style>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -572,52 +589,93 @@
 
       // Detección mejorada de instalación
       const checkInstalled = () => {
+        // Verificar primero los métodos más confiables (display-mode)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const isIOSStandalone = window.navigator.standalone === true;
         const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches || 
                           window.matchMedia('(display-mode: minimal-ui)').matches;
-        // También verificar si está en modo PWA guardando en localStorage
+        
+        // Solo usar localStorage como confirmación adicional, no como única fuente
+        // Si está en modo standalone, definitivamente está instalada
+        if (isStandalone || isIOSStandalone || isInWebApp) {
+          return true;
+        }
+        
+        // Si no está en modo standalone pero localStorage dice que estaba instalada,
+        // verificar si realmente sigue instalada (puede haber sido desinstalada)
         const wasInstalled = localStorage.getItem('pwa_installed') === 'true';
-        return isStandalone || isIOSStandalone || isInWebApp || wasInstalled;
+        if (wasInstalled) {
+          // Verificar si realmente sigue en modo standalone (puede haber cambiado)
+          // Si no está en modo standalone, limpiar el flag
+          if (!isStandalone && !isIOSStandalone && !isInWebApp) {
+            localStorage.removeItem('pwa_installed');
+            return false;
+          }
+          return true;
+        }
+        
+        return false;
       };
 
       useEffect(() => {
         try {
-          // Verificar si ya está instalada al inicio y continuamente
+          // Verificar si ya está instalada al inicio (solo una vez)
           const verifyInstalled = () => {
             try {
-              if (checkInstalled()) {
+              const installed = checkInstalled();
+              if (installed) {
                 setIsInstalled(true);
                 setShowInstallButton(false);
-                localStorage.setItem('pwa_installed', 'true');
+                // Solo guardar en localStorage si realmente está en modo standalone
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                const isIOSStandalone = window.navigator.standalone === true;
+                const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches || 
+                                  window.matchMedia('(display-mode: minimal-ui)').matches;
+                if (isStandalone || isIOSStandalone || isInWebApp) {
+                  localStorage.setItem('pwa_installed', 'true');
+                }
                 return true;
+              } else {
+                // Si no está instalada, asegurarse de que el estado sea correcto
+                setIsInstalled(false);
+                return false;
               }
-              return false;
             } catch (error) {
               console.error('Error en verifyInstalled:', error);
               return false;
             }
           };
 
-          // Verificar al inicio
+          // Verificar al inicio (solo una vez, sin mostrar toast)
+          // Guardar el estado inicial para comparar después
+          let wasInstalledInitially = false;
           try {
-            if (verifyInstalled()) {
-              showToast('Aplicación instalada detectada', 'success', 3000);
-            }
+            wasInstalledInitially = verifyInstalled();
+            // No mostrar toast al inicio, solo actualizar el estado
           } catch (error) {
             console.error('Error verificando instalación inicial:', error);
           }
 
-          // Verificar periódicamente (cada 2 segundos) para detectar cambios
+          // Verificar periódicamente SOLO si no estaba instalada inicialmente
+          // Reducir frecuencia a cada 5 segundos para evitar spam
+          // Solo verificar si inicialmente NO estaba instalada
           const installCheckInterval = setInterval(() => {
             try {
-              if (!isInstalled && verifyInstalled()) {
-                showToast('¡Aplicación instalada correctamente!', 'success', 5000);
+              // Solo verificar si inicialmente no estaba instalada
+              if (!wasInstalledInitially && !isInstalled) {
+                const nowInstalled = verifyInstalled();
+                // Solo mostrar mensaje si cambió de no instalada a instalada
+                // durante esta sesión
+                if (nowInstalled) {
+                  showToast('¡Aplicación instalada correctamente!', 'success', 5000);
+                  // Marcar como instalada inicialmente para evitar más mensajes
+                  wasInstalledInitially = true;
+                }
               }
             } catch (error) {
               console.error('Error en intervalo de verificación:', error);
             }
-          }, 2000);
+          }, 5000);
 
           // Handler para beforeinstallprompt - evento que se dispara cuando la app es instalable
           const handleBeforeInstallPrompt = (e) => {
@@ -626,8 +684,16 @@
               if (e && typeof e.preventDefault === 'function') {
                 e.preventDefault();
               }
-              setDeferredPrompt(e);
-              setShowInstallButton(true);
+              // Usar setTimeout para diferir los setState y evitar bloqueos visuales
+              // Especialmente importante en móviles donde puede causar pantalla blanca
+              setTimeout(() => {
+                try {
+                  setDeferredPrompt(e);
+                  setShowInstallButton(true);
+                } catch (error) {
+                  console.error('Error actualizando estado de instalación:', error);
+                }
+              }, 0);
             } catch (error) {
               console.error('Error en handleBeforeInstallPrompt:', error);
             }
@@ -637,11 +703,24 @@
           const handleAppInstalled = () => {
             try {
               console.log('✅ App instalada');
-              setIsInstalled(true);
-              setShowInstallButton(false);
-              setDeferredPrompt(null);
-              localStorage.setItem('pwa_installed', 'true');
-              showToast('¡Gracias por instalar ARGENTORES! La app funciona sin internet.', 'success', 6000);
+              // Usar setTimeout para diferir los setState y evitar bloqueos visuales
+              setTimeout(() => {
+                try {
+                  setIsInstalled(true);
+                  setShowInstallButton(false);
+                  setDeferredPrompt(null);
+                  // Solo guardar en localStorage si realmente está en modo standalone
+                  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                  const isIOSStandalone = window.navigator.standalone === true;
+                  if (isStandalone || isIOSStandalone) {
+                    localStorage.setItem('pwa_installed', 'true');
+                  }
+                  // Mostrar mensaje solo cuando realmente se instala (evento appinstalled)
+                  showToast('¡Gracias por instalar ARGENTORES! La app funciona sin internet.', 'success', 6000);
+                } catch (error) {
+                  console.error('Error actualizando estado después de instalación:', error);
+                }
+              }, 0);
             } catch (error) {
               console.error('Error en handleAppInstalled:', error);
             }
@@ -668,7 +747,7 @@
         } catch (error) {
           console.error('Error en useEffect de instalación:', error);
         }
-      }, [isInstalled, showToast]);
+      }, [isInstalled]); // Removido showToast de las dependencias para evitar re-renders innecesarios
 
       // Sistema de actualización del Service Worker
       useEffect(() => {
@@ -734,8 +813,10 @@
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const isIOSStandalone = window.navigator.standalone === true;
         if (isStandalone || isIOSStandalone) {
-          setIsInstalled(true);
-          setShowInstallButton(false);
+          setTimeout(() => {
+            setIsInstalled(true);
+            setShowInstallButton(false);
+          }, 0);
           return;
         }
         
@@ -750,23 +831,32 @@
           const { outcome } = await deferredPrompt.userChoice;
           console.log('Resultado de instalación:', outcome);
           
-          if (outcome === 'accepted') {
-            setIsInstalled(true);
-            setShowInstallButton(false);
-            localStorage.setItem('pwa_installed', 'true');
-            showToast('¡Instalación exitosa! La app funciona sin internet.', 'success', 6000);
-          } else {
-            // Si el usuario cancela, simplemente ocultar el botón
-            setShowInstallButton(false);
-            showToast('Instalación cancelada', 'info', 3000);
-          }
-          
-          // Limpiar el prompt después de usarlo (se haya aceptado o cancelado)
-          setDeferredPrompt(null);
+          // Diferir los setState para evitar bloqueos visuales, especialmente en móviles
+          setTimeout(() => {
+            try {
+              if (outcome === 'accepted') {
+              setIsInstalled(true);
+              setShowInstallButton(false);
+              localStorage.setItem('pwa_installed', 'true');
+              showToast('¡Instalación exitosa! La app funciona sin internet.', 'success', 6000);
+            } else {
+              // Si el usuario cancela, simplemente ocultar el botón
+              setShowInstallButton(false);
+              showToast('Instalación cancelada', 'info', 3000);
+            }
+            
+            // Limpiar el prompt después de usarlo (se haya aceptado o cancelado)
+            setDeferredPrompt(null);
+            } catch (error) {
+              console.error('Error actualizando estado después de prompt:', error);
+            }
+          }, 100);
         } catch (error) {
           console.error('Error al mostrar prompt:', error);
-          setDeferredPrompt(null);
-          setShowInstallButton(false);
+          setTimeout(() => {
+            setDeferredPrompt(null);
+            setShowInstallButton(false);
+          }, 0);
         }
       };
 
@@ -812,6 +902,9 @@
       const [impostorHints, setImpostorHints] = useState(false);
       const [impostorNeverFirst, setImpostorNeverFirst] = useState(false);
       const [impostorsKnowEachOther, setImpostorsKnowEachOther] = useState(false);
+      const [additionalImpostorsMode, setAdditionalImpostorsMode] = useState(false);
+      const [additionalImpostorsCount, setAdditionalImpostorsCount] = useState(1);
+      const [isAdditionalImpostorsActive, setIsAdditionalImpostorsActive] = useState(false);
       // Modo "todos impostores" siempre activo (sin mostrar opción)
       const allImpostorsMode = true;
       const [gameStarted, setGameStarted] = useState(false);
@@ -2324,6 +2417,13 @@
         return Math.min(maxPercentage, players - 1, Math.max(1, maxPercentage));
       };
 
+      // Calcular el máximo de impostores adicionales según la cantidad de jugadores
+      const getMaxAdditionalImpostors = (players, currentImpostors) => {
+        const maxImpostors = getMaxImpostors(players);
+        // El máximo de adicionales es la diferencia entre el máximo permitido y los impostores actuales
+        return Math.max(0, maxImpostors - currentImpostors);
+      };
+
       // Ajustar automáticamente el número de impostores si excede el máximo permitido
       useEffect(() => {
         const maxImpostors = getMaxImpostors(playerCount);
@@ -2331,6 +2431,21 @@
           setImpostorCount(maxImpostors);
         }
       }, [playerCount, impostorCount]);
+
+      // Ajustar automáticamente la cantidad de impostores adicionales si excede el máximo permitido
+      useEffect(() => {
+        if (playerCount >= 5) {
+          const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+          if (additionalImpostorsCount > maxAdditional && maxAdditional > 0) {
+            setAdditionalImpostorsCount(Math.min(additionalImpostorsCount, maxAdditional));
+          }
+        } else {
+          // Si hay menos de 5 jugadores, desactivar el modo
+          if (additionalImpostorsMode) {
+            setAdditionalImpostorsMode(false);
+          }
+        }
+      }, [playerCount, impostorCount, additionalImpostorsCount, additionalImpostorsMode]);
 
       // Ajustar nombres cuando cambia playerCount
       useEffect(() => {
@@ -2424,6 +2539,10 @@
             if (options.impostorHints !== undefined) setImpostorHints(options.impostorHints);
             if (options.impostorNeverFirst !== undefined) setImpostorNeverFirst(options.impostorNeverFirst);
             if (options.impostorsKnowEachOther !== undefined) setImpostorsKnowEachOther(options.impostorsKnowEachOther);
+            if (options.additionalImpostorsMode !== undefined) setAdditionalImpostorsMode(options.additionalImpostorsMode);
+            if (options.additionalImpostorsCount !== undefined && options.additionalImpostorsCount >= 1) {
+              setAdditionalImpostorsCount(options.additionalImpostorsCount);
+            }
             if (options.categoryMode !== undefined) setCategoryMode(options.categoryMode);
             if (options.playerCount !== undefined && options.playerCount >= 3 && options.playerCount <= 20) setPlayerCount(options.playerCount);
             if (options.impostorCount !== undefined && options.impostorCount >= 1) setImpostorCount(options.impostorCount);
@@ -2440,13 +2559,15 @@
           impostorHints,
           impostorNeverFirst,
           impostorsKnowEachOther,
+          additionalImpostorsMode,
+          additionalImpostorsCount,
           categoryMode,
           playerCount,
           impostorCount,
           useNames
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, categoryMode, playerCount, impostorCount, useNames]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, categoryMode, playerCount, impostorCount, useNames]);
 
       // Cargar categorías personalizadas al inicio
       useEffect(() => {
@@ -2927,13 +3048,29 @@
         const allImpostorsTriggered = checkAllImpostorsTrigger();
         console.log('All impostors triggered:', allImpostorsTriggered, 'Player count:', playerCount);
         
+        // Verificar si se activan impostores adicionales
+        let additionalImpostorsTriggered = false;
+        let finalImpostorCount = impostorCount;
+        
+        if (additionalImpostorsMode && !allImpostorsTriggered && playerCount >= 5) {
+          additionalImpostorsTriggered = true;
+          // Agregar la cantidad de impostores adicionales seleccionada, pero sin exceder el máximo permitido
+          const maxImpostors = getMaxImpostors(playerCount);
+          const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+          const additionalToAdd = Math.min(additionalImpostorsCount, maxAdditional);
+          finalImpostorCount = Math.min(impostorCount + additionalToAdd, maxImpostors, playerCount - 1);
+          console.log('⚡ Impostores adicionales activados! Impostores:', impostorCount, '->', finalImpostorCount, '(agregados:', additionalToAdd, ')');
+        }
+        
+        setIsAdditionalImpostorsActive(additionalImpostorsTriggered);
+        
         const playerNumbers = Array.from({ length: playerCount }, (_, i) => i + 1);
         const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
         const impostors = allImpostorsTriggered 
           ? playerNumbers // Todos son impostores
-          : shuffled.slice(0, impostorCount);
+          : shuffled.slice(0, finalImpostorCount);
         
-        console.log('Impostors assigned:', impostors, 'All impostors mode:', allImpostorsTriggered);
+        console.log('Impostors assigned:', impostors, 'All impostors mode:', allImpostorsTriggered, 'Additional impostors:', additionalImpostorsTriggered);
         
         const roles = playerNumbers.map(num => ({
           number: num,
@@ -2945,7 +3082,7 @@
         }));
         
         const randomOrder = [...roles].sort(() => Math.random() - 0.5);
-        const finalImpostorCount = allImpostorsTriggered ? playerCount : impostorCount;
+        const finalImpostorCountForDisplay = allImpostorsTriggered ? playerCount : finalImpostorCount;
         
         setGameStarted(randomOrder);
         setSelectedWord(secretWord);
@@ -2960,7 +3097,7 @@
         setEliminatedPlayers([]);
         setVotingPlayer(null);
         setRevealingVote(false);
-        setImpostorsRemaining(finalImpostorCount);
+        setImpostorsRemaining(finalImpostorCountForDisplay);
         setIsAllImpostorsMode(allImpostorsTriggered);
         // Guardar el número de impostores configurado originalmente para el modo confusión
         // Siempre guardar el impostorCount original, no el playerCount cuando todos son impostores
@@ -3167,6 +3304,7 @@
         setSelectedProfile(null);
         setIsAllImpostorsMode(false);
         setOriginalImpostorCount(0);
+        setIsAdditionalImpostorsActive(false);
       };
 
       const getPlayerDisplay = (player) => {
@@ -3516,49 +3654,151 @@
                       </p>
                     </div>
 
-                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
-                      <label className="flex items-center gap-4 cursor-pointer group">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={impostorNeverFirst}
-                            onChange={(e) => setImpostorNeverFirst(e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorNeverFirst ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
-                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorNeverFirst ? 'left-7' : 'left-0.5'}`}></div>
+                    <div className={`mb-6 sm:mb-8 p-4 sm:p-5 md:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
+                      <label className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 cursor-pointer group">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="relative flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={impostorNeverFirst}
+                              onChange={(e) => setImpostorNeverFirst(e.target.checked)}
+                              className="sr-only"
+                            />
+                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorNeverFirst ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorNeverFirst ? 'left-7' : 'left-0.5'}`}></div>
+                            </div>
                           </div>
+                          <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>El impostor nunca comienza</span>
                         </div>
-                        <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>El impostor nunca comienza</span>
                       </label>
-                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                      <p className={`text-xs sm:text-sm mt-3 ml-0 sm:ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
                         {impostorNeverFirst 
                           ? 'El jugador que comienza la discusión nunca será un impostor' 
                           : 'Cualquier jugador puede comenzar la discusión'}
                       </p>
                     </div>
 
-                    <div className={`mb-6 sm:mb-8 p-5 sm:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
-                      <label className="flex items-center gap-4 cursor-pointer group">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={impostorsKnowEachOther}
-                            onChange={(e) => setImpostorsKnowEachOther(e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorsKnowEachOther ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
-                            <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorsKnowEachOther ? 'left-7' : 'left-0.5'}`}></div>
+                    <div className={`mb-6 sm:mb-8 p-4 sm:p-5 md:p-6 rounded-xl border-2 transition-all duration-300 ${isLightMode ? 'bg-white border-purple-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-purple-800/50 shadow-lg hover:shadow-xl hover:border-purple-700/70'}`}>
+                      <label className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 cursor-pointer group">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="relative flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={impostorsKnowEachOther}
+                              onChange={(e) => setImpostorsKnowEachOther(e.target.checked)}
+                              className="sr-only"
+                            />
+                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${impostorsKnowEachOther ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-600'}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${impostorsKnowEachOther ? 'left-7' : 'left-0.5'}`}></div>
+                            </div>
                           </div>
+                          <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>Los impostores se conocen entre sí</span>
                         </div>
-                        <span className={`text-base sm:text-lg font-bold transition-colors ${isLightMode ? 'text-gray-800 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>Los impostores se conocen entre sí</span>
                       </label>
-                      <p className={`text-xs sm:text-sm mt-3 ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                      <p className={`text-xs sm:text-sm mt-3 ml-0 sm:ml-16 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
                         {impostorsKnowEachOther 
                           ? 'Los impostores sabrán quiénes son los otros impostores' 
                           : 'Los impostores no sabrán quiénes son los otros impostores'}
                       </p>
                     </div>
+
+                    {/* Impostores Adicionales */}
+                    {(() => {
+                      const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+                      const isDisabled = playerCount < 5;
+                      return (
+                        <div className={`mb-6 sm:mb-8 p-4 sm:p-5 md:p-6 rounded-xl border-2 transition-all duration-300 ${
+                          isDisabled
+                            ? `${isLightMode ? 'bg-gray-100 border-gray-300 opacity-60' : 'bg-gray-800/40 border-gray-700 opacity-50'}`
+                            : `${isLightMode ? 'bg-white border-orange-200 shadow-md hover:shadow-lg' : 'bg-gray-800/70 border-orange-800/50 shadow-lg hover:shadow-xl hover:border-orange-700/70'}`
+                        }`}>
+                          <label className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer group'}`}>
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="relative flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={additionalImpostorsMode}
+                                  onChange={(e) => !isDisabled && setAdditionalImpostorsMode(e.target.checked)}
+                                  disabled={isDisabled}
+                                  className="sr-only"
+                                />
+                                <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                                  isDisabled
+                                    ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                    : additionalImpostorsMode 
+                                      ? 'bg-gradient-to-r from-orange-600 to-red-600' 
+                                      : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                                }`}>
+                                  <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${additionalImpostorsMode ? 'left-7' : 'left-0.5'} ${isDisabled ? 'opacity-50' : ''}`}></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-base sm:text-lg font-bold transition-colors ${
+                                  isDisabled
+                                    ? `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
+                                    : `${isLightMode ? 'text-gray-800 group-hover:text-orange-600' : 'text-white group-hover:text-orange-300'}`
+                                }`}>
+                                  ⚡ Impostores adicionales
+                                </span>
+                                {isDisabled && (
+                                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                                    isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
+                                  }`}>
+                                    Mín. 5 jugadores
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </label>
+                          <p className={`text-xs sm:text-sm mt-3 ml-0 sm:ml-16 ${
+                            isDisabled
+                              ? `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
+                              : `${isLightMode ? 'text-gray-600' : 'text-gray-400'}`
+                          }`}>
+                            {isDisabled
+                              ? 'Se requieren al menos 5 jugadores para activar esta opción'
+                              : additionalImpostorsMode 
+                                ? `Se agregarán ${additionalImpostorsCount} impostor${additionalImpostorsCount > 1 ? 'es' : ''} adicional${additionalImpostorsCount > 1 ? 'es' : ''} en cada partida`
+                                : 'Evento especial: se pueden agregar impostores adicionales en cada partida'}
+                          </p>
+                          
+                          {additionalImpostorsMode && !isDisabled && (
+                            <div className="mt-4 ml-0 sm:ml-16">
+                              <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Cantidad de impostores adicionales: {additionalImpostorsCount}
+                                {maxAdditional > 0 && (
+                                  <span className={`text-xs ml-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    (máx: {maxAdditional})
+                                  </span>
+                                )}
+                              </label>
+                              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
+                                  <button
+                                    key={value}
+                                    onClick={() => setAdditionalImpostorsCount(value)}
+                                    className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                      additionalImpostorsCount === value
+                                        ? 'bg-orange-600 text-white shadow-lg'
+                                        : isLightMode
+                                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    +{value}
+                                  </button>
+                                ))}
+                                {maxAdditional === 0 && (
+                                  <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    No se pueden agregar más impostores (límite alcanzado)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className={`flex justify-between items-center pt-4 border-t ${isLightMode ? 'border-gray-300' : 'border-gray-700'} gap-3`}>
                       <button
@@ -4245,6 +4485,23 @@
               <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
                 <div className="text-center py-8 sm:py-12">
                   <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Todos conocen su rol!</h2>
+                  
+                  {/* Mensaje de evento especial: Impostores Adicionales */}
+                  {isAdditionalImpostorsActive && (
+                    <div className={`${isLightMode ? 'bg-orange-100 border-2 border-orange-400' : 'bg-orange-900/50 border-2 border-orange-600'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8 animate-pulse`}>
+                      <p className="text-3xl sm:text-4xl mb-2">⚡</p>
+                      <p className={`text-lg sm:text-xl font-bold mb-2 ${isLightMode ? 'text-orange-700' : 'text-orange-300'}`}>
+                        🎊 EVENTO ESPECIAL ACTIVADO 🎊
+                      </p>
+                      <p className={`text-base sm:text-lg font-semibold ${isLightMode ? 'text-orange-600' : 'text-orange-400'}`}>
+                        ⚡ IMPOSTORES ADICIONALES ⚡
+                      </p>
+                      <p className={`text-sm sm:text-base mt-2 ${isLightMode ? 'text-orange-700' : 'text-orange-300'}`}>
+                        Se {additionalImpostorsCount === 1 ? 'ha agregado' : 'han agregado'} {additionalImpostorsCount} impostor{additionalImpostorsCount > 1 ? 'es' : ''} adicional{additionalImpostorsCount > 1 ? 'es' : ''} en esta partida
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-6 sm:p-8 rounded-xl mb-6 sm:mb-8">
                     <p className="text-base sm:text-xl text-gray-100 mb-4">El jugador que comienza es:</p>
                     <p className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white break-words">
@@ -4945,7 +5202,7 @@
                   <div className={`flex items-start gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-800'}`}>
                     <span className="text-2xl sm:text-3xl md:text-4xl flex-shrink-0">💬</span>
                     <p className={`flex-1 text-xs sm:text-sm md:text-base ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                      Todos dicen una palabra relacionada
+                      Todos dicen una palabra relacionada en sentido horario
                     </p>
                   </div>
 
@@ -5011,81 +5268,156 @@
     fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:before-render-root',message:'Antes de renderizar en root',data:{hasReact:typeof React !== 'undefined',hasReactDOM:typeof ReactDOM !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
     // #endregion
 
-    // Verificar que React y ReactDOM estén cargados
+    // Flag para prevenir múltiples inicializaciones
+    let appInitialized = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 50; // Máximo 5 segundos (50 * 100ms)
+
+    // Verificar que todas las dependencias estén cargadas
     function checkDependencies() {
-      if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
-        const rootEl = document.getElementById('root');
-        if (rootEl) {
-          rootEl.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-              <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error de Carga</h1>
-              <p style="margin-bottom: 10px;">No se pudieron cargar las dependencias necesarias.</p>
-              <p style="margin-bottom: 20px; font-size: 14px; color: #999;">Si usas Brave, verifica que los scripts no estén bloqueados.</p>
-              <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
-                Recargar Página
-              </button>
-            </div>
-          `;
-        }
+      const hasReact = typeof React !== 'undefined';
+      const hasReactDOM = typeof ReactDOM !== 'undefined';
+      const hasBabel = typeof Babel !== 'undefined';
+      
+      if (!hasReact || !hasReactDOM) {
+        console.log(`⏳ Esperando dependencias... React: ${hasReact}, ReactDOM: ${hasReactDOM}, Babel: ${hasBabel}`);
         return false;
       }
+      
+      // Verificar que ReactDOM tenga los métodos necesarios
+      if (typeof ReactDOM.createRoot === 'undefined' && typeof ReactDOM.render === 'undefined') {
+        console.log('⏳ ReactDOM no tiene métodos de renderizado disponibles');
+        return false;
+      }
+      
       return true;
     }
 
-    // Esperar a que los scripts se carguen
+    // Mostrar mensaje de error
+    function showError(message, details = '') {
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        rootEl.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+            <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error de Carga</h1>
+            <p style="margin-bottom: 10px;">${message}</p>
+            ${details ? `<p style="margin-bottom: 20px; font-size: 14px; color: #999;">${details}</p>` : ''}
+            <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px;">
+              Recargar Página
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // Actualizar indicador de carga (ya no se usa, pero se mantiene por compatibilidad)
+    function updateLoadingMessage(message) {
+      // Ya no actualizamos el mensaje, solo mantenemos la animación
+      console.log('Cargando:', message);
+    }
+
+    // Esperar a que los scripts se carguen e inicializar la app
     function initApp() {
-      if (!checkDependencies()) {
-        setTimeout(initApp, 100);
+      // Prevenir múltiples inicializaciones
+      if (appInitialized) {
         return;
       }
 
+      // Verificar dependencias
+      if (!checkDependencies()) {
+        retryCount++;
+        
+        if (retryCount > MAX_RETRIES) {
+          showError(
+            'No se pudieron cargar las dependencias necesarias después de varios intentos.',
+            'Si usas Brave o un bloqueador de anuncios, verifica que los scripts no estén bloqueados. Intenta recargar la página.'
+          );
+          return;
+        }
+
+        // Log del progreso (sin actualizar UI, solo mantener animación)
+        if (retryCount % 5 === 0) {
+          console.log(`Cargando recursos... (${retryCount}/${MAX_RETRIES})`);
+        }
+        
+        // Reintentar con backoff exponencial (máximo 500ms)
+        const delay = Math.min(100 * Math.pow(1.1, retryCount), 500);
+        setTimeout(initApp, delay);
+        return;
+      }
+
+      // Si llegamos aquí, las dependencias están listas
       try {
         const rootElement = document.getElementById('root');
         if (!rootElement) {
           throw new Error('Root element not found');
         }
 
+        console.log('✅ Todas las dependencias cargadas, inicializando app...');
+
         // Intentar usar createRoot (React 18+)
         if (typeof ReactDOM.createRoot !== 'undefined') {
           const root = ReactDOM.createRoot(rootElement);
           root.render(<ImpostorGame />);
+          appInitialized = true;
+          console.log('✅ App inicializada con ReactDOM.createRoot');
         } 
         // Fallback a render (React 17 y anteriores)
         else if (typeof ReactDOM.render !== 'undefined') {
           ReactDOM.render(<ImpostorGame />, rootElement);
+          appInitialized = true;
+          console.log('✅ App inicializada con ReactDOM.render');
         } 
         else {
           throw new Error('ReactDOM method not available');
         }
       } catch (error) {
-        console.error('Error rendering app:', error);
-        const rootEl = document.getElementById('root');
-        if (rootEl) {
-          rootEl.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-              <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error</h1>
-              <p style="margin-bottom: 20px;">${error.message}</p>
-              <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
-                Recargar Página
-              </button>
-            </div>
-          `;
-        }
+        console.error('❌ Error rendering app:', error);
+        showError(
+          `Error al renderizar la aplicación: ${error.message}`,
+          'Por favor, recarga la página. Si el problema persiste, verifica la consola del navegador para más detalles.'
+        );
       }
     }
 
-    // Intentar inicializar cuando el DOM esté listo
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-      // Si ya está cargado, esperar un poco para que los scripts externos se carguen
-      setTimeout(initApp, 100);
+    // Estrategia de inicialización mejorada
+    function startInitialization() {
+      console.log('🚀 Iniciando proceso de carga...');
+      
+      // Intentar inicializar inmediatamente si el DOM ya está listo
+      if (document.readyState !== 'loading') {
+        console.log('📄 DOM ya cargado, iniciando verificación de dependencias...');
+        setTimeout(initApp, 50);
+      } else {
+        // Esperar a que el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+          console.log('📄 DOM cargado, iniciando verificación de dependencias...');
+          setTimeout(initApp, 50);
+        });
+      }
+
+      // Fallback: intentar después de que la ventana cargue completamente
+      window.addEventListener('load', () => {
+        console.log('🌐 Ventana completamente cargada');
+        if (!appInitialized) {
+          console.log('🔄 Intentando inicializar después de window.load...');
+          setTimeout(initApp, 100);
+        }
+      });
+
+      // Fallback adicional: intentar periódicamente si aún no se ha inicializado
+      const fallbackInterval = setInterval(() => {
+        if (!appInitialized && retryCount < MAX_RETRIES) {
+          console.log('🔄 Reintento automático de inicialización...');
+          initApp();
+        } else {
+          clearInterval(fallbackInterval);
+        }
+      }, 500);
     }
 
-    // También intentar después de que la ventana cargue completamente
-    window.addEventListener('load', () => {
-      setTimeout(initApp, 200);
-    });
+    // Iniciar el proceso
+    startInitialization();
 
     // Service Worker - Registrar INMEDIATAMENTE (no esperar a 'load')
     if ('serviceWorker' in navigator) {
