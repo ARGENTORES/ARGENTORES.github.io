@@ -778,6 +778,62 @@
         }
       }, [isInstalled]); // Removido showToast de las dependencias para evitar re-renders innecesarios
 
+      // Detección de iOS y mostrar banner de instalación
+      useEffect(() => {
+        const detectIOS = () => {
+          // Detectar si es iOS
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          
+          if (!isIOS) {
+            setShowIOSBanner(false);
+            return;
+          }
+          
+          // Detectar si es Safari (no Chrome u otros navegadores en iOS)
+          // En iOS, Safari es el único navegador que soporta PWA
+          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
+                          (isIOS && !window.MSStream && !navigator.userAgent.includes('CriOS') && !navigator.userAgent.includes('FxiOS'));
+          
+          // Guardar si es Safari para mostrar el mensaje apropiado
+          setIsIOSSafari(isSafari);
+          
+          // Verificar si ya está instalada
+          const isIOSStandalone = window.navigator.standalone === true;
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+          
+          // Si está instalada, ocultar el banner inmediatamente
+          if (isIOSStandalone || isStandalone || isInstalled) {
+            setShowIOSBanner(false);
+            return;
+          }
+          
+          // Mostrar banner en TODOS los navegadores iOS (Safari y otros)
+          // Verificar si el usuario ya cerró el banner antes (en esta sesión o permanentemente)
+          const bannerDismissed = sessionStorage.getItem('ios_banner_dismissed') === 'true';
+          const bannerDismissedPermanent = localStorage.getItem('ios_banner_dismissed') === 'true';
+          
+          if (!bannerDismissed && !bannerDismissedPermanent) {
+            setShowIOSBanner(true);
+          } else {
+            setShowIOSBanner(false);
+          }
+        };
+
+        // Verificar al cargar (con un pequeño delay para no ser intrusivo)
+        setTimeout(() => {
+          detectIOS();
+        }, 2000);
+
+        // Verificar periódicamente (por si cambia el estado de instalación)
+        const checkInterval = setInterval(() => {
+          detectIOS();
+        }, 3000);
+
+        return () => {
+          clearInterval(checkInterval);
+        };
+      }, [isInstalled]);
+
       // Prevenir selección de texto y búsqueda en Google
       useEffect(() => {
         const preventSelection = (e) => {
@@ -1003,6 +1059,8 @@
       const [deferredPrompt, setDeferredPrompt] = useState(null);
       const [showInstallButton, setShowInstallButton] = useState(false);
       const [isInstalled, setIsInstalled] = useState(false);
+      const [showIOSBanner, setShowIOSBanner] = useState(false);
+      const [isIOSSafari, setIsIOSSafari] = useState(false);
       const [updateAvailable, setUpdateAvailable] = useState(false);
       const [waitingWorker, setWaitingWorker] = useState(null);
       const [savedProfiles, setSavedProfiles] = useState([]);
@@ -3410,6 +3468,59 @@
       return (
         <>
           <ToastContainer />
+          {/* Banner de instalación para iOS */}
+          {showIOSBanner && (
+            <div className={`fixed bottom-0 left-0 right-0 z-50 p-4 ${isLightMode ? 'bg-white border-t-2 border-purple-500' : 'bg-gray-900 border-t-2 border-purple-600'} shadow-2xl`}>
+              <div className="max-w-2xl mx-auto flex items-start gap-3">
+                <div className="flex-1">
+                  {isIOSSafari ? (
+                    <>
+                      <h3 className={`font-semibold text-sm sm:text-base mb-1 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        📱 Agrega ARGENTORES a tu pantalla de inicio
+                      </h3>
+                      <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                        Toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className={`font-semibold text-sm sm:text-base mb-1 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        🌐 Usa Safari para instalar ARGENTORES
+                      </h3>
+                      <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                        Para agregar esta app a tu pantalla de inicio, debes usar <span className="font-semibold">Safari</span>. Abre esta página en Safari y luego toca <span className="font-semibold">Compartir</span> → <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowIOSBanner(false);
+                      localStorage.setItem('ios_banner_dismissed', 'true');
+                      sessionStorage.setItem('ios_banner_dismissed', 'true');
+                    }}
+                    className={`text-xs px-2 py-1 rounded ${isLightMode ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-gray-800'}`}
+                    title="No volver a mostrar"
+                  >
+                    No mostrar más
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowIOSBanner(false);
+                      sessionStorage.setItem('ios_banner_dismissed', 'true');
+                    }}
+                    className={`p-1 ${isLightMode ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}
+                    aria-label="Cerrar"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {updateAvailable && (
             <div className="update-banner">
               <span>🔄 Nueva versión disponible</span>
