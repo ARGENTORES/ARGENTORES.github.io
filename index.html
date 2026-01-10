@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="loading">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
@@ -19,6 +19,8 @@
       margin: 0;
       padding: 0;
       background: #000000;
+    }
+    html.loading, body.loading {
       overflow: hidden;
     }
     #root {
@@ -414,7 +416,7 @@
     }, 2000);
   </script>
 </head>
-<body>
+<body class="loading">
   <div id="root">
     <div id="loading-screen" style="padding: 20px; text-align: center; color: white; background: #000000; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99999; margin: 0; padding: 0;">
       <div style="position: relative; width: 200px; height: 200px; margin-bottom: 30px;">
@@ -428,11 +430,15 @@
   
   <style>
     /* Estilos críticos para pantalla de carga - deben cargar primero */
+    html.loading, body.loading {
+      overflow: hidden;
+      height: 100%;
+    }
+    
     html, body {
       margin: 0;
       padding: 0;
       background: #000000;
-      overflow: hidden;
     }
     
     #loading-screen {
@@ -5645,15 +5651,22 @@
 
         console.log('✅ Todas las dependencias cargadas, inicializando app...');
 
-        // Ocultar pantalla de carga
+        // Ocultar pantalla de carga y restaurar scroll
         const loadingScreen = document.getElementById('loading-screen');
         if (loadingScreen) {
           setTimeout(() => {
             loadingScreen.classList.add('hidden');
+            // Remover clase loading para restaurar scroll
+            document.documentElement.classList.remove('loading');
+            document.body.classList.remove('loading');
             setTimeout(() => {
               loadingScreen.style.display = 'none';
             }, 300);
           }, 100);
+        } else {
+          // Si no hay loading screen, asegurar que el scroll funcione
+          document.documentElement.classList.remove('loading');
+          document.body.classList.remove('loading');
         }
 
         // Intentar usar createRoot (React 18+)
