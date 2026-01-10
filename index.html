@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="ARGENTORES">
   <meta name="browsermode" content="application">
   <title>ARGENTORES</title>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?v=2.0">
   <!-- Estilos críticos para pantalla de carga inmediata -->
   <style>
     html, body {
@@ -641,6 +641,11 @@
       // ============================================
       const PISTAS_HABILITADAS = false;
       // ============================================
+      // CONFIGURACIÓN DE IMPOSTORES ADICIONALES
+      // Cambia este valor a true para habilitar los impostores adicionales
+      // ============================================
+      const IMPOSTORES_ADICIONALES_HABILITADOS = true;
+      // ============================================
       
       // Toast system
       const { showToast, ToastContainer } = useToast();
@@ -999,15 +1004,50 @@
         }
       }, []);
 
-      const handleUpdate = () => {
+      const handleUpdate = async () => {
         if (waitingWorker) {
           waitingWorker.postMessage({ type: 'SKIP_WAITING' });
           setUpdateAvailable(false);
           setWaitingWorker(null);
           showToast('Actualizando aplicación...', 'info', 2000);
+          
+          // Limpiar todos los caches antes de recargar
+          if ('caches' in window) {
+            try {
+              const cacheNames = await caches.keys();
+              await Promise.all(
+                cacheNames.map(cacheName => caches.delete(cacheName))
+              );
+              console.log('✅ Caches limpiados');
+            } catch (error) {
+              console.error('Error limpiando caches:', error);
+            }
+          }
+          
           setTimeout(() => {
-            window.location.reload();
+            // Forzar recarga completa sin cache
+            window.location.reload(true);
           }, 1000);
+        } else {
+          // Si no hay waitingWorker, forzar actualización del service worker
+          if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+              await registration.update();
+              // Limpiar caches
+              if ('caches' in window) {
+                try {
+                  const cacheNames = await caches.keys();
+                  await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                  );
+                } catch (error) {
+                  console.error('Error limpiando caches:', error);
+                }
+              }
+              window.location.reload(true);
+            }
+          }
         }
       };
 
@@ -1106,6 +1146,7 @@
       const [impostorsKnowEachOther, setImpostorsKnowEachOther] = useState(false);
       const [additionalImpostorsMode, setAdditionalImpostorsMode] = useState(false);
       const [additionalImpostorsCount, setAdditionalImpostorsCount] = useState(1);
+      const [additionalImpostorsProbability, setAdditionalImpostorsProbability] = useState(0);
       const [isAdditionalImpostorsActive, setIsAdditionalImpostorsActive] = useState(false);
       // Modo "todos impostores" siempre activo (sin mostrar opción)
       const allImpostorsMode = true;
@@ -2639,19 +2680,55 @@
       }, [playerCount, impostorCount]);
 
       // Ajustar automáticamente la cantidad de impostores adicionales si excede el máximo permitido
+      // Usar useRef para rastrear si ya se cargó el valor desde localStorage y evitar resetearlo
+      const additionalImpostorsCountLoadedRef = React.useRef(false);
+      
+      // Marcar como cargado cuando se carga desde localStorage
       useEffect(() => {
-        if (playerCount >= 5) {
-          const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
-          if (additionalImpostorsCount > maxAdditional && maxAdditional > 0) {
-            setAdditionalImpostorsCount(Math.min(additionalImpostorsCount, maxAdditional));
+        const savedOptions = localStorage.getItem('impostorGameOptions');
+        if (savedOptions) {
+          try {
+            const options = JSON.parse(savedOptions);
+            if (options.additionalImpostorsCount !== undefined && options.additionalImpostorsCount >= 1) {
+              additionalImpostorsCountLoadedRef.current = true;
+            }
+          } catch (e) {
+            // Ignorar errores
           }
-        } else {
-          // Si hay menos de 5 jugadores, desactivar el modo
+        }
+      }, []);
+      
+      useEffect(() => {
+        // Solo desactivar automáticamente si hay menos de 5 jugadores (requisito mínimo)
+        if (playerCount < 5) {
           if (additionalImpostorsMode) {
             setAdditionalImpostorsMode(false);
           }
+          return;
         }
-      }, [playerCount, impostorCount, additionalImpostorsCount, additionalImpostorsMode]);
+        
+        // Si el modo está activo y hay 5+ jugadores, solo ajustar el contador si es necesario
+        if (additionalImpostorsMode) {
+          const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+          // Solo ajustar si el valor actual excede el máximo permitido
+          // No tocar el valor si está dentro del rango válido (1 a maxAdditional) para preservar el valor guardado
+          if (maxAdditional > 0) {
+            if (additionalImpostorsCount > maxAdditional) {
+              // Solo ajustar si excede el máximo
+              setAdditionalImpostorsCount(maxAdditional);
+            } else if (additionalImpostorsCount < 1 && maxAdditional >= 1) {
+              // Solo establecer a 1 si el valor es menor a 1 y hay espacio disponible
+              // Pero solo si no se ha cargado desde localStorage (para evitar resetear valores guardados)
+              if (!additionalImpostorsCountLoadedRef.current) {
+                setAdditionalImpostorsCount(1);
+              }
+            }
+            // Si el valor está entre 1 y maxAdditional, no hacer nada para preservar el valor guardado
+          }
+          // NO desactivar el modo automáticamente si maxAdditional === 0
+          // Permitir que el usuario lo active/desactive manualmente
+        }
+      }, [playerCount, impostorCount, additionalImpostorsMode]);
 
       // Ajustar nombres cuando cambia playerCount
       useEffect(() => {
@@ -2760,9 +2837,10 @@
             if (options.additionalImpostorsCount !== undefined && options.additionalImpostorsCount >= 1) {
               setAdditionalImpostorsCount(options.additionalImpostorsCount);
             }
+            if (options.additionalImpostorsProbability !== undefined && options.additionalImpostorsProbability >= 0) {
+              setAdditionalImpostorsProbability(options.additionalImpostorsProbability);
+            }
             if (options.categoryMode !== undefined) setCategoryMode(options.categoryMode);
-            if (options.playerCount !== undefined && options.playerCount >= 3 && options.playerCount <= 20) setPlayerCount(options.playerCount);
-            if (options.impostorCount !== undefined && options.impostorCount >= 1) setImpostorCount(options.impostorCount);
             if (options.useNames !== undefined) setUseNames(options.useNames);
           } catch (e) {
             console.error('Error loading saved options:', e);
@@ -2778,13 +2856,14 @@
           impostorsKnowEachOther,
           additionalImpostorsMode,
           additionalImpostorsCount,
+          additionalImpostorsProbability,
           categoryMode,
           playerCount,
           impostorCount,
           useNames
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, categoryMode, playerCount, impostorCount, useNames]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, additionalImpostorsProbability, categoryMode, playerCount, impostorCount, useNames]);
 
       // Cargar categorías personalizadas al inicio
       useEffect(() => {
@@ -3269,14 +3348,28 @@
         let additionalImpostorsTriggered = false;
         let finalImpostorCount = impostorCount;
         
-        if (additionalImpostorsMode && !allImpostorsTriggered && playerCount >= 5) {
-          additionalImpostorsTriggered = true;
-          // Agregar la cantidad de impostores adicionales seleccionada, pero sin exceder el máximo permitido
-          const maxImpostors = getMaxImpostors(playerCount);
-          const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
-          const additionalToAdd = Math.min(additionalImpostorsCount, maxAdditional);
-          finalImpostorCount = Math.min(impostorCount + additionalToAdd, maxImpostors, playerCount - 1);
-          console.log('⚡ Impostores adicionales activados! Impostores:', impostorCount, '->', finalImpostorCount, '(agregados:', additionalToAdd, ')');
+        if (IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !allImpostorsTriggered && playerCount >= 5) {
+          // Verificar probabilidad
+          const probability = additionalImpostorsProbability || 0;
+          
+          if (probability > 0) {
+            const chance = Math.random() * 100;
+            const shouldActivate = probability >= 100 || chance < probability;
+            
+            if (shouldActivate) {
+              additionalImpostorsTriggered = true;
+              // Agregar la cantidad de impostores adicionales seleccionada, pero sin exceder el máximo permitido
+              const maxImpostors = getMaxImpostors(playerCount);
+              const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+              const additionalToAdd = Math.min(additionalImpostorsCount, maxAdditional);
+              finalImpostorCount = Math.min(impostorCount + additionalToAdd, maxImpostors, playerCount - 1);
+              console.log('⚡ Impostores adicionales activados! Impostores:', impostorCount, '->', finalImpostorCount, '(agregados:', additionalToAdd, ', probabilidad:', probability + '%)');
+            } else {
+              console.log('⚡ Impostores adicionales no activados (probabilidad:', probability + '%, chance:', chance.toFixed(2) + ')');
+            }
+          } else {
+            console.log('⚡ Impostores adicionales no activados (probabilidad: 0%)');
+          }
         }
         
         setIsAdditionalImpostorsActive(additionalImpostorsTriggered);
@@ -4000,7 +4093,12 @@
                     {/* Impostores Adicionales */}
                     {(() => {
                       const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
-                      const isDisabled = playerCount < 5;
+                      const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS;
+                      // Generar opciones de probabilidad: 0, 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
+                      const probabilityOptions = [0, 1, 2, 3, 4, 5];
+                      for (let i = 10; i <= 50; i += 5) {
+                        probabilityOptions.push(i);
+                      }
                       return (
                         <div className={`mb-6 sm:mb-8 p-4 sm:p-5 md:p-6 rounded-xl border-2 transition-all duration-300 ${
                           isDisabled
@@ -4035,11 +4133,18 @@
                                 }`}>
                                   ⚡ Impostores adicionales
                                 </span>
-                                {isDisabled && (
+                                {playerCount < 5 && IMPOSTORES_ADICIONALES_HABILITADOS && (
                                   <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                                     isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
                                   }`}>
                                     Mín. 5 jugadores
+                                  </span>
+                                )}
+                                {!IMPOSTORES_ADICIONALES_HABILITADOS && (
+                                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                                    isLightMode ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-gray-400'
+                                  }`}>
+                                    Deshabilitado
                                   </span>
                                 )}
                               </div>
@@ -4050,46 +4155,73 @@
                               ? `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
                               : `${isLightMode ? 'text-gray-600' : 'text-gray-400'}`
                           }`}>
-                            {isDisabled
-                              ? 'Se requieren al menos 5 jugadores para activar esta opción'
-                              : additionalImpostorsMode 
-                                ? `Se agregarán ${additionalImpostorsCount} impostor${additionalImpostorsCount > 1 ? 'es' : ''} adicional${additionalImpostorsCount > 1 ? 'es' : ''} en cada partida`
-                                : 'Evento especial: se pueden agregar impostores adicionales en cada partida'}
+                            {!IMPOSTORES_ADICIONALES_HABILITADOS
+                              ? 'Los impostores adicionales están deshabilitados temporalmente'
+                              : isDisabled
+                                ? 'Se requieren al menos 5 jugadores para activar esta opción'
+                                : additionalImpostorsMode 
+                                  ? `Probabilidad de agregar ${additionalImpostorsCount} impostor${additionalImpostorsCount > 1 ? 'es' : ''} adicional${additionalImpostorsCount > 1 ? 'es' : ''}: ${additionalImpostorsProbability}%`
+                                  : 'Evento especial: se pueden agregar impostores adicionales en cada partida según la probabilidad configurada'}
                           </p>
                           
                           {additionalImpostorsMode && !isDisabled && (
-                            <div className="mt-4 ml-0 sm:ml-16">
-                              <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                Cantidad de impostores adicionales: {additionalImpostorsCount}
-                                {maxAdditional > 0 && (
-                                  <span className={`text-xs ml-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    (máx: {maxAdditional})
-                                  </span>
-                                )}
-                              </label>
-                              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
-                                  <button
-                                    key={value}
-                                    onClick={() => setAdditionalImpostorsCount(value)}
-                                    className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
-                                      additionalImpostorsCount === value
-                                        ? 'bg-orange-600 text-white shadow-lg'
-                                        : isLightMode
-                                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    }`}
-                                  >
-                                    +{value}
-                                  </button>
-                                ))}
-                                {maxAdditional === 0 && (
-                                  <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    No se pueden agregar más impostores (límite alcanzado)
-                                  </span>
-                                )}
+                            <>
+                              <div className="mt-4 ml-0 sm:ml-16">
+                                <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                  Cantidad de impostores adicionales: {additionalImpostorsCount}
+                                  {maxAdditional > 0 && (
+                                    <span className={`text-xs ml-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      (máx: {maxAdditional})
+                                    </span>
+                                  )}
+                                </label>
+                                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                  {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
+                                    <button
+                                      key={value}
+                                      onClick={() => setAdditionalImpostorsCount(value)}
+                                      className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                        additionalImpostorsCount === value
+                                          ? 'bg-orange-600 text-white shadow-lg'
+                                          : isLightMode
+                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      +{value}
+                                    </button>
+                                  ))}
+                                  {maxAdditional === 0 && (
+                                    <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      No se pueden agregar más impostores (límite alcanzado)
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
+                              
+                              <div className="mt-4 ml-0 sm:ml-16">
+                                <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                  Probabilidad de activación: {additionalImpostorsProbability}%
+                                </label>
+                                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                  {probabilityOptions.map((value) => (
+                                    <button
+                                      key={value}
+                                      onClick={() => setAdditionalImpostorsProbability(value)}
+                                      className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                        additionalImpostorsProbability === value
+                                          ? 'bg-orange-600 text-white shadow-lg'
+                                          : isLightMode
+                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      {value}%
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       );
@@ -5762,12 +5894,34 @@
               console.log('✅ Service Worker active!');
             }
             
-            // Forzar actualización
+            // Forzar actualización inmediata y periódicamente
             registration.update();
+            
+            // Actualizar cada 30 segundos cuando la app está activa
+            setInterval(() => {
+              registration.update();
+            }, 30000);
             
             // Escuchar actualizaciones
             registration.addEventListener('updatefound', () => {
               console.log('🔄 Service Worker update found');
+              const newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('✅ Nueva versión del Service Worker instalada');
+                    // Notificar al usuario si está en modo standalone
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                    if (isStandalone) {
+                      // En modo standalone, forzar actualización automáticamente después de un delay
+                      setTimeout(() => {
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        window.location.reload(true);
+                      }, 2000);
+                    }
+                  }
+                });
+              }
             });
           })
           .catch((registrationError) => {
