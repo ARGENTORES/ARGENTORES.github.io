@@ -1,4 +1,4 @@
-const CACHE_NAME = 'argentores-v11';
+const CACHE_NAME = 'argentores-v12';
 // Cachear todos los recursos necesarios para funcionar offline
 const urlsToCache = [
   './',
@@ -6,7 +6,13 @@ const urlsToCache = [
   './manifest.json',
   './icon.png',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  // Recursos externos críticos (se cachearán si están disponibles)
+  'https://unpkg.com/react@18/umd/react.production.min.js',
+  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone/babel.min.js',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Russo+One&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
@@ -15,18 +21,32 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[SW] Caching essential files for offline use...');
-        // Cachear todos los recursos esenciales
-        return cache.addAll(urlsToCache).catch((err) => {
-          console.error('[SW] Cache addAll failed:', err);
-          // Intentar cachear uno por uno si falla addAll
-          return Promise.allSettled(
-            urlsToCache.map(url => 
-              cache.add(url).catch(e => {
-                console.warn(`[SW] Failed to cache ${url}:`, e);
-              })
-            )
-          );
-        });
+        // Cachear recursos locales primero (siempre deben funcionar)
+        const localUrls = urlsToCache.filter(url => url.startsWith('./'));
+        return cache.addAll(localUrls)
+          .then(() => {
+            console.log('[SW] Local files cached, now caching external resources...');
+            // Cachear recursos externos uno por uno (pueden fallar si no hay conexión)
+            const externalUrls = urlsToCache.filter(url => !url.startsWith('./'));
+            return Promise.allSettled(
+              externalUrls.map(url => 
+                fetch(url)
+                  .then(response => {
+                    if (response.ok) {
+                      return cache.put(url, response);
+                    }
+                  })
+                  .catch(e => {
+                    console.warn(`[SW] Failed to cache ${url}:`, e);
+                    // No es crítico, se intentará cachear cuando se use
+                  })
+              )
+            );
+          })
+          .catch((err) => {
+            console.error('[SW] Cache failed:', err);
+            // Continuar aunque falle
+          });
       })
       .then(() => {
         console.log('[SW] Service worker installed, skipping waiting');
@@ -71,18 +91,21 @@ self.addEventListener('fetch', (event) => {
           // Si está en cache, devolverlo inmediatamente (offline first)
           if (cachedResponse) {
             // En segundo plano, intentar actualizar el cache si hay conexión
-            fetch(event.request)
-              .then((networkResponse) => {
-                if (networkResponse.status === 200) {
-                  const responseToCache = networkResponse.clone();
-                  caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                  });
-                }
-              })
-              .catch(() => {
-                // Sin conexión, no hacer nada, ya tenemos la versión cacheada
-              });
+            // NO bloquear la respuesta, usar cache inmediatamente
+            event.waitUntil(
+              fetch(event.request)
+                .then((networkResponse) => {
+                  if (networkResponse.status === 200) {
+                    const responseToCache = networkResponse.clone();
+                    return caches.open(CACHE_NAME).then((cache) => {
+                      return cache.put(event.request, responseToCache);
+                    });
+                  }
+                })
+                .catch(() => {
+                  // Sin conexión, no hacer nada, ya tenemos la versión cacheada
+                })
+            );
             return cachedResponse;
           }
           
@@ -118,19 +141,21 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request)
         .then((cachedResponse) => {
           if (cachedResponse) {
-            // Intentar actualizar en segundo plano
-            fetch(event.request)
-              .then((networkResponse) => {
-                if (networkResponse.status === 200) {
-                  const responseToCache = networkResponse.clone();
-                  caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                  });
-                }
-              })
-              .catch(() => {
-                // Sin conexión, usar cache
-              });
+            // Intentar actualizar en segundo plano (no bloquear)
+            event.waitUntil(
+              fetch(event.request)
+                .then((networkResponse) => {
+                  if (networkResponse.status === 200) {
+                    const responseToCache = networkResponse.clone();
+                    return caches.open(CACHE_NAME).then((cache) => {
+                      return cache.put(event.request, responseToCache);
+                    });
+                  }
+                })
+                .catch(() => {
+                  // Sin conexión, usar cache
+                })
+            );
             return cachedResponse;
           }
           
