@@ -791,11 +791,31 @@
           
           // Detectar si es Safari (no Chrome u otros navegadores en iOS)
           // En iOS, Safari es el único navegador que soporta PWA
-          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
-                          (isIOS && !window.MSStream && !navigator.userAgent.includes('CriOS') && !navigator.userAgent.includes('FxiOS'));
+          // Detección más precisa de Safari
+          const userAgent = navigator.userAgent;
+          const isChrome = userAgent.includes('CriOS') || userAgent.includes('Chrome');
+          const isFirefox = userAgent.includes('FxiOS');
+          const isEdge = userAgent.includes('EdgiOS');
+          const isSafari = !isChrome && !isFirefox && !isEdge && 
+                          (userAgent.includes('Safari') || (isIOS && !window.MSStream));
           
           // Guardar si es Safari para mostrar el mensaje apropiado
           setIsIOSSafari(isSafari);
+          
+          // Detectar si el usuario viene de otro navegador (usando localStorage)
+          // Si estaba en otro navegador y ahora está en Safari, mostrar mensaje especial
+          const cameFromOtherBrowserFlag = localStorage.getItem('ios_other_browser_visit') === 'true';
+          if (isSafari && cameFromOtherBrowserFlag) {
+            // Limpiar el flag ya que ahora está en Safari
+            localStorage.removeItem('ios_other_browser_visit');
+            setCameFromOtherBrowser(true);
+          } else {
+            setCameFromOtherBrowser(false);
+            if (!isSafari && isIOS) {
+              // Marcar que visitó desde otro navegador
+              localStorage.setItem('ios_other_browser_visit', 'true');
+            }
+          }
           
           // Verificar si ya está instalada
           const isIOSStandalone = window.navigator.standalone === true;
@@ -1061,6 +1081,7 @@
       const [isInstalled, setIsInstalled] = useState(false);
       const [showIOSBanner, setShowIOSBanner] = useState(false);
       const [isIOSSafari, setIsIOSSafari] = useState(false);
+      const [cameFromOtherBrowser, setCameFromOtherBrowser] = useState(false);
       const [updateAvailable, setUpdateAvailable] = useState(false);
       const [waitingWorker, setWaitingWorker] = useState(null);
       const [savedProfiles, setSavedProfiles] = useState([]);
@@ -3475,12 +3496,25 @@
                 <div className="flex-1">
                   {isIOSSafari ? (
                     <>
-                      <h3 className={`font-semibold text-sm sm:text-base mb-1 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                        📱 Agrega ARGENTORES a tu pantalla de inicio
-                      </h3>
-                      <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                        Toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
-                      </p>
+                      {cameFromOtherBrowser ? (
+                        <>
+                          <h3 className={`font-semibold text-sm sm:text-base mb-1 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            ✅ ¡Perfecto! Ahora estás en Safari
+                          </h3>
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                            Para agregar ARGENTORES a tu pantalla de inicio, toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className={`font-semibold text-sm sm:text-base mb-1 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            📱 Agrega ARGENTORES a tu pantalla de inicio
+                          </h3>
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                            Toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                          </p>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -3488,7 +3522,13 @@
                         🌐 Usa Safari para instalar ARGENTORES
                       </h3>
                       <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                        Para agregar esta app a tu pantalla de inicio, debes usar <span className="font-semibold">Safari</span>. Abre esta página en Safari y luego toca <span className="font-semibold">Compartir</span> → <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                        Para agregar esta app a tu pantalla de inicio, debes usar <span className="font-semibold">Safari</span>. 
+                        <br />
+                        <span className="font-semibold">1.</span> Copia la URL de esta página
+                        <br />
+                        <span className="font-semibold">2.</span> Ábrela en <span className="font-semibold">Safari</span>
+                        <br />
+                        <span className="font-semibold">3.</span> Toca <span className="font-semibold">Compartir</span> → <span className="font-semibold">"Añadir a pantalla de inicio"</span>
                       </p>
                     </>
                   )}
