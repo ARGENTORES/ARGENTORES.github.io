@@ -11,8 +11,21 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ARGENTORES">
   <meta name="browsermode" content="application">
-  <title>ARGENTORES - El juego del impostor</title>
+  <title>ARGENTORES</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Estilos críticos para pantalla de carga inmediata -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      overflow: hidden;
+    }
+    #root {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
   <link rel="apple-touch-icon" href="icon-192.png?v=1.0" id="apple-touch-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -403,15 +416,29 @@
 </head>
 <body>
   <div id="root">
-    <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;">
-      <div style="position: relative; width: 200px; height: 200px;">
-        <img src="icon-512.png?v=1.0" alt="ARGENTORES" id="loading-logo" style="width: 100%; height: 100%; object-fit: contain; animation: pulse 2s ease-in-out infinite; display: block;" onload="console.log('Logo cargado');" onerror="console.error('Error cargando logo'); this.style.display='none';" />
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; border: 3px solid #9333ea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; pointer-events: none;"></div>
+    <div id="loading-screen" style="padding: 20px; text-align: center; color: white; background: #000000; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99999; margin: 0; padding: 0;">
+      <div style="position: relative; width: 200px; height: 200px; margin-bottom: 30px;">
+        <img src="icon-512.png?v=1.0" alt="ARGENTORES" id="loading-logo" style="width: 100%; height: 100%; object-fit: contain; animation: pulse 2s ease-in-out infinite; display: block; z-index: 1; position: relative;" onload="console.log('Logo cargado');" onerror="console.error('Error cargando logo'); this.style.display='none';" />
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; border: 3px solid #9333ea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; pointer-events: none; z-index: 0;"></div>
       </div>
+      <h1 style="color: #9333ea; font-size: 2rem; font-weight: bold; margin: 0; text-shadow: 0 0 20px rgba(147, 51, 234, 0.5); font-family: 'Russo One', Arial, sans-serif;">ARGENTORES</h1>
+      <p style="color: #a855f7; font-size: 0.9rem; margin-top: 10px; opacity: 0.9;">Cargando...</p>
     </div>
   </div>
   
   <style>
+    /* Estilos críticos para pantalla de carga - deben cargar primero */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      overflow: hidden;
+    }
+    
+    #loading-screen {
+      background: #000000 !important;
+    }
+    
     @keyframes spin {
       from { transform: translate(-50%, -50%) rotate(0deg); }
       to { transform: translate(-50%, -50%) rotate(360deg); }
@@ -429,6 +456,13 @@
     #loading-logo {
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
+    }
+    
+    /* Ocultar pantalla de carga cuando la app esté lista */
+    #loading-screen.hidden {
+      opacity: 0;
+      transition: opacity 0.3s ease-out;
+      pointer-events: none;
     }
   </style>
 
@@ -854,6 +888,29 @@
         };
       }, [isInstalled]);
 
+      // Detección de estado online/offline
+      useEffect(() => {
+        const handleOnline = () => {
+          setIsOnline(true);
+        };
+
+        const handleOffline = () => {
+          setIsOnline(false);
+        };
+
+        // Verificar estado inicial
+        setIsOnline(navigator.onLine);
+
+        // Escuchar cambios de estado
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+        };
+      }, []);
+
       // Prevenir selección de texto y búsqueda en Google
       useEffect(() => {
         const preventSelection = (e) => {
@@ -903,9 +960,11 @@
                     newWorker.addEventListener('statechange', () => {
                       if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                         // Hay una nueva versión disponible
+                        // NO interrumpir el uso, solo notificar
                         setUpdateAvailable(true);
                         setWaitingWorker(newWorker);
-                        showToast('Nueva versión disponible. Recarga para actualizar.', 'info', 8000);
+                        // Mostrar notificación discreta que no interrumpe
+                        showToast('Nueva versión disponible. Se aplicará la próxima vez que recargues.', 'info', 5000);
                       }
                     });
                   }
@@ -1082,6 +1141,7 @@
       const [showIOSBanner, setShowIOSBanner] = useState(false);
       const [isIOSSafari, setIsIOSSafari] = useState(false);
       const [cameFromOtherBrowser, setCameFromOtherBrowser] = useState(false);
+      const [isOnline, setIsOnline] = useState(navigator.onLine);
       const [updateAvailable, setUpdateAvailable] = useState(false);
       const [waitingWorker, setWaitingWorker] = useState(null);
       const [savedProfiles, setSavedProfiles] = useState([]);
@@ -3489,6 +3549,12 @@
       return (
         <>
           <ToastContainer />
+          {/* Indicador de estado offline */}
+          {!isOnline && (
+            <div className="fixed top-0 left-0 right-0 z-40 bg-red-600 text-white text-center py-2 px-4 text-sm font-semibold shadow-lg">
+              ⚠️ Sin conexión a internet - Modo offline activo
+            </div>
+          )}
           {/* Banner de instalación para iOS */}
           {showIOSBanner && (
             <div className={`fixed bottom-0 left-0 right-0 z-50 p-4 ${isLightMode ? 'bg-white border-t-2 border-purple-500' : 'bg-gray-900 border-t-2 border-purple-600'} shadow-2xl`}>
@@ -3502,7 +3568,7 @@
                             ✅ ¡Perfecto! Ahora estás en Safari
                           </h3>
                           <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                            Para agregar ARGENTORES a tu pantalla de inicio, toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                            Para agregar ARGENTORES a tu pantalla de inicio, toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a inicio"</span>
                           </p>
                         </>
                       ) : (
@@ -3511,7 +3577,7 @@
                             📱 Agrega ARGENTORES a tu pantalla de inicio
                           </h3>
                           <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                            Toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                            Toca el botón <span className="font-semibold">Compartir</span> <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg> en la parte inferior y selecciona <span className="font-semibold">"Añadir a inicio"</span>
                           </p>
                         </>
                       )}
@@ -3528,7 +3594,7 @@
                         <br />
                         <span className="font-semibold">2.</span> Ábrela en <span className="font-semibold">Safari</span>
                         <br />
-                        <span className="font-semibold">3.</span> Toca <span className="font-semibold">Compartir</span> → <span className="font-semibold">"Añadir a pantalla de inicio"</span>
+                        <span className="font-semibold">3.</span> Toca <span className="font-semibold">Compartir</span> → <span className="font-semibold">"Añadir a inicio"</span>
                       </p>
                     </>
                   )}
@@ -3563,11 +3629,11 @@
           )}
           {updateAvailable && (
             <div className="update-banner">
-              <span>🔄 Nueva versión disponible</span>
+              <span>🔄 Nueva versión disponible (se aplicará al recargar)</span>
               <button onClick={handleUpdate}>Actualizar ahora</button>
             </div>
           )}
-          <div className={`min-h-screen w-full transition-colors duration-300 ${isLightMode ? 'bg-gradient-to-br from-gray-100 to-gray-200' : 'bg-black'} text-white p-3 sm:p-4 md:p-6`} style={{minHeight: '100dvh'}}>
+          <div className={`min-h-screen w-full transition-all duration-300 ${isLightMode ? 'bg-gradient-to-br from-gray-100 to-gray-200' : 'bg-black'} text-white p-3 sm:p-4 md:p-6 ${!isOnline ? 'pt-12 sm:pt-14 md:pt-16' : ''}`} style={{minHeight: '100dvh'}}>
           <div className="max-w-2xl mx-auto w-full px-2 sm:px-4">
             {/* Theme Toggle Button y Install Button */}
             <div className="flex justify-center sm:justify-end gap-2 mb-4">
@@ -5578,6 +5644,17 @@
         }
 
         console.log('✅ Todas las dependencias cargadas, inicializando app...');
+
+        // Ocultar pantalla de carga
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          setTimeout(() => {
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => {
+              loadingScreen.style.display = 'none';
+            }, 300);
+          }, 100);
+        }
 
         // Intentar usar createRoot (React 18+)
         if (typeof ReactDOM.createRoot !== 'undefined') {
