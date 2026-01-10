@@ -1,7 +1,7 @@
 {
   "name": "ARGENTORES",
   "short_name": "ARGENTORES",
-  "description": "Impostor con temática Argentina",
+  "description": "El juego del impostor con temática Argentina",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
