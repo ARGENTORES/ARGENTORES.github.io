@@ -13,7 +13,7 @@
   <meta name="browsermode" content="application">
   <title>ARGENTORES - El juego del impostor</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png?v=1.0" id="apple-touch-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" onerror="this.onerror=null; document.documentElement.style.setProperty('--font-russo', 'Arial, sans-serif');">
@@ -31,6 +31,10 @@
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
     
     html {
@@ -89,6 +93,10 @@
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
     
     /* Iconos SVG inline para reemplazar lucide-react */
@@ -395,25 +403,46 @@
 </head>
 <body>
   <div id="root">
-    <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+    <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;">
       <div style="position: relative; width: 200px; height: 200px;">
-        <img src="icon-512.png" alt="ARGENTORES" style="width: 100%; height: 100%; object-fit: contain; animation: pulse 2s ease-in-out infinite;" />
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; border: 3px solid #9333ea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <img src="icon-512.png?v=1.0" alt="ARGENTORES" id="loading-logo" style="width: 100%; height: 100%; object-fit: contain; animation: pulse 2s ease-in-out infinite; display: block;" onload="console.log('Logo cargado');" onerror="console.error('Error cargando logo'); this.style.display='none';" />
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 220px; border: 3px solid #9333ea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; pointer-events: none;"></div>
       </div>
     </div>
   </div>
   
   <style>
     @keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
       to { transform: translate(-50%, -50%) rotate(360deg); }
     }
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.8; transform: scale(0.95); }
+      0%, 100% { 
+        opacity: 1; 
+        transform: scale(1); 
+      }
+      50% { 
+        opacity: 0.8; 
+        transform: scale(0.95); 
+      }
+    }
+    #loading-logo {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
     }
   </style>
 
   <script type="text/babel">
+    // ============================================
+    // VERSIÓN DE ICONOS - CACHE BUSTING
+    // ============================================
+    // Cuando cambies los logos (icon-192.png o icon-512.png),
+    // INCREMENTA este número para forzar a los navegadores a cargar
+    // la nueva versión en lugar de usar el cache antiguo.
+    // Ejemplo: '1.0' -> '1.1' -> '1.2' -> '2.0', etc.
+    // ============================================
+    const ICON_VERSION = '1.0';
+    
     const { useState, useEffect } = React;
 
     // #region agent log
@@ -749,6 +778,39 @@
         }
       }, [isInstalled]); // Removido showToast de las dependencias para evitar re-renders innecesarios
 
+      // Prevenir selección de texto y búsqueda en Google
+      useEffect(() => {
+        const preventSelection = (e) => {
+          e.preventDefault();
+          return false;
+        };
+
+        const preventContextMenu = (e) => {
+          e.preventDefault();
+          return false;
+        };
+
+        // Prevenir selección de texto
+        document.addEventListener('selectstart', preventSelection);
+        document.addEventListener('dragstart', preventSelection);
+        
+        // Prevenir menú contextual (clic derecho y menú largo en móviles)
+        document.addEventListener('contextmenu', preventContextMenu);
+        
+        // Prevenir búsqueda en Chrome/Android
+        document.addEventListener('touchstart', (e) => {
+          if (e.touches.length > 1) {
+            e.preventDefault();
+          }
+        }, { passive: false });
+
+        return () => {
+          document.removeEventListener('selectstart', preventSelection);
+          document.removeEventListener('dragstart', preventSelection);
+          document.removeEventListener('contextmenu', preventContextMenu);
+        };
+      }, []);
+
       // Sistema de actualización del Service Worker
       useEffect(() => {
         if ('serviceWorker' in navigator) {
@@ -840,8 +902,7 @@
               localStorage.setItem('pwa_installed', 'true');
               showToast('¡Instalación exitosa! La app funciona sin internet.', 'success', 6000);
             } else {
-              // Si el usuario cancela, simplemente ocultar el botón
-              setShowInstallButton(false);
+              // Si el usuario cancela, mantener el botón visible
               showToast('Instalación cancelada', 'info', 3000);
             }
             
@@ -2526,6 +2587,17 @@
             setSavedProfiles(JSON.parse(saved));
           } catch (e) {
             console.error('Error loading saved profiles:', e);
+          }
+        }
+      }, []);
+
+      // Actualizar iconos con versión correcta al montar
+      useEffect(() => {
+        const appleTouchIcon = document.getElementById('apple-touch-icon') || document.querySelector('link[rel="apple-touch-icon"]');
+        if (appleTouchIcon) {
+          const correctHref = `icon-192.png?v=${ICON_VERSION}`;
+          if (!appleTouchIcon.href.includes('?v=' + ICON_VERSION)) {
+            appleTouchIcon.href = correctHref;
           }
         }
       }, []);
@@ -4804,6 +4876,7 @@
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
               <p>Made by LosTomobri</p>
+              <p className="mt-1">V BETA 1.0</p>
             </div>
           </div>
 
