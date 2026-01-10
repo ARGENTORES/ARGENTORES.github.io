@@ -1,22 +1,31 @@
-const CACHE_NAME = 'argentores-v10';
+const CACHE_NAME = 'argentores-v11';
+// Cachear todos los recursos necesarios para funcionar offline
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './sw.js',
+  './icon.png',
   './icon-192.png',
   './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing service worker (offline first)...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching files...');
+        console.log('[SW] Caching essential files for offline use...');
+        // Cachear todos los recursos esenciales
         return cache.addAll(urlsToCache).catch((err) => {
           console.error('[SW] Cache addAll failed:', err);
-          // Continuar aunque falle el caché
+          // Intentar cachear uno por uno si falla addAll
+          return Promise.allSettled(
+            urlsToCache.map(url => 
+              cache.add(url).catch(e => {
+                console.warn(`[SW] Failed to cache ${url}:`, e);
+              })
+            )
+          );
         });
       })
       .then(() => {
@@ -49,66 +58,100 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const pathname = url.pathname;
+  const isSameOrigin = url.origin === location.origin;
   
-  // Para index.html y la raíz, usar estrategia Network First con fallback a cache
-  if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Actualizar el caché con la nueva versión
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-          return response;
-        })
-        .catch(() => {
-          // Si falla la red, usar el caché como fallback
-          return caches.match(event.request);
-        })
-    );
-  } 
-  // Para recursos estáticos (iconos, manifest, etc), usar Cache First
-  else if (pathname.includes('.png') || pathname.includes('.jpg') || pathname.includes('.svg') || 
-           pathname.includes('manifest.json') || pathname.includes('sw.js')) {
+  // ESTRATEGIA OFFLINE FIRST: Cache First para todos los recursos locales
+  // Esto permite que la app funcione completamente sin internet
+  
+  // Para recursos del mismo origen (index.html, iconos, manifest, etc)
+  if (isSameOrigin) {
     event.respondWith(
       caches.match(event.request)
-        .then((response) => {
-          if (response) {
-            return response;
+        .then((cachedResponse) => {
+          // Si está en cache, devolverlo inmediatamente (offline first)
+          if (cachedResponse) {
+            // En segundo plano, intentar actualizar el cache si hay conexión
+            fetch(event.request)
+              .then((networkResponse) => {
+                if (networkResponse.status === 200) {
+                  const responseToCache = networkResponse.clone();
+                  caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                  });
+                }
+              })
+              .catch(() => {
+                // Sin conexión, no hacer nada, ya tenemos la versión cacheada
+              });
+            return cachedResponse;
           }
-          return fetch(event.request).then((response) => {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-            return response;
-          });
-        })
-    );
-  }
-  // Para recursos externos (CDNs), intentar cachear pero permitir fallback
-  else {
-    event.respondWith(
-      caches.match(event.request)
-        .then((response) => {
-          if (response) {
-            return response;
-          }
+          
+          // Si no está en cache, intentar obtenerlo de la red
           return fetch(event.request)
-            .then((response) => {
-              // Solo cachear respuestas exitosas y del mismo origen o CORS válidas
-              if (response.status === 200 && response.type === 'basic') {
-                const responseToCache = response.clone();
+            .then((networkResponse) => {
+              // Solo cachear respuestas exitosas
+              if (networkResponse.status === 200) {
+                const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then((cache) => {
                   cache.put(event.request, responseToCache);
                 });
               }
-              return response;
+              return networkResponse;
             })
             .catch(() => {
-              // Si es un recurso externo y falla, devolver una respuesta vacía o error
-              return new Response('Offline', { status: 503 });
+              // Si falla la red y no hay cache, devolver una respuesta básica
+              if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
+                return caches.match('./index.html');
+              }
+              return new Response('Offline', { 
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+              });
+            });
+        })
+    );
+  }
+  // Para recursos externos (CDNs como React, Tailwind, etc)
+  else {
+    // Cache First también para recursos externos (si ya están cacheados)
+    event.respondWith(
+      caches.match(event.request)
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            // Intentar actualizar en segundo plano
+            fetch(event.request)
+              .then((networkResponse) => {
+                if (networkResponse.status === 200) {
+                  const responseToCache = networkResponse.clone();
+                  caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                  });
+                }
+              })
+              .catch(() => {
+                // Sin conexión, usar cache
+              });
+            return cachedResponse;
+          }
+          
+          // Si no está cacheado, intentar obtenerlo de la red
+          return fetch(event.request)
+            .then((networkResponse) => {
+              // Cachear recursos externos exitosos para uso offline
+              if (networkResponse.status === 200) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+              }
+              return networkResponse;
+            })
+            .catch(() => {
+              // Si falla y no hay cache, devolver error
+              return new Response('Resource unavailable offline', { 
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+              });
             });
         })
     );
