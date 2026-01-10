@@ -1,4 +1,4 @@
-const CACHE_NAME = 'argentores-v12';
+const CACHE_NAME = 'argentores-v13';
 // Cachear todos los recursos necesarios para funcionar offline
 const urlsToCache = [
   './',
@@ -85,6 +85,39 @@ self.addEventListener('fetch', (event) => {
   
   // Para recursos del mismo origen (index.html, iconos, manifest, etc)
   if (isSameOrigin) {
+    // Estrategia especial para manifest.json e index.html: Network First para asegurar actualizaciones
+    if (pathname.includes('manifest.json') || pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
+      event.respondWith(
+        fetch(event.request, { cache: 'no-cache' })
+          .then((networkResponse) => {
+            if (networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Si falla la red, usar cache como fallback
+            return caches.match(event.request).then((cachedResponse) => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Para index.html, intentar obtener cualquier versión cacheada
+              if (pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/') || pathname === '') {
+                return caches.match('./index.html');
+              }
+              return new Response('Resource unavailable offline', { 
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+              });
+            });
+          })
+      );
+      return;
+    }
+    
     event.respondWith(
       caches.match(event.request)
         .then((cachedResponse) => {
