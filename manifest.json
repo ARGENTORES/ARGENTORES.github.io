@@ -1,7 +1,7 @@
 {
-  "name": "ARGENTORES - El juego del impostor",
+  "name": "ARGENTORES",
   "short_name": "ARGENTORES",
-  "description": "Encuentra al impostor entre los jugadores",
+  "description": "Impostor con temática Argentina",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
