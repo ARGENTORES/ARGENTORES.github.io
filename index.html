@@ -730,6 +730,13 @@
       const IMPOSTORES_ADICIONALES_HABILITADOS = false;
       // ============================================
       
+      // CONFIGURACIÓN DE MODO BUFÓN Y CÓMPLICE
+      // Cambia estos valores a true para habilitar los modos
+      // ============================================
+      const BUFON_MODE_HABILITADO = false;
+      const COMPLICE_MODE_HABILITADO = false;
+      // ============================================
+      
       // Toast system
       const { showToast, ToastContainer } = useToast();
       
@@ -1031,52 +1038,60 @@
         };
       }, []);
 
-      // Auto-navegar a "Quien comienza" cuando todos los jugadores están revelados
+      // Función para seleccionar el primer jugador e ir directamente a la discusión
+      const selectFirstPlayerAndStartDiscussion = () => {
+        // Seleccionar el primer jugador
+        let eligiblePlayers = gameStarted;
+        // Si la opción está activada, excluir a los impostores
+        if (impostorNeverFirst) {
+          eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
+        } else {
+          // Si la opción está desactivada, 15% de probabilidad de elegir un impostor
+          const impostors = gameStarted.filter(p => p.isImpostor);
+          const honestPlayers = gameStarted.filter(p => !p.isImpostor);
+          const chance = Math.random() * 100;
+          
+          if (chance < 15 && impostors.length > 0) {
+            // 15% de probabilidad: elegir un impostor
+            eligiblePlayers = impostors;
+          } else if (honestPlayers.length > 0) {
+            // 85% de probabilidad: elegir un jugador honesto
+            eligiblePlayers = honestPlayers;
+          }
+          // Si no hay jugadores honestos (todos son impostores), usar todos
+          if (eligiblePlayers.length === 0) {
+            eligiblePlayers = gameStarted;
+          }
+        }
+        // Si no hay jugadores elegibles (todos son impostores), usar todos
+        if (eligiblePlayers.length === 0) {
+          eligiblePlayers = gameStarted;
+        }
+        const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
+        setFirstPlayer(randomFirst);
+        setAllRolesRevealed(true);
+        setShowDiscussion(true);
+      };
+
+      // Auto-navegar directamente a la discusión cuando todos los jugadores están revelados
       useEffect(() => {
         if (gameStarted && Array.isArray(gameStarted) && gameStarted.length > 0 && 
             revealedPlayers.length === gameStarted.length && 
             !allRolesRevealed && 
-            !currentlyRevealingPlayer) {
+            !currentlyRevealingPlayer &&
+            !showDiscussion) {
           // Pequeño delay para asegurar que el estado se haya actualizado
           const timer = setTimeout(() => {
             // Verificar nuevamente las condiciones antes de ejecutar
-            if (revealedPlayers.length === gameStarted.length && !allRolesRevealed && !currentlyRevealingPlayer) {
-              // Seleccionar el primer jugador
-              let eligiblePlayers = gameStarted;
-              // Si la opción está activada, excluir a los impostores
-              if (impostorNeverFirst) {
-                eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
-              } else {
-                // Si la opción está desactivada, 15% de probabilidad de elegir un impostor
-                const impostors = gameStarted.filter(p => p.isImpostor);
-                const honestPlayers = gameStarted.filter(p => !p.isImpostor);
-                const chance = Math.random() * 100;
-                
-                if (chance < 15 && impostors.length > 0) {
-                  // 15% de probabilidad: elegir un impostor
-                  eligiblePlayers = impostors;
-                } else if (honestPlayers.length > 0) {
-                  // 85% de probabilidad: elegir un jugador honesto
-                  eligiblePlayers = honestPlayers;
-                }
-                // Si no hay jugadores honestos (todos son impostores), usar todos
-                if (eligiblePlayers.length === 0) {
-                  eligiblePlayers = gameStarted;
-                }
-              }
-              // Si no hay jugadores elegibles (todos son impostores), usar todos
-              if (eligiblePlayers.length === 0) {
-                eligiblePlayers = gameStarted;
-              }
-              const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
-              setFirstPlayer(randomFirst);
-              setAllRolesRevealed(true);
+            if (revealedPlayers.length === gameStarted.length && !allRolesRevealed && !currentlyRevealingPlayer && !showDiscussion) {
+              // Ir directamente a la discusión
+              selectFirstPlayerAndStartDiscussion();
             }
           }, 300);
           
           return () => clearTimeout(timer);
         }
-      }, [revealedPlayers, gameStarted, allRolesRevealed, currentlyRevealingPlayer, impostorNeverFirst]);
+      }, [revealedPlayers, gameStarted, allRolesRevealed, currentlyRevealingPlayer, showDiscussion, impostorNeverFirst]);
 
       // Prevenir selección de texto y búsqueda en Google
       useEffect(() => {
@@ -1305,6 +1320,8 @@
       const [additionalImpostorsCount, setAdditionalImpostorsCount] = useState(1);
       const [additionalImpostorsProbability, setAdditionalImpostorsProbability] = useState(0);
       const [isAdditionalImpostorsActive, setIsAdditionalImpostorsActive] = useState(false);
+      const [jesterMode, setJesterMode] = useState(false);
+      const [accompliceMode, setAccompliceMode] = useState(false);
       // Modo "todos impostores" siempre activo (sin mostrar opción)
       const allImpostorsMode = true;
       const [gameStarted, setGameStarted] = useState(false);
@@ -3009,6 +3026,8 @@
             if (options.additionalImpostorsProbability !== undefined && options.additionalImpostorsProbability >= 0) {
               setAdditionalImpostorsProbability(options.additionalImpostorsProbability);
             }
+            if (options.jesterMode !== undefined) setJesterMode(options.jesterMode);
+            if (options.accompliceMode !== undefined) setAccompliceMode(options.accompliceMode);
             if (options.categoryMode !== undefined) {
               // Convertir 'single' a 'multiple' ya que 'single' ya no está disponible
               const mode = options.categoryMode === 'single' ? 'multiple' : options.categoryMode;
@@ -3030,13 +3049,15 @@
           additionalImpostorsMode,
           additionalImpostorsCount,
           additionalImpostorsProbability,
+          jesterMode,
+          accompliceMode,
           categoryMode,
           playerCount,
           impostorCount,
           useNames
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, additionalImpostorsProbability, categoryMode, playerCount, impostorCount, useNames]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, additionalImpostorsProbability, jesterMode, accompliceMode, categoryMode, playerCount, impostorCount, useNames]);
 
       // Función para procesar categoría desde URL (debe estar antes del useEffect que la usa)
       const processCategoryFromUrl = (encodedData) => {
@@ -3266,7 +3287,29 @@
         
         // Codificar la categoría en base64 para la URL
         const encodedData = btoa(JSON.stringify(exportData));
-        const shareUrl = `${window.location.origin}${window.location.pathname}?import=${encodedData}`;
+        // Construir la URL - usar la URL actual sin el nombre del archivo si es necesario
+        let baseUrl = window.location.origin;
+        // Si estamos en GitHub Pages, usar el pathname completo, sino solo el pathname
+        if (window.location.pathname && window.location.pathname !== '/') {
+          // Si el pathname termina con index.html, removerlo
+          if (window.location.pathname.endsWith('index.html')) {
+            baseUrl += window.location.pathname.replace(/index\.html$/, '');
+          } else if (window.location.pathname.endsWith('/')) {
+            baseUrl += window.location.pathname;
+          } else {
+            // Si tiene un archivo al final, mantener el directorio
+            const pathParts = window.location.pathname.split('/');
+            pathParts.pop(); // Remover el último elemento (el archivo)
+            baseUrl += pathParts.join('/') + (pathParts.length > 1 ? '/' : '');
+          }
+        } else {
+          baseUrl += '/';
+        }
+        // Asegurar que termine con /
+        if (!baseUrl.endsWith('/')) {
+          baseUrl += '/';
+        }
+        const shareUrl = `${baseUrl}?import=${encodedData}`;
         
         // Copiar al portapapeles
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3631,13 +3674,38 @@
         
         console.log('Impostors assigned:', impostors, 'All impostors mode:', allImpostorsTriggered, 'Additional impostors:', additionalImpostorsTriggered);
         
+        // Asignar bufón si está habilitado (aleatorio)
+        let jesterNumber = null;
+        if (jesterMode && BUFON_MODE_HABILITADO) {
+          const nonImpostors = playerNumbers.filter(num => !impostors.includes(num));
+          if (nonImpostors.length > 0) {
+            // Mezclar el array para asegurar aleatoriedad
+            const shuffledNonImpostors = [...nonImpostors].sort(() => Math.random() - 0.5);
+            jesterNumber = shuffledNonImpostors[0];
+          }
+        }
+        
+        // Asignar cómplice si está habilitado (aleatorio)
+        let accompliceNumber = null;
+        if (accompliceMode && COMPLICE_MODE_HABILITADO) {
+          const nonImpostors = playerNumbers.filter(num => !impostors.includes(num) && num !== jesterNumber);
+          if (nonImpostors.length > 0) {
+            // Mezclar el array para asegurar aleatoriedad
+            const shuffledNonImpostors = [...nonImpostors].sort(() => Math.random() - 0.5);
+            accompliceNumber = shuffledNonImpostors[0];
+          }
+        }
+        
         const roles = playerNumbers.map(num => ({
           number: num,
           name: useNames ? playerNames[num - 1] || `Jugador ${num}` : null,
           isImpostor: impostors.includes(num),
+          isJester: num === jesterNumber,
+          isAccomplice: num === accompliceNumber,
           word: impostors.includes(num) ? null : secretWord,
           hint: impostors.includes(num) && impostorHints && PISTAS_HABILITADAS ? hint : null,
-          isEliminated: false
+          isEliminated: false,
+          knowsImpostor: num === accompliceNumber && impostors.length > 0 ? [impostors[Math.floor(Math.random() * impostors.length)]] : null
         }));
         
         const randomOrder = [...roles].sort(() => Math.random() - 0.5);
@@ -3676,36 +3744,8 @@
         if (currentPlayerIndex + 1 < gameStarted.length) {
           setCurrentPlayerIndex(currentPlayerIndex + 1);
         } else {
-          // Seleccionar el primer jugador
-          let eligiblePlayers = gameStarted;
-          // Si la opción está activada, excluir a los impostores
-          if (impostorNeverFirst) {
-            eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
-          } else {
-            // Si la opción está desactivada, 15% de probabilidad de elegir un impostor
-            const impostors = gameStarted.filter(p => p.isImpostor);
-            const honestPlayers = gameStarted.filter(p => !p.isImpostor);
-            const chance = Math.random() * 100;
-            
-            if (chance < 15 && impostors.length > 0) {
-              // 15% de probabilidad: elegir un impostor
-              eligiblePlayers = impostors;
-            } else if (honestPlayers.length > 0) {
-              // 85% de probabilidad: elegir un jugador honesto
-              eligiblePlayers = honestPlayers;
-            }
-            // Si no hay jugadores honestos (todos son impostores), usar todos
-            if (eligiblePlayers.length === 0) {
-              eligiblePlayers = gameStarted;
-            }
-          }
-          // Si no hay jugadores elegibles (todos son impostores), usar todos
-          if (eligiblePlayers.length === 0) {
-            eligiblePlayers = gameStarted;
-          }
-          const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
-          setFirstPlayer(randomFirst);
-          setAllRolesRevealed(true);
+          // Ir directamente a la discusión
+          selectFirstPlayerAndStartDiscussion();
         }
       };
 
@@ -3818,6 +3858,35 @@
         
         if (!playerToEliminate) return;
         
+        // Verificar si el bufón fue eliminado (gana solo) - ANTES de actualizar el estado
+        if (playerToEliminate.isJester) {
+          const updatedPlayers = gameStarted.map(p => 
+            p.number === playerToEliminate.number 
+              ? { ...p, isEliminated: true }
+              : p
+          );
+          setGameStarted(updatedPlayers);
+          setEliminatedPlayers([...eliminatedPlayers, playerToEliminate.number]);
+          setWinners('jester');
+          // Limpiar votos y estados de votación
+          if (!anonymousVoting) {
+            setPublicVotes({});
+          } else {
+            setVotingStarted(false);
+            setCurrentVotingPlayerIndex(0);
+            setAnonymousVotes({});
+            setSelectedVoteTarget(null);
+          }
+          setVotingPlayer(null);
+          setRevealingVote(false);
+          setFinalRevealedPlayers([]);
+          setCurrentlyRevealingPlayer(null);
+          setCardFlipped(false);
+          // Mostrar pantalla de victoria del bufón directamente
+          setShowFinalReveal(true);
+          return;
+        }
+        
         const updatedPlayers = gameStarted.map(p => 
           p.number === playerToEliminate.number 
             ? { ...p, isEliminated: true }
@@ -3839,7 +3908,7 @@
         }
         
         let newImpostorsRemaining = impostorsRemaining;
-        if (votingPlayer.isImpostor) {
+        if (votingPlayer && votingPlayer.isImpostor) {
           newImpostorsRemaining = impostorsRemaining - 1;
           setImpostorsRemaining(newImpostorsRemaining);
         }
@@ -3886,7 +3955,8 @@
           return;
         }
         
-        // Calcular jugadores honestos restantes (no eliminados y no impostores)
+        // Calcular jugadores honestos restantes (no eliminados, no impostores, no bufón, no cómplice)
+        // El bufón y el cómplice se cuentan como civiles para las condiciones de victoria
         const honestPlayersRemaining = updatedPlayers.filter(p => !p.isEliminated && !p.isImpostor).length;
         const impostorsRemainingCount = updatedPlayers.filter(p => !p.isEliminated && p.isImpostor).length;
         
@@ -4785,6 +4855,143 @@
                           </>
                         );
                       })()}
+
+                      {/* Modo Bufón */}
+                      <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                        !BUFON_MODE_HABILITADO
+                          ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                          : isLightMode 
+                            ? jesterMode ? 'bg-yellow-50 border border-yellow-300' : 'bg-gray-50 border border-gray-200'
+                            : jesterMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-gray-800/50 border border-gray-800'
+                      }`}>
+                        <div className="p-4 sm:p-5 flex items-center justify-between">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              BUFON_MODE_HABILITADO && jesterMode ? 'bg-yellow-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                            }`}>
+                              <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${BUFON_MODE_HABILITADO && jesterMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="9" cy="9" r="1.5"/>
+                                <circle cx="15" cy="9" r="1.5"/>
+                                <path d="M8 14c1.5 2 4.5 2 6 0"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-base sm:text-lg font-bold ${
+                                BUFON_MODE_HABILITADO 
+                                  ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                              }`}>
+                                Añadir bufón
+                              </p>
+                              <p className={`text-xs sm:text-sm ${
+                                BUFON_MODE_HABILITADO
+                                  ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                              }`}>
+                                {BUFON_MODE_HABILITADO 
+                                  ? (jesterMode ? 'Habilitado' : 'Deshabilitado')
+                                  : 'Próximamente'}
+                              </p>
+                            </div>
+                          </div>
+                          <label className={BUFON_MODE_HABILITADO ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                            <input
+                              type="checkbox"
+                              checked={jesterMode}
+                              onChange={(e) => BUFON_MODE_HABILITADO && setJesterMode(e.target.checked)}
+                              disabled={!BUFON_MODE_HABILITADO}
+                              className="sr-only"
+                            />
+                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                              !BUFON_MODE_HABILITADO
+                                ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                : jesterMode 
+                                  ? 'bg-yellow-500' 
+                                  : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                            }`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                jesterMode ? 'left-7' : 'left-0.5'
+                              } ${!BUFON_MODE_HABILITADO ? 'opacity-50' : ''}`}></div>
+                            </div>
+                          </label>
+                        </div>
+                        {BUFON_MODE_HABILITADO && jesterMode && (
+                          <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                            <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                              Si eliminan al bufón, gana solo. El bufón conoce la palabra secreta.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Modo El Cómplice */}
+                      <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                        !COMPLICE_MODE_HABILITADO
+                          ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                          : isLightMode 
+                            ? accompliceMode ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
+                            : accompliceMode ? 'bg-blue-900/30 border border-blue-700' : 'bg-gray-800/50 border border-gray-800'
+                      }`}>
+                        <div className="p-4 sm:p-5 flex items-center justify-between">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              COMPLICE_MODE_HABILITADO && accompliceMode ? 'bg-blue-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                            }`}>
+                              <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${COMPLICE_MODE_HABILITADO && accompliceMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="6" cy="12" r="4" fill="currentColor"/>
+                                <circle cx="18" cy="12" r="4" fill="currentColor"/>
+                                <rect x="10" y="11" width="4" height="2" fill="currentColor"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-base sm:text-lg font-bold ${
+                                COMPLICE_MODE_HABILITADO 
+                                  ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                              }`}>
+                                El Cómplice
+                              </p>
+                              <p className={`text-xs sm:text-sm ${
+                                COMPLICE_MODE_HABILITADO
+                                  ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                              }`}>
+                                {COMPLICE_MODE_HABILITADO 
+                                  ? (accompliceMode ? 'Habilitado' : 'Deshabilitado')
+                                  : 'Próximamente'}
+                              </p>
+                            </div>
+                          </div>
+                          <label className={COMPLICE_MODE_HABILITADO ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                            <input
+                              type="checkbox"
+                              checked={accompliceMode}
+                              onChange={(e) => COMPLICE_MODE_HABILITADO && setAccompliceMode(e.target.checked)}
+                              disabled={!COMPLICE_MODE_HABILITADO}
+                              className="sr-only"
+                            />
+                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                              !COMPLICE_MODE_HABILITADO
+                                ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                : accompliceMode 
+                                  ? 'bg-blue-500' 
+                                  : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                            }`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                accompliceMode ? 'left-7' : 'left-0.5'
+                              } ${!COMPLICE_MODE_HABILITADO ? 'opacity-50' : ''}`}></div>
+                            </div>
+                          </label>
+                        </div>
+                        {COMPLICE_MODE_HABILITADO && accompliceMode && (
+                          <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                            <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                              Ayuda al impostor. Conoce la palabra secreta y quién es el impostor, pero juega como un civil.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Botones de acción */}
@@ -5214,7 +5421,7 @@
                       <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                       </svg>
-                      <span className="hidden xs:inline">Volver</span>
+                      <span>Volver</span>
                     </button>
                     <button
                       onClick={() => setStep(3)}
@@ -5225,7 +5432,7 @@
                           : 'bg-gray-600 cursor-not-allowed opacity-50'
                       }`}
                     >
-                      <span className="hidden xs:inline">Continuar</span>
+                      <span>Continuar</span>
                       <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                       </svg>
@@ -5366,7 +5573,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : '#22c55e'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -5392,6 +5599,45 @@
                                 </div>
                               )}
                             </div>
+                          ) : currentlyRevealingPlayer.isJester ? (
+                            <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-300' : 'bg-yellow-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">😊</p>
+                              <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                ¡Eres el BUFÓN!
+                              </p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Tu palabra es:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>{currentlyRevealingPlayer.word}</p>
+                            </div>
+                          ) : currentlyRevealingPlayer.isAccomplice ? (
+                            <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-300' : 'bg-blue-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">🕶️</p>
+                              <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                                ¡Eres el CÓMPLICE!
+                              </p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Tu palabra es:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>{currentlyRevealingPlayer.word}</p>
+                              {currentlyRevealingPlayer.knowsImpostor && currentlyRevealingPlayer.knowsImpostor.length > 0 && (
+                                <div className={`mt-4 p-3 rounded-lg ${isLightMode ? 'bg-blue-50' : 'bg-blue-800/30'}`}>
+                                  <p className={`text-sm font-semibold mb-2 text-center ${isLightMode ? 'text-blue-700' : 'text-blue-300'}`}>
+                                    Conoces al impostor:
+                                  </p>
+                                  <div className="flex flex-wrap gap-2 justify-center">
+                                    {currentlyRevealingPlayer.knowsImpostor.map(impNum => {
+                                      const impostor = gameStarted.find(p => p.number === impNum);
+                                      return impostor ? (
+                                        <span key={impNum} className={`px-3 py-1 rounded-lg text-sm font-bold ${isLightMode ? 'bg-red-200 text-red-700' : 'bg-red-800 text-red-300'}`}>
+                                          {getPlayerDisplay(impostor)}
+                                        </span>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
                               <p className="text-4xl sm:text-5xl mb-3">✅</p>
@@ -5412,38 +5658,9 @@
                                 setRevealedPlayers(newRevealed);
                               }
                               
-                              // Si es el último jugador, navegar a "Quien comienza"
+                              // Si es el último jugador, ir directamente a la discusión
                               if (isLastPlayer) {
-                                // Seleccionar el primer jugador
-                                let eligiblePlayers = gameStarted;
-                                // Si la opción está activada, excluir a los impostores
-                                if (impostorNeverFirst) {
-                                  eligiblePlayers = gameStarted.filter(p => !p.isImpostor);
-                                } else {
-                                  // Si la opción está desactivada, 15% de probabilidad de elegir un impostor
-                                  const impostors = gameStarted.filter(p => p.isImpostor);
-                                  const honestPlayers = gameStarted.filter(p => !p.isImpostor);
-                                  const chance = Math.random() * 100;
-                                  
-                                  if (chance < 15 && impostors.length > 0) {
-                                    // 15% de probabilidad: elegir un impostor
-                                    eligiblePlayers = impostors;
-                                  } else if (honestPlayers.length > 0) {
-                                    // 85% de probabilidad: elegir un jugador honesto
-                                    eligiblePlayers = honestPlayers;
-                                  }
-                                  // Si no hay jugadores honestos (todos son impostores), usar todos
-                                  if (eligiblePlayers.length === 0) {
-                                    eligiblePlayers = gameStarted;
-                                  }
-                                }
-                                // Si no hay jugadores elegibles (todos son impostores), usar todos
-                                if (eligiblePlayers.length === 0) {
-                                  eligiblePlayers = gameStarted;
-                                }
-                                const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
-                                setFirstPlayer(randomFirst);
-                                setAllRolesRevealed(true);
+                                selectFirstPlayerAndStartDiscussion();
                               }
                               
                               setCurrentlyRevealingPlayer(null);
@@ -5455,7 +5672,7 @@
                                 : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/50'
                             }`}
                           >
-                            {!revealedPlayers.includes(currentlyRevealingPlayer.number) && revealedPlayers.length + 1 === gameStarted.length ? 'Ver Quién Comienza →' : '← Volver'}
+                            {!revealedPlayers.includes(currentlyRevealingPlayer.number) && revealedPlayers.length + 1 === gameStarted.length ? 'Comenzar Discusión →' : '← Volver'}
                           </button>
                         </div>
                       </div>
@@ -5763,6 +5980,26 @@
                               return null;
                             })()}
                           </>
+                        ) : votingPlayer.isJester ? (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 ¡Es el BUFÓN!</p>
+                            <p className={`text-lg sm:text-xl mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              El bufón fue eliminado y ganó solo
+                            </p>
+                            <button
+                              onClick={() => {
+                                setFinalRevealedPlayers(gameStarted.map(p => p.number));
+                                setCurrentlyRevealingPlayer(null);
+                                setCardFlipped(false);
+                                setShowFinalReveal(true);
+                                setVotingPlayer(null);
+                                setRevealingVote(false);
+                              }}
+                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
+                            >
+                              Ver Resultados Finales
+                            </button>
+                          </>
                         ) : (
                           <>
                             <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
@@ -5803,6 +6040,11 @@
                           if (impostorsRemainingCount >= honestPlayersRemaining) return true;
                           return false;
                         })();
+                        
+                        // No mostrar el botón si el bufón fue eliminado (ya se mostró antes)
+                        if (votingPlayer && votingPlayer.isJester) {
+                          return null;
+                        }
                         
                         return (
                           <>
@@ -5956,6 +6198,26 @@
                               return null;
                             })()}
                           </>
+                        ) : votingPlayer.isJester ? (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 ¡Es el BUFÓN!</p>
+                            <p className={`text-lg sm:text-xl mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              El bufón fue eliminado y ganó solo
+                            </p>
+                            <button
+                              onClick={() => {
+                                setFinalRevealedPlayers(gameStarted.map(p => p.number));
+                                setCurrentlyRevealingPlayer(null);
+                                setCardFlipped(false);
+                                setShowFinalReveal(true);
+                                setVotingPlayer(null);
+                                setRevealingVote(false);
+                              }}
+                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
+                            >
+                              Ver Resultados Finales
+                            </button>
+                          </>
                         ) : (
                           <>
                             <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
@@ -5996,6 +6258,11 @@
                           if (impostorsRemainingCount >= honestPlayersRemaining) return true;
                           return false;
                         })();
+                        
+                        // No mostrar el botón si el bufón fue eliminado (ya se mostró antes)
+                        if (votingPlayer && votingPlayer.isJester) {
+                          return null;
+                        }
                         
                         return (
                           <>
@@ -6072,6 +6339,17 @@
                   </div>
                 )}
 
+                {winners === 'jester' && (
+                  <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-6 sm:p-8 rounded-xl mb-4 sm:mb-6 text-center`}>
+                    <p className={`text-3xl sm:text-4xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                      🎊 ¡GANÓ EL BUFÓN! 🎊
+                    </p>
+                    <p className={`text-lg sm:text-xl ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                      El bufón fue eliminado y ganó solo
+                    </p>
+                  </div>
+                )}
+
                 {(() => {
                   const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
                   return !allAreImpostors ? (
@@ -6093,6 +6371,39 @@
                     ))}
                   </div>
                 </div>
+
+                {(() => {
+                  const jesterPlayer = gameStarted.find(p => p.isJester);
+                  const accomplicePlayer = gameStarted.find(p => p.isAccomplice);
+                  
+                  if (!jesterPlayer && !accomplicePlayer) return null;
+                  
+                  return (
+                    <div className="space-y-4 mb-4 sm:mb-6">
+                      {jesterPlayer && (
+                        <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 BUFÓN 😊</p>
+                          <div className="flex justify-center">
+                            <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-base sm:text-xl break-words ${isLightMode ? 'bg-yellow-200 text-yellow-800' : 'bg-yellow-700 text-white'}`}>
+                              {getPlayerDisplay(jesterPlayer)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {accomplicePlayer && (
+                        <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-400' : 'bg-blue-900/50 border-2 border-blue-500'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>🕶️ CÓMPLICE 🕶️</p>
+                          <div className="flex justify-center">
+                            <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-base sm:text-xl break-words ${isLightMode ? 'bg-blue-200 text-blue-800' : 'bg-blue-700 text-white'}`}>
+                              {getPlayerDisplay(accomplicePlayer)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {(() => {
                   const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
@@ -6124,20 +6435,20 @@
                     onClick={playAgain}
                     className="flex-1 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Siguiente ronda
+                    <span className="text-center">Siguiente ronda</span>
                   </button>
                   <button
                     onClick={goToStart}
                     className="flex-1 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-gray-500/50 hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Reiniciar Juego y Configuración
+                    <span className="text-center">Reiniciar Juego y Configuración</span>
                   </button>
                 </div>
               </div>
@@ -6164,7 +6475,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : '#22c55e'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -6175,6 +6486,45 @@
                               <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
                                 ¡Es el IMPOSTOR!
                               </p>
+                            </div>
+                          ) : currentlyRevealingPlayer.isJester ? (
+                            <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-300' : 'bg-yellow-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">😊</p>
+                              <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                ¡Es el BUFÓN!
+                              </p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Su palabra era:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>{currentlyRevealingPlayer.word}</p>
+                            </div>
+                          ) : currentlyRevealingPlayer.isAccomplice ? (
+                            <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-300' : 'bg-blue-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">🕶️</p>
+                              <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                                ¡Es el CÓMPLICE!
+                              </p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Su palabra era:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>{currentlyRevealingPlayer.word}</p>
+                              {currentlyRevealingPlayer.knowsImpostor && currentlyRevealingPlayer.knowsImpostor.length > 0 && (
+                                <div className={`mt-4 p-3 rounded-lg ${isLightMode ? 'bg-blue-50' : 'bg-blue-800/30'}`}>
+                                  <p className={`text-sm font-semibold mb-2 ${isLightMode ? 'text-blue-700' : 'text-blue-300'}`}>
+                                    Conoce al impostor:
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {currentlyRevealingPlayer.knowsImpostor.map(impNum => {
+                                      const impostor = gameStarted.find(p => p.number === impNum);
+                                      return impostor ? (
+                                        <span key={impNum} className={`px-3 py-1 rounded-lg text-sm font-bold ${isLightMode ? 'bg-red-200 text-red-700' : 'bg-red-800 text-red-300'}`}>
+                                          {getPlayerDisplay(impostor)}
+                                        </span>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
