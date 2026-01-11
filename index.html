@@ -982,6 +982,32 @@
         };
       }, [isInstalled]);
 
+      // Detectar si tiene la app instalada pero está accediendo desde la web
+      useEffect(() => {
+        // Verificar si tiene la app instalada (usando localStorage)
+        const wasInstalled = localStorage.getItem('pwa_installed') === 'true';
+        
+        if (wasInstalled) {
+          // Verificar si NO está en modo standalone (está en la web)
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+          const isIOSStandalone = window.navigator.standalone === true;
+          const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches || 
+                            window.matchMedia('(display-mode: minimal-ui)').matches;
+          
+          // Si NO está en modo standalone pero tiene la app instalada, mostrar modal
+          if (!isStandalone && !isIOSStandalone && !isInWebApp) {
+            // Verificar si el usuario ya cerró el modal en esta sesión
+            const modalDismissed = sessionStorage.getItem('pwa_open_modal_dismissed') === 'true';
+            if (!modalDismissed) {
+              // Esperar un poco antes de mostrar el modal para no ser intrusivo
+              setTimeout(() => {
+                setShowPWAOpenModal(true);
+              }, 3000);
+            }
+          }
+        }
+      }, []);
+
       // Detección de estado online/offline
       useEffect(() => {
         const handleOnline = () => {
@@ -1274,6 +1300,7 @@
       const [impostorHints, setImpostorHints] = useState(false);
       const [impostorNeverFirst, setImpostorNeverFirst] = useState(false);
       const [impostorsKnowEachOther, setImpostorsKnowEachOther] = useState(false);
+      const [anonymousVoting, setAnonymousVoting] = useState(true);
       const [additionalImpostorsMode, setAdditionalImpostorsMode] = useState(false);
       const [additionalImpostorsCount, setAdditionalImpostorsCount] = useState(1);
       const [additionalImpostorsProbability, setAdditionalImpostorsProbability] = useState(0);
@@ -1296,6 +1323,12 @@
       const [eliminatedPlayers, setEliminatedPlayers] = useState([]);
       const [votingPlayer, setVotingPlayer] = useState(null);
       const [revealingVote, setRevealingVote] = useState(false);
+      const [publicVotes, setPublicVotes] = useState({}); // { playerNumber: votedForNumber }
+      const [currentVotingPlayerIndex, setCurrentVotingPlayerIndex] = useState(0);
+      const [anonymousVotes, setAnonymousVotes] = useState({}); // { playerNumber: votedForNumber }
+      const [votingStarted, setVotingStarted] = useState(false);
+      const [selectedVoteTarget, setSelectedVoteTarget] = useState(null);
+      const [lockUnlocked, setLockUnlocked] = useState(false);
       const [impostorsRemaining, setImpostorsRemaining] = useState(0);
       const [winners, setWinners] = useState(null);
       const [isLightMode, setIsLightMode] = useState(false);
@@ -1326,9 +1359,12 @@
       const [waitingWorker, setWaitingWorker] = useState(null);
       const [savedProfiles, setSavedProfiles] = useState([]);
       const [selectedProfile, setSelectedProfile] = useState(null);
+      const [showPlayerNamesList, setShowPlayerNamesList] = useState(false);
+      const [showProfilesList, setShowProfilesList] = useState(false);
       const [showExitConfirm, setShowExitConfirm] = useState(false);
       const [showResultsConfirm, setShowResultsConfirm] = useState(false);
       const [openMenuCategory, setOpenMenuCategory] = useState(null);
+      const [showPWAOpenModal, setShowPWAOpenModal] = useState(false);
 
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
@@ -3213,10 +3249,19 @@
 
       // Función para compartir categoría mediante link
       const shareCustomCategory = (category) => {
+        // Obtener las palabras de la categoría - puede estar en categoryWords o en category.words
+        const words = categoryWords[category.name] || category.words || [];
+        
+        if (!words || !Array.isArray(words) || words.length === 0) {
+          setImportErrorMsg('La categoría no tiene palabras disponibles para compartir.');
+          setShowImportErrorModal(true);
+          return;
+        }
+        
         const exportData = {
           name: category.name,
           emoji: category.emoji || '⭐',
-          words: category.words
+          words: words
         };
         
         // Codificar la categoría en base64 para la URL
@@ -3669,22 +3714,129 @@
       };
 
       const votePlayer = (player) => {
-        setVotingPlayer(player);
+        if (anonymousVoting) {
+          // Modo anónimo: seleccionar jugador objetivo para el voto actual
+          setSelectedVoteTarget(player);
+        } else {
+          // Modo público: seleccionar jugador para votar (como antes)
+          setVotingPlayer(player);
+        }
+      };
+
+      const startAnonymousVoting = () => {
+        setVotingStarted(true);
+        setCurrentVotingPlayerIndex(0);
+        setAnonymousVotes({});
+        setSelectedVoteTarget(null);
+        setLockUnlocked(false);
+      };
+
+      const confirmAnonymousVote = () => {
+        if (!selectedVoteTarget) return;
+        
+        const activePlayers = gameStarted.filter(p => !p.isEliminated);
+        const currentPlayer = activePlayers[currentVotingPlayerIndex];
+        
+        // Guardar el voto del jugador actual
+        setAnonymousVotes(prev => ({
+          ...prev,
+          [currentPlayer.number]: selectedVoteTarget.number
+        }));
+        
+        // Si hay más jugadores, pasar al siguiente
+        if (currentVotingPlayerIndex < activePlayers.length - 1) {
+          setCurrentVotingPlayerIndex(prev => prev + 1);
+          setSelectedVoteTarget(null);
+          setLockUnlocked(false); // Resetear candado para el siguiente jugador
+        } else {
+          // Todos han votado, calcular y mostrar resultado
+          calculateVotingResult();
+        }
+      };
+
+      const calculateVotingResult = () => {
+        // Contar votos
+        const voteCounts = {};
+        Object.values(anonymousVotes).forEach(votedFor => {
+          voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
+        });
+        
+        // Encontrar el más votado
+        let maxVotes = 0;
+        let mostVotedNumber = null;
+        Object.entries(voteCounts).forEach(([playerNum, count]) => {
+          if (count > maxVotes) {
+            maxVotes = count;
+            mostVotedNumber = parseInt(playerNum);
+          }
+        });
+        
+        // Si hay empate, usar el primero encontrado
+        const playerToEliminate = mostVotedNumber ? gameStarted.find(p => p.number === mostVotedNumber) : null;
+        
+        if (playerToEliminate) {
+          setVotingPlayer(playerToEliminate);
+          setRevealingVote(true);
+        }
       };
 
       const confirmVote = () => {
-        setRevealingVote(true);
+        if (anonymousVoting) {
+          setRevealingVote(true);
+        } else {
+          // En modo público, el voto ya se registró, solo mostrar resultado
+          setRevealingVote(true);
+        }
+      };
+
+      // Función para obtener el jugador más votado en modo público
+      const getMostVotedPlayer = () => {
+        const voteCounts = {};
+        Object.values(publicVotes).forEach(votedFor => {
+          voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
+        });
+        
+        let maxVotes = 0;
+        let mostVoted = null;
+        Object.entries(voteCounts).forEach(([playerNum, count]) => {
+          if (count > maxVotes) {
+            maxVotes = count;
+            mostVoted = parseInt(playerNum);
+          }
+        });
+        
+        return mostVoted ? gameStarted.find(p => p.number === mostVoted) : null;
       };
 
       const continueAfterVote = () => {
+        // Determinar qué jugador eliminar
+        let playerToEliminate = votingPlayer;
+        if (!anonymousVoting && !playerToEliminate) {
+          // En modo público, usar el más votado
+          playerToEliminate = getMostVotedPlayer();
+        }
+        
+        if (!playerToEliminate) return;
+        
         const updatedPlayers = gameStarted.map(p => 
-          p.number === votingPlayer.number 
+          p.number === playerToEliminate.number 
             ? { ...p, isEliminated: true }
             : p
         );
         
         setGameStarted(updatedPlayers);
-        setEliminatedPlayers([...eliminatedPlayers, votingPlayer.number]);
+        setEliminatedPlayers([...eliminatedPlayers, playerToEliminate.number]);
+        
+        // Limpiar votos públicos y resetear estado de votación anónima
+        if (!anonymousVoting) {
+          setPublicVotes({});
+        } else {
+          // Resetear estado de votación anónima
+          setVotingStarted(false);
+          setCurrentVotingPlayerIndex(0);
+          setAnonymousVotes({});
+          setSelectedVoteTarget(null);
+        }
         
         let newImpostorsRemaining = impostorsRemaining;
         if (votingPlayer.isImpostor) {
@@ -4022,44 +4174,37 @@
 
                 {/* Step 1: Player Count & Names */}
                 {step === 1 && (
-                  <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
-                    <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
-                      <h2 className={`text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                        <span 
-                          className={`text-2xl sm:text-3xl inline-block ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}
-                          style={{
-                            filter: isLightMode 
-                              ? 'brightness(0) saturate(100%) invert(27%) sepia(95%) saturate(1352%) hue-rotate(258deg) brightness(95%) contrast(91%)'
-                              : 'brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(230deg) brightness(118%) contrast(119%)'
-                          }}
-                        >
-                          🧮
-                        </span>
-                        Configuraciones del juego
-                      </h2>
-                    </div>
-                    
-                    <div className="mb-6 sm:mb-8">
-                      <p className={`text-sm sm:text-base mb-4 flex items-center gap-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                        <UsersIcon className={isLightMode ? 'text-purple-600' : 'text-purple-400'} size={16} />
-                        Cantidad de jugadores (mínimo 3)
-                      </p>
-                      <div className="flex items-center justify-center gap-4 sm:gap-6 mb-6">
-                        <button
-                          onClick={() => setPlayerCount(Math.max(3, playerCount - 1))}
-                          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
-                        >
-                          -
-                        </button>
-                        <div className={`text-4xl sm:text-5xl md:text-6xl font-bold ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>{playerCount}</div>
-                        <button
-                          onClick={() => setPlayerCount(Math.min(20, playerCount + 1))}
-                          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
-                        >
-                          +
-                        </button>
+                  <>
+                    {/* Cuadrado 1: Cantidad de jugadores y nombres personalizados */}
+                    <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
+                      <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
+                        <h2 className={`text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                          <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Jugadores
+                        </h2>
+                        <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Mínimo 3
+                        </p>
                       </div>
-                    </div>
+                      <div className="mb-6 sm:mb-8">
+                        <div className="flex items-center justify-center gap-4 sm:gap-6 mb-6">
+                          <button
+                            onClick={() => setPlayerCount(Math.max(3, playerCount - 1))}
+                            className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
+                          >
+                            -
+                          </button>
+                          <div className={`text-4xl sm:text-5xl md:text-6xl font-bold ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>{playerCount}</div>
+                          <button
+                            onClick={() => setPlayerCount(Math.min(20, playerCount + 1))}
+                            className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-xl sm:text-2xl font-bold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-110 active:scale-95"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
 
                     {/* Card style for Use Names */}
                     <div className={`mb-4 rounded-xl transition-all duration-300 ${
@@ -4098,6 +4243,8 @@
                                 setPlayerNames(Array(playerCount).fill(''));
                               } else {
                                 setSelectedProfile(null);
+                                setShowPlayerNamesList(false);
+                                setShowProfilesList(false);
                               }
                             }}
                             className="sr-only"
@@ -4117,11 +4264,55 @@
                       {/* Contenido expandible dentro de la misma tarjeta */}
                       {useNames && (
                         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                          {/* Botones de selección */}
+                          {!showPlayerNamesList && !showProfilesList && (
+                            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                              <button
+                                onClick={() => {
+                                  setShowPlayerNamesList(true);
+                                  setShowProfilesList(false);
+                                }}
+                                className="flex-1 px-4 py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl hover:scale-105"
+                              >
+                                Ver Lista de Jugadores
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowProfilesList(true);
+                                  setShowPlayerNamesList(false);
+                                }}
+                                className="flex-1 px-4 py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl hover:scale-105"
+                              >
+                                Ver Perfiles Guardados
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Botón para volver */}
+                          {(showPlayerNamesList || showProfilesList) && (
+                            <div className="mt-4 mb-4">
+                              <button
+                                onClick={() => {
+                                  setShowPlayerNamesList(false);
+                                  setShowProfilesList(false);
+                                }}
+                                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                                  isLightMode 
+                                    ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                                    : 'bg-gray-700 hover:bg-gray-600 text-white'
+                                }`}
+                              >
+                                ← Volver
+                              </button>
+                            </div>
+                          )}
+
                           {/* Perfiles guardados */}
-                          <div className="mt-4 mb-4">
-                            <p className={`text-sm sm:text-base mb-3 font-semibold ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                              Perfiles guardados:
-                            </p>
+                          {showProfilesList && (
+                            <div className="mt-4 mb-4">
+                              <p className={`text-sm sm:text-base mb-3 font-semibold ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Perfiles guardados:
+                              </p>
                             {savedProfiles.length > 0 ? (
                               <div className="flex flex-wrap gap-2 mb-4">
                                 {savedProfiles.map((profile) => (
@@ -4161,9 +4352,12 @@
                                 No hay perfiles guardados. Completa los nombres y haz clic en "Guardar perfil" para crear uno.
                               </p>
                             )}
-                          </div>
+                            </div>
+                          )}
 
                           {/* Inputs de nombres */}
+                          {showPlayerNamesList && (
+                            <>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {Array.from({ length: playerCount }, (_, i) => {
                               const duplicateIndices = getDuplicateNameIndices();
@@ -4223,9 +4417,24 @@
                               💾 Guardar perfil
                             </button>
                           </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
+                    </div>
+
+                    {/* Cuadrado 2: Configuraciones del juego */}
+                    <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
+                      <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
+                        <h2 className={`text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                          <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Configuraciones del juego
+                        </h2>
+                      </div>
 
                     {/* Card style for Hints */}
                     <div className={`mb-4 p-4 sm:p-5 rounded-xl transition-all duration-300 flex items-center justify-between ${
@@ -4374,155 +4583,212 @@
                       </label>
                     </div>
 
-                    {/* Impostores Adicionales */}
-                    {(() => {
-                      const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
-                      const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS;
-                      // Generar opciones de probabilidad: 0, 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
-                      const probabilityOptions = [0, 1, 2, 3, 4, 5];
-                      for (let i = 10; i <= 50; i += 5) {
-                        probabilityOptions.push(i);
-                      }
-                      return (
-                        <>
-                          {/* Card style for Additional Impostors */}
-                          <div className={`mb-4 p-4 sm:p-5 rounded-xl transition-all duration-300 flex items-center justify-between ${
-                            !IMPOSTORES_ADICIONALES_HABILITADOS
-                              ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
-                              : isLightMode 
-                                ? additionalImpostorsMode ? 'bg-gray-100 border border-gray-300' : 'bg-gray-50 border border-gray-200'
-                                : additionalImpostorsMode ? 'bg-gray-800/70 border border-gray-700' : 'bg-gray-800/50 border border-gray-800'
-                          }`}>
-                            <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                              {/* Icono cuadrado naranja con rayo */}
-                              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'bg-gradient-to-r from-purple-600 to-pink-600' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
-                              }`}>
-                                <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-base sm:text-lg font-bold ${
-                                  IMPOSTORES_ADICIONALES_HABILITADOS 
-                                    ? (isLightMode ? 'text-gray-800' : 'text-white')
-                                    : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                                }`}>
-                                  Impostores adicionales
-                                </p>
-                                <p className={`text-xs sm:text-sm ${
-                                  IMPOSTORES_ADICIONALES_HABILITADOS
-                                    ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
-                                    : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                                }`}>
-                                  {IMPOSTORES_ADICIONALES_HABILITADOS 
-                                    ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
-                                    : 'Próximamente'}
-                                </p>
-                              </div>
-                            </div>
-                            {/* Toggle switch */}
-                            <label className={IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled ? 'cursor-pointer' : 'cursor-not-allowed'}>
-                              <input
-                                type="checkbox"
-                                checked={additionalImpostorsMode}
-                                onChange={(e) => IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled && setAdditionalImpostorsMode(e.target.checked)}
-                                disabled={!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled}
-                                className="sr-only"
-                              />
-                              <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                                !IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled
-                                  ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                  : additionalImpostorsMode 
-                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600' 
-                                    : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
-                              }`}>
-                                <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                  additionalImpostorsMode ? 'left-7' : 'left-0.5'
-                                } ${!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled ? 'opacity-50' : ''}`}></div>
-                              </div>
-                            </label>
-                          </div>
-                          
-                          {/* Información adicional cuando está habilitado */}
-                          {IMPOSTORES_ADICIONALES_HABILITADOS && (
-                            <p className={`text-xs sm:text-sm mb-4 ${
-                              isDisabled
-                                ? `${isLightMode ? 'text-gray-500' : 'text-gray-500'}`
-                                : `${isLightMode ? 'text-gray-600' : 'text-gray-400'}`
+                    {/* Card style for Anonymous Voting */}
+                    <div className={`mb-4 p-4 sm:p-5 rounded-xl transition-all duration-300 flex items-center justify-between ${
+                      isLightMode 
+                        ? anonymousVoting ? 'bg-gray-100 border border-gray-300' : 'bg-gray-50 border border-gray-200'
+                        : anonymousVoting ? 'bg-gray-800/70 border border-gray-700' : 'bg-gray-800/50 border border-gray-800'
+                    }`}>
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                        {/* Icono cuadrado */}
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          anonymousVoting ? 'bg-gradient-to-r from-purple-600 to-pink-600' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                        }`}>
+                          <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${anonymousVoting ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-base sm:text-lg font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            Voto anónimo
+                          </p>
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {anonymousVoting ? 'Habilitado (voto individual)' : 'Deshabilitado (voto público)'}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Toggle switch */}
+                      <label className="cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={anonymousVoting}
+                          onChange={(e) => setAnonymousVoting(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                          anonymousVoting 
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600' 
+                            : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                        }`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                            anonymousVoting ? 'left-7' : 'left-0.5'
+                          }`}></div>
+                        </div>
+                      </label>
+                    </div>
+                    </div>
+
+                    {/* Cuadrado 3: Modo Pro (Eventos Especiales) */}
+                    <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
+                      <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
+                        <h2 className={`text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                          <svg className="w-6 h-6 sm:w-7 sm:h-7" viewBox="0 0 24 24" fill="none">
+                            <defs>
+                              <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#f97316" />
+                                <stop offset="100%" stopColor="#ea580c" />
+                              </linearGradient>
+                            </defs>
+                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2 4h10v2H7v-2z" fill="url(#orangeGradient)" />
+                            <path d="M9 11l3-2 3 2" fill="url(#orangeGradient)" opacity="0.8" />
+                          </svg>
+                          Modo Pro (Eventos Especiales)
+                        </h2>
+                      </div>
+                      
+                      {/* Impostores Adicionales */}
+                      {(() => {
+                        const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+                        const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS;
+                        // Generar opciones de probabilidad: 0, 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
+                        const probabilityOptions = [0, 1, 2, 3, 4, 5];
+                        for (let i = 10; i <= 50; i += 5) {
+                          probabilityOptions.push(i);
+                        }
+                        return (
+                          <>
+                            {/* Card style for Additional Impostors */}
+                            <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                              !IMPOSTORES_ADICIONALES_HABILITADOS
+                                ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                                : isLightMode 
+                                  ? additionalImpostorsMode ? 'bg-orange-50 border border-orange-300' : 'bg-gray-50 border border-gray-200'
+                                  : additionalImpostorsMode ? 'bg-orange-900/30 border border-orange-700' : 'bg-gray-800/50 border border-gray-800'
                             }`}>
-                              {isDisabled
-                                ? 'Se requieren al menos 5 jugadores para activar esta opción'
-                                : additionalImpostorsMode 
-                                  ? `Probabilidad de agregar ${additionalImpostorsCount} impostor${additionalImpostorsCount > 1 ? 'es' : ''} adicional${additionalImpostorsCount > 1 ? 'es' : ''}: ${additionalImpostorsProbability}%`
-                                  : 'Evento especial: se pueden agregar impostores adicionales en cada partida según la probabilidad configurada'}
-                            </p>
-                          )}
-                          
-                          {IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabled && (
-                            <>
-                              <div className="mt-4">
-                                <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                  Cantidad de impostores adicionales: {additionalImpostorsCount}
-                                  {maxAdditional > 0 && (
-                                    <span className={`text-xs ml-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                      (máx: {maxAdditional})
-                                    </span>
-                                  )}
-                                </label>
-                                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                  {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
-                                    <button
-                                      key={value}
-                                      onClick={() => setAdditionalImpostorsCount(value)}
-                                      className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
-                                        additionalImpostorsCount === value
-                                          ? 'bg-orange-600 text-white shadow-lg'
-                                          : isLightMode
-                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                      }`}
-                                    >
-                                      +{value}
-                                    </button>
-                                  ))}
-                                  {maxAdditional === 0 && (
-                                    <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                      No se pueden agregar más impostores (límite alcanzado)
-                                    </span>
-                                  )}
+                              {/* Header de la tarjeta con toggle */}
+                              <div className="p-4 sm:p-5 flex items-center justify-between">
+                                <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                                  {/* Icono cuadrado naranja con rayo */}
+                                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'bg-gradient-to-r from-orange-500 to-orange-600' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                                  }`}>
+                                    <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-base sm:text-lg font-bold ${
+                                      IMPOSTORES_ADICIONALES_HABILITADOS 
+                                        ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                        : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                    }`}>
+                                      Impostores adicionales
+                                    </p>
+                                    <p className={`text-xs sm:text-sm ${
+                                      IMPOSTORES_ADICIONALES_HABILITADOS
+                                        ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                        : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                    }`}>
+                                      {IMPOSTORES_ADICIONALES_HABILITADOS 
+                                        ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
+                                        : 'Próximamente'}
+                                    </p>
+                                  </div>
                                 </div>
+                                {/* Toggle switch */}
+                                <label className={IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                                  <input
+                                    type="checkbox"
+                                    checked={additionalImpostorsMode}
+                                    onChange={(e) => IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled && setAdditionalImpostorsMode(e.target.checked)}
+                                    disabled={!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled}
+                                    className="sr-only"
+                                  />
+                                  <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                                    !IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled
+                                      ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                      : additionalImpostorsMode 
+                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600' 
+                                        : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                                  }`}>
+                                    <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                      additionalImpostorsMode ? 'left-7' : 'left-0.5'
+                                    } ${!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled ? 'opacity-50' : ''}`}></div>
+                                  </div>
+                                </label>
                               </div>
                               
-                              <div className="mt-4">
-                                <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                  Probabilidad de activación: {additionalImpostorsProbability}%
-                                </label>
-                                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                  {probabilityOptions.map((value) => (
-                                    <button
-                                      key={value}
-                                      onClick={() => setAdditionalImpostorsProbability(value)}
-                                      className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
-                                        additionalImpostorsProbability === value
-                                          ? 'bg-orange-600 text-white shadow-lg'
-                                          : isLightMode
-                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                      }`}
-                                    >
-                                      {value}%
-                                    </button>
-                                  ))}
+                              {/* Contenido expandible dentro de la misma tarjeta */}
+                              {IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabled && (
+                              <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                              <>
+                                <div className="mt-4">
+                                  <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                    Cantidad de impostores adicionales: {additionalImpostorsCount}
+                                    {maxAdditional > 0 && (
+                                      <span className={`text-xs ml-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        (máx: {maxAdditional})
+                                      </span>
+                                    )}
+                                  </label>
+                                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                    {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
+                                      <button
+                                        key={value}
+                                        onClick={() => setAdditionalImpostorsCount(value)}
+                                        className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                          additionalImpostorsCount === value
+                                            ? 'bg-orange-600 text-white shadow-lg'
+                                            : isLightMode
+                                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        }`}
+                                      >
+                                        +{value}
+                                      </button>
+                                    ))}
+                                    {maxAdditional === 0 && (
+                                      <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        No se pueden agregar más impostores (límite alcanzado)
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+                                
+                                <div className="mt-4">
+                                  <label className={`block text-sm sm:text-base font-semibold mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                    Probabilidad de activación: {additionalImpostorsProbability}%
+                                  </label>
+                                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                    {probabilityOptions.map((value) => (
+                                      <button
+                                        key={value}
+                                        onClick={() => setAdditionalImpostorsProbability(value)}
+                                        className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                          additionalImpostorsProbability === value
+                                            ? 'bg-orange-600 text-white shadow-lg'
+                                            : isLightMode
+                                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        }`}
+                                      >
+                                        {value}%
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
                               </div>
-                            </>
-                          )}
-                        </>
-                      );
-                    })()}
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
 
-                    <div className={`flex justify-between items-center pt-4 border-t ${isLightMode ? 'border-gray-300' : 'border-gray-700'} gap-2 sm:gap-3`}>
+                    {/* Botones de acción */}
+                    <div className={`flex justify-between items-center gap-2 sm:gap-3`}>
                       <button
                         onClick={() => setShowHowToPlayModal(true)}
                         className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 ${
@@ -4569,7 +4835,7 @@
                         </svg>
                       </button>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 {/* Step 2: Select Categories */}
@@ -5087,7 +5353,7 @@
                       <div 
                         className="card-front" 
                         onClick={() => setCardFlipped(true)}
-                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: `4px solid ${isLightMode ? '#9ca3af' : '#06b6d4'}`}}
+                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: '4px solid #9333ea'}}
                       >
                         <div className="relative w-full text-center">
                           <div className="mb-6 flex justify-center">
@@ -5100,7 +5366,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${isLightMode ? '#9ca3af' : '#06b6d4'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -5230,7 +5496,7 @@
 
                 {/* Grid de cartas */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  {gameStarted.map((player) => {
+                  {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => {
                     const isRevealed = revealedPlayers.includes(player.number);
                     const displayText = useNames ? (player.name || `Jugador ${player.number}`) : `Jugador ${player.number}`;
                     
@@ -5248,7 +5514,7 @@
                           isRevealed
                             ? `${isLightMode ? 'bg-gray-300 opacity-60' : 'bg-gray-700 opacity-60'} cursor-default`
                             : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-700 hover:bg-gray-600'} cursor-pointer hover:scale-105`
-                        } border ${isLightMode ? 'border-gray-300' : 'border-gray-600'}`}
+                        } border-4 border-purple-500`}
                         style={{minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}
                       >
                         {/* Texto del jugador */}
@@ -5312,187 +5578,457 @@
               </div>
             ) : !showFinalReveal ? (
               <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-800/50'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-transparent'}`}>
-                {!votingPlayer ? (
-                  <>
-                    <div className="text-center mb-6 sm:mb-8">
-                      <h2 className={`text-3xl sm:text-4xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Hora de Discutir!</h2>
-                      <p className={`text-lg sm:text-xl ${isLightMode ? 'text-purple-600' : 'text-purple-300'}`}>Voten para eliminar a un jugador</p>
-                    </div>
-
-                    <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
-                      <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-4 sm:p-6 rounded-xl`}>
-                        <p className={`text-sm sm:text-base mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Comienza la discusión</p>
-                        <p className={`text-xl sm:text-2xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                          👉 {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
-                        </p>
+                {anonymousVoting ? (
+                  // Modo anónimo (voto individual)
+                  !votingStarted ? (
+                    // Pantalla inicial: botón para ir a votar
+                    <>
+                      <div className="text-center mb-6 sm:mb-8">
+                        <h2 className={`text-3xl sm:text-4xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Hora de Discutir!</h2>
+                        <p className={`text-lg sm:text-xl ${isLightMode ? 'text-purple-600' : 'text-purple-300'}`}>Voto anónimo - Cada jugador votará individualmente</p>
                       </div>
 
-                      <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl`}>
-                        <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Jugadores (Toca para votar)</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                          {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => (
-                            <button
-                              key={player.number}
-                              onClick={() => !player.isEliminated && votePlayer(player)}
-                              disabled={player.isEliminated}
-                              className={`px-4 py-3 sm:px-5 sm:py-4 rounded-xl text-center font-bold text-sm sm:text-base transition-all duration-300 relative shadow-lg min-h-[80px] sm:min-h-[90px] flex flex-col items-center justify-center ${
-                                player.isEliminated
-                                  ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50 cursor-not-allowed`
-                                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer ring-2 ring-purple-400 hover:ring-purple-300 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
-                              }`}
-                            >
-                              <div className="break-words w-full px-2">
-                                {useNames ? player.name : `Jugador ${player.number}`}
-                              </div>
-                              {!player.isEliminated && (
-                                <div className="text-xs mt-2 opacity-75">👆 Votar</div>
-                              )}
-                              {player.isEliminated && (
-                                <div className="text-xs mt-2">💀 Eliminado</div>
-                              )}
-                            </button>
-                          ))}
+                      <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+                        <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-sm sm:text-base mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Comienza la discusión</p>
+                          <p className={`text-xl sm:text-2xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                            👉 {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
+                          </p>
                         </div>
                       </div>
-                    </div>
 
-                    <button
-                      onClick={() => setShowResultsConfirm(true)}
-                      className={`w-full px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
-                    >
-                      Terminar Juego y Ver Resultados
-                    </button>
-                  </>
-                ) : !revealingVote ? (
-                  <div className="text-center py-8 sm:py-12">
-                    <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Votación</h2>
-                    <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
-                      <p className={`text-lg sm:text-xl mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Eliminar a este jugador?</p>
-                      <p className={`text-4xl sm:text-5xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                        {getPlayerDisplay(votingPlayer)}
-                      </p>
-                    </div>
-                    <div className="flex gap-3 sm:gap-4 justify-center">
                       <button
-                        onClick={() => setVotingPlayer(null)}
-                        className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                        onClick={startAnonymousVoting}
+                        className="w-full px-6 sm:px-8 py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-lg sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
                       >
-                        Cancelar
+                        Ir a Votar 🗳️
                       </button>
+
                       <button
-                        onClick={confirmVote}
-                        className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105"
+                        onClick={() => setShowResultsConfirm(true)}
+                        className={`w-full mt-4 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
                       >
-                        Confirmar Eliminación
+                        Terminar Juego y Ver Resultados
                       </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 sm:py-12">
-                    <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
-                    <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
-                      votingPlayer.isImpostor 
-                        ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
-                        : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
-                    }`}>
-                      <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
-                      <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                        {getPlayerDisplay(votingPlayer)}
-                      </p>
-                      {votingPlayer.isImpostor ? (
-                        <>
-                          <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
-                          {(() => {
-                            const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
-                            const newImpostorsRemaining = impostorsRemaining - 1;
-                            
-                            // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
-                            if (allAreImpostors && newImpostorsRemaining <= 2) {
-                              return (
-                                <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
-                                  <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
-                                  <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
-                                    ¡TODOS SON IMPOSTORES!
-                                  </p>
-                                </div>
-                              );
-                            }
-                            
-                            if (newImpostorsRemaining === 0) {
-                              return (
-                                <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                                  🎊 ¡GANARON LOS JUGADORES! 🎊
-                                </p>
-                              );
-                            }
-                            
-                            return null;
-                          })()}
-                        </>
-                      ) : (
-                        <>
-                          <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
-                          {(() => {
-                            // Calcular jugadores honestos restantes después de eliminar este jugador
-                            const honestPlayersRemaining = gameStarted.filter(p => 
-                              !p.isEliminated && 
-                              p.number !== votingPlayer.number && 
-                              !p.isImpostor
-                            ).length;
-                            // Los impostores ganan solo cuando se eliminan TODOS los inocentes
-                            if (honestPlayersRemaining === 0) {
-                              return (
-                                <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
-                                  🎊 ¡GANARON {impostorCount === 1 ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}! 🎊
-                                </p>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </>
-                      )}
-                    </div>
-                    {(() => {
-                      // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
-                      const remainingPlayers = gameStarted.filter(p => 
-                        !p.isEliminated && p.number !== votingPlayer.number
-                      );
-                      const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
-                      const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
-                      const isBalanced = honestPlayersRemaining > 0 && impostorsRemainingCount > 0 && impostorsRemainingCount === honestPlayersRemaining;
+                    </>
+                  ) : !revealingVote ? (
+                    // Pantalla de votación: preguntar jugador por jugador
+                    (() => {
+                      const activePlayers = gameStarted.filter(p => !p.isEliminated);
+                      const currentPlayer = activePlayers[currentVotingPlayerIndex];
+                      const totalPlayers = activePlayers.length;
+                      const currentPlayerNumber = currentVotingPlayerIndex + 1;
+                      // Filtrar el jugador actual de la lista (no puede votarse a sí mismo)
+                      const availablePlayers = activePlayers.filter(p => p.number !== currentPlayer.number);
                       
                       return (
-                        <>
-                          <button
-                            onClick={() => {
-                              if (isBalanced) {
-                                // Si están equilibrados, ir directamente a resultados finales
-                                // Establecer todos los jugadores como revelados para mostrar resultados finales directamente
-                                setFinalRevealedPlayers(gameStarted.map(p => p.number));
-                                setCurrentlyRevealingPlayer(null);
-                                setCardFlipped(false);
-                                setShowFinalReveal(true);
-                                setVotingPlayer(null);
-                                setRevealingVote(false);
-                              } else {
-                                continueAfterVote();
-                              }
-                            }}
-                            className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
-                          >
-                            {isBalanced ? 'Ver Resultados Finales' : 'Continuar Juego'}
-                          </button>
-                          {isBalanced && (
-                            <div className={`mt-4 p-3 sm:p-4 rounded-xl text-center ${isLightMode ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-500'}`}>
-                              <p className={`text-sm sm:text-base font-semibold ${isLightMode ? 'text-yellow-800' : 'text-yellow-400'}`}>
-                                ⚖️ Los impostores e inocentes están equilibrados ({impostorsRemainingCount} vs {honestPlayersRemaining}). Los impostores ganan.
-                              </p>
+                        <div className="text-center py-8 sm:py-12">
+                          <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Votación Anónima</h2>
+                          
+                          <div className={`${isLightMode ? 'bg-blue-100 border-2 border-blue-400' : 'bg-blue-900/30 border-2 border-blue-600'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
+                            <p className={`text-lg sm:text-xl mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                              Jugador {currentPlayerNumber} de {totalPlayers}
+                            </p>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-4 break-words ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                              {getPlayerDisplay(currentPlayer)}
+                            </p>
+                            <p className={`text-base sm:text-lg ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                              ¿A quién quieres eliminar?
+                            </p>
+                          </div>
+
+                          {!lockUnlocked ? (
+                            // Pantalla del candado
+                            <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-8 sm:p-12 rounded-xl mb-6 sm:mb-8`}>
+                              <div className="flex flex-col items-center justify-center">
+                                <button
+                                  onClick={() => setLockUnlocked(true)}
+                                  className="mb-6 p-6 sm:p-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-110 active:scale-95"
+                                >
+                                  <svg className="w-16 h-16 sm:w-20 sm:h-20 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                </button>
+                                <p className={`text-lg sm:text-xl font-semibold ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                  Toca el candado para desbloquear
+                                </p>
+                                <p className={`text-sm sm:text-base mt-2 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  Luego podrás seleccionar a quién eliminar
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            // Lista de jugadores disponibles (sin el jugador actual)
+                            <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8`}>
+                              <p className={`text-base sm:text-lg mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Selecciona un jugador</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                                {availablePlayers.map((player) => (
+                                  <button
+                                    key={player.number}
+                                    onClick={() => !player.isEliminated && votePlayer(player)}
+                                    disabled={player.isEliminated}
+                                    className={`px-5 py-4 sm:px-6 sm:py-5 rounded-xl text-center font-bold text-base sm:text-lg md:text-xl transition-all duration-300 relative shadow-lg min-h-[100px] sm:min-h-[110px] flex flex-col items-center justify-center ${
+                                      player.isEliminated
+                                        ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50 cursor-not-allowed`
+                                        : selectedVoteTarget && selectedVoteTarget.number === player.number
+                                        ? 'bg-gradient-to-r from-red-600 to-red-700 ring-4 ring-red-400 text-white cursor-pointer shadow-red-500/50'
+                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer ring-2 ring-purple-400 hover:ring-purple-300 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                                    }`}
+                                  >
+                                    <div className="break-words w-full px-2 text-base sm:text-lg md:text-xl">
+                                      {useNames ? player.name : `Jugador ${player.number}`}
+                                    </div>
+                                    {selectedVoteTarget && selectedVoteTarget.number === player.number && (
+                                      <div className="text-sm sm:text-base mt-2">✓ Seleccionado</div>
+                                    )}
+                                    {player.isEliminated && (
+                                      <div className="text-sm sm:text-base mt-2">💀 Eliminado</div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           )}
-                        </>
+
+                          <div className="flex gap-3 sm:gap-4 justify-center">
+                            <button
+                              onClick={() => {
+                                setVotingStarted(false);
+                                setCurrentVotingPlayerIndex(0);
+                                setAnonymousVotes({});
+                                setSelectedVoteTarget(null);
+                                setLockUnlocked(false);
+                              }}
+                              className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                            >
+                              Cancelar
+                            </button>
+                            {lockUnlocked && (
+                              <button
+                                onClick={confirmAnonymousVote}
+                                disabled={!selectedVoteTarget}
+                                className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                                  selectedVoteTarget
+                                    ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-red-500/50'
+                                    : `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-700 text-gray-500'} cursor-not-allowed`
+                                }`}
+                              >
+                                {currentPlayerNumber < totalPlayers ? 'Confirmar y Siguiente' : 'Confirmar Voto Final'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       );
-                    })()}
-                  </div>
+                    })()
+                  ) : (
+                    // Resultado del voto anónimo
+                    <div className="text-center py-8 sm:py-12">
+                      <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
+                      <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
+                        votingPlayer.isImpostor 
+                          ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
+                          : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
+                      }`}>
+                        <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
+                        <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                          {getPlayerDisplay(votingPlayer)}
+                        </p>
+                        {votingPlayer.isImpostor ? (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
+                            {(() => {
+                              const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                              const newImpostorsRemaining = impostorsRemaining - 1;
+                              
+                              // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
+                              if (allAreImpostors && newImpostorsRemaining <= 2) {
+                                return (
+                                  <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
+                                    <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
+                                    <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
+                                      ¡TODOS SON IMPOSTORES!
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              
+                              if (newImpostorsRemaining === 0) {
+                                return (
+                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                    🎊 ¡GANARON LOS JUGADORES! 🎊
+                                  </p>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
+                            {(() => {
+                              // Calcular jugadores honestos restantes después de eliminar este jugador
+                              const honestPlayersRemaining = gameStarted.filter(p => 
+                                !p.isEliminated && 
+                                p.number !== votingPlayer.number && 
+                                !p.isImpostor
+                              ).length;
+                              // Los impostores ganan solo cuando se eliminan TODOS los inocentes
+                              if (honestPlayersRemaining === 0) {
+                                return (
+                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                                    🎊 ¡GANARON {impostorCount === 1 ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}! 🎊
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </>
+                        )}
+                      </div>
+                      {(() => {
+                        // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
+                        const remainingPlayers = gameStarted.filter(p => 
+                          !p.isEliminated && p.number !== votingPlayer.number
+                        );
+                        const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
+                        const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
+                        const isBalanced = honestPlayersRemaining > 0 && impostorsRemainingCount > 0 && impostorsRemainingCount === honestPlayersRemaining;
+                        
+                        // Verificar si hay ganadores
+                        const hasWinners = (() => {
+                          const newImpostorsRemaining = votingPlayer.isImpostor ? impostorsRemaining - 1 : impostorsRemaining;
+                          if (newImpostorsRemaining === 0) return true;
+                          if (honestPlayersRemaining === 0) return true;
+                          if (impostorsRemainingCount >= honestPlayersRemaining) return true;
+                          return false;
+                        })();
+                        
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (isBalanced || hasWinners) {
+                                  // Si hay ganadores o están equilibrados, ir directamente a resultados finales
+                                  setFinalRevealedPlayers(gameStarted.map(p => p.number));
+                                  setCurrentlyRevealingPlayer(null);
+                                  setCardFlipped(false);
+                                  setShowFinalReveal(true);
+                                  setVotingPlayer(null);
+                                  setRevealingVote(false);
+                                } else {
+                                  continueAfterVote();
+                                }
+                              }}
+                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                            >
+                              {(isBalanced || hasWinners) ? 'Ver Resultados Finales' : 'Continuar Juego'}
+                            </button>
+                            {isBalanced && (
+                              <div className={`mt-4 p-3 sm:p-4 rounded-xl text-center ${isLightMode ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-500'}`}>
+                                <p className={`text-sm sm:text-base font-semibold ${isLightMode ? 'text-yellow-800' : 'text-yellow-400'}`}>
+                                  ⚖️ Los impostores e inocentes están equilibrados ({impostorsRemainingCount} vs {honestPlayersRemaining}). Los impostores ganan.
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )
+                ) : (
+                  // Modo público (voto todos juntos)
+                  !votingPlayer ? (
+                    <>
+                      <div className="text-center mb-6 sm:mb-8">
+                        <h2 className={`text-3xl sm:text-4xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>¡Hora de Discutir!</h2>
+                        <p className={`text-lg sm:text-xl ${isLightMode ? 'text-purple-600' : 'text-purple-300'}`}>Voten para eliminar a un jugador</p>
+                      </div>
+
+                      <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+                        <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-sm sm:text-base mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Comienza la discusión</p>
+                          <p className={`text-xl sm:text-2xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                            👉 {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
+                          </p>
+                        </div>
+
+                        <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-base sm:text-lg mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Jugadores (Toca para votar)</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                            {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => (
+                              <button
+                                key={player.number}
+                                onClick={() => !player.isEliminated && votePlayer(player)}
+                                disabled={player.isEliminated}
+                                className={`px-5 py-4 sm:px-6 sm:py-5 rounded-xl text-center font-bold text-base sm:text-lg md:text-xl transition-all duration-300 relative shadow-lg min-h-[100px] sm:min-h-[110px] flex flex-col items-center justify-center ${
+                                  player.isEliminated
+                                    ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50 cursor-not-allowed`
+                                    : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer ring-2 ring-purple-400 hover:ring-purple-300 shadow-purple-500/50 hover:shadow-xl hover:scale-105'
+                                }`}
+                              >
+                                <div className="break-words w-full px-2 text-base sm:text-lg md:text-xl">
+                                  {useNames ? player.name : `Jugador ${player.number}`}
+                                </div>
+                                {!player.isEliminated && (
+                                  <div className="text-sm sm:text-base mt-2 opacity-75">👆 Votar</div>
+                                )}
+                                {player.isEliminated && (
+                                  <div className="text-sm sm:text-base mt-2">💀 Eliminado</div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowResultsConfirm(true)}
+                        className={`w-full px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                      >
+                        Terminar Juego y Ver Resultados
+                      </button>
+                    </>
+                  ) : !revealingVote ? (
+                    <div className="text-center py-8 sm:py-12">
+                      <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Votación</h2>
+                      <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-600'} p-6 sm:p-8 rounded-xl mb-6 sm:mb-8`}>
+                        <p className={`text-lg sm:text-xl mb-4 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Eliminar a este jugador?</p>
+                        <p className={`text-4xl sm:text-5xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                          {getPlayerDisplay(votingPlayer)}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 sm:gap-4 justify-center">
+                        <button
+                          onClick={() => setVotingPlayer(null)}
+                          className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={confirmVote}
+                          className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-xl hover:scale-105"
+                        >
+                          Confirmar Eliminación
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Resultado del voto público
+                    <div className="text-center py-8 sm:py-12">
+                      <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
+                      <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
+                        votingPlayer.isImpostor 
+                          ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
+                          : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
+                      }`}>
+                        <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
+                        <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                          {getPlayerDisplay(votingPlayer)}
+                        </p>
+                        {votingPlayer.isImpostor ? (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
+                            {(() => {
+                              const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                              const newImpostorsRemaining = impostorsRemaining - 1;
+                              
+                              // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
+                              if (allAreImpostors && newImpostorsRemaining <= 2) {
+                                return (
+                                  <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
+                                    <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
+                                    <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
+                                      ¡TODOS SON IMPOSTORES!
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              
+                              if (newImpostorsRemaining === 0) {
+                                return (
+                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                    🎊 ¡GANARON LOS JUGADORES! 🎊
+                                  </p>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
+                            {(() => {
+                              // Calcular jugadores honestos restantes después de eliminar este jugador
+                              const honestPlayersRemaining = gameStarted.filter(p => 
+                                !p.isEliminated && 
+                                p.number !== votingPlayer.number && 
+                                !p.isImpostor
+                              ).length;
+                              // Los impostores ganan solo cuando se eliminan TODOS los inocentes
+                              if (honestPlayersRemaining === 0) {
+                                return (
+                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                                    🎊 ¡GANARON {impostorCount === 1 ? 'EL IMPOSTOR' : 'LOS IMPOSTORES'}! 🎊
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </>
+                        )}
+                      </div>
+                      {(() => {
+                        // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
+                        const remainingPlayers = gameStarted.filter(p => 
+                          !p.isEliminated && p.number !== votingPlayer.number
+                        );
+                        const honestPlayersRemaining = remainingPlayers.filter(p => !p.isImpostor).length;
+                        const impostorsRemainingCount = remainingPlayers.filter(p => p.isImpostor).length;
+                        const isBalanced = honestPlayersRemaining > 0 && impostorsRemainingCount > 0 && impostorsRemainingCount === honestPlayersRemaining;
+                        
+                        // Verificar si hay ganadores
+                        const hasWinners = (() => {
+                          const newImpostorsRemaining = votingPlayer.isImpostor ? impostorsRemaining - 1 : impostorsRemaining;
+                          if (newImpostorsRemaining === 0) return true;
+                          if (honestPlayersRemaining === 0) return true;
+                          if (impostorsRemainingCount >= honestPlayersRemaining) return true;
+                          return false;
+                        })();
+                        
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (isBalanced || hasWinners) {
+                                  // Si hay ganadores o están equilibrados, ir directamente a resultados finales
+                                  setFinalRevealedPlayers(gameStarted.map(p => p.number));
+                                  setCurrentlyRevealingPlayer(null);
+                                  setCardFlipped(false);
+                                  setShowFinalReveal(true);
+                                  setVotingPlayer(null);
+                                  setRevealingVote(false);
+                                } else {
+                                  continueAfterVote();
+                                }
+                              }}
+                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105"
+                            >
+                              {(isBalanced || hasWinners) ? 'Ver Resultados Finales' : 'Continuar Juego'}
+                            </button>
+                            {isBalanced && (
+                              <div className={`mt-4 p-3 sm:p-4 rounded-xl text-center ${isLightMode ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-yellow-900/30 border-2 border-yellow-500'}`}>
+                                <p className={`text-sm sm:text-base font-semibold ${isLightMode ? 'text-yellow-800' : 'text-yellow-400'}`}>
+                                  ⚖️ Los impostores e inocentes están equilibrados ({impostorsRemainingCount} vs {honestPlayersRemaining}). Los impostores ganan.
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )
                 )}
               </div>
             ) : finalRevealedPlayers.length === gameStarted.length ? (
@@ -5615,7 +6151,7 @@
                       <div 
                         className="card-front" 
                         onClick={() => setCardFlipped(true)}
-                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: `4px solid ${isLightMode ? '#9ca3af' : '#06b6d4'}`}}
+                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: '4px solid #9333ea'}}
                       >
                         <div className="relative w-full text-center">
                           <div className="mb-6 flex justify-center">
@@ -5628,7 +6164,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${isLightMode ? '#9ca3af' : '#06b6d4'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -5692,7 +6228,7 @@
 
                 {/* Grid de cartas */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  {gameStarted.map((player) => {
+                  {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => {
                     const isRevealed = finalRevealedPlayers.includes(player.number);
                     const displayText = useNames ? (player.name || `Jugador ${player.number}`) : `Jugador ${player.number}`;
                     
@@ -5710,7 +6246,7 @@
                           isRevealed
                             ? `${isLightMode ? 'bg-gray-300 opacity-60' : 'bg-gray-700 opacity-60'} cursor-default`
                             : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-700 hover:bg-gray-600'} cursor-pointer hover:scale-105`
-                        } border ${isLightMode ? 'border-gray-300' : 'border-gray-600'}`}
+                        } border-4 border-purple-500`}
                         style={{minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}
                       >
                         {/* Texto del jugador */}
@@ -5739,7 +6275,7 @@
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>V BETA 0.10.1</p>
+              <p>V BETA 0.11.1</p>
               <p className="mt-1">©2026 Argentores. Hecho por LosTomobri</p>
             </div>
           </div>
@@ -6107,6 +6643,79 @@
           )}
 
           {/* Modal de ¿Cómo jugar? */}
+          {/* Modal de PWA - Ir a la aplicación */}
+          {showPWAOpenModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => {
+              setShowPWAOpenModal(false);
+              sessionStorage.setItem('pwa_open_modal_dismissed', 'true');
+            }}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="text-5xl sm:text-6xl mb-4">📱</div>
+                  <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                    ¿Ir a la aplicación?
+                  </h3>
+                  <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                    Tienes la aplicación instalada. ¿Quieres abrirla en lugar de usar la versión web?
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      setShowPWAOpenModal(false);
+                      sessionStorage.setItem('pwa_open_modal_dismissed', 'true');
+                    }}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                      isLightMode 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                        : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'
+                    }`}
+                  >
+                    Continuar aquí
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Intentar abrir la app usando el protocolo personalizado o la URL de la app
+                      // En Android, intentar abrir con intent://
+                      // En iOS, no hay forma directa, pero podemos mostrar instrucciones
+                      const userAgent = navigator.userAgent;
+                      const isAndroid = /Android/i.test(userAgent);
+                      const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+                      
+                      if (isAndroid) {
+                        // Intentar abrir la app en Android
+                        window.location.href = 'intent://#Intent;scheme=https;package=com.android.chrome;end';
+                        // Fallback: mostrar instrucciones
+                        setTimeout(() => {
+                          setImportErrorMsg('Para abrir la aplicación:\n1. Cierra esta pestaña\n2. Abre la aplicación desde el menú de aplicaciones');
+                          setShowImportErrorModal(true);
+                          setShowPWAOpenModal(false);
+                        }, 1000);
+                      } else if (isIOS) {
+                        setImportErrorMsg('Para abrir la aplicación:\n1. Cierra esta pestaña\n2. Abre la aplicación desde la pantalla de inicio');
+                        setShowImportErrorModal(true);
+                        setShowPWAOpenModal(false);
+                      } else {
+                        // Desktop: mostrar instrucciones
+                        setImportErrorMsg('Para abrir la aplicación:\n1. Busca "ARGENTORES" en tu menú de aplicaciones\n2. O usa el acceso directo en tu escritorio');
+                        setShowImportErrorModal(true);
+                        setShowPWAOpenModal(false);
+                      }
+                      sessionStorage.setItem('pwa_open_modal_dismissed', 'true');
+                    }}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-500/50 hover:shadow-xl hover:scale-105 text-white"
+                  >
+                    Ir a la app
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {showHowToPlayModal && (
             <div className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm overflow-y-auto`} onClick={() => setShowHowToPlayModal(false)}>
               <div 
