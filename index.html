@@ -727,14 +727,15 @@
       // CONFIGURACIÓN DE IMPOSTORES ADICIONALES
       // Cambia este valor a true para habilitar los impostores adicionales
       // ============================================
-      const IMPOSTORES_ADICIONALES_HABILITADOS = false;
+      const IMPOSTORES_ADICIONALES_HABILITADOS = true;
       // ============================================
       
       // CONFIGURACIÓN DE MODO BUFÓN Y CÓMPLICE
       // Cambia estos valores a true para habilitar los modos
       // ============================================
-      const BUFON_MODE_HABILITADO = false;
-      const COMPLICE_MODE_HABILITADO = false;
+      const BUFON_MODE_HABILITADO = true;
+      const COMPLICE_MODE_HABILITADO = true;
+      const PERDIDO_MODE_HABILITADO = true;
       // ============================================
       
       // Toast system
@@ -1274,7 +1275,11 @@
       };
 
       const handleShareWhatsApp = () => {
-        const message = `🎯 ARGENTORES - El juego del impostor\n\n¡Encuentra al impostor entre los jugadores! Un juego de deducción y estrategia con temática argentina donde debes descubrir quién es el impostor antes de que sea demasiado tarde.\n\nJuega ahora: https://argentores.github.io`;
+        const message = `🎯 ARGENTORES - El juego del impostor
+
+¡Encuentra al impostor entre los jugadores! Un juego de deducción y estrategia con temática argentina donde debes descubrir quién es el impostor antes de que sea demasiado tarde.
+
+Juega ahora: https://argentores.github.io`;
         
         // Detectar si es móvil
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -1315,13 +1320,14 @@
       const [impostorHints, setImpostorHints] = useState(false);
       const [impostorNeverFirst, setImpostorNeverFirst] = useState(false);
       const [impostorsKnowEachOther, setImpostorsKnowEachOther] = useState(false);
-      const [anonymousVoting, setAnonymousVoting] = useState(true);
+      const [anonymousVoting, setAnonymousVoting] = useState(false);
       const [additionalImpostorsMode, setAdditionalImpostorsMode] = useState(false);
       const [additionalImpostorsCount, setAdditionalImpostorsCount] = useState(1);
       const [additionalImpostorsProbability, setAdditionalImpostorsProbability] = useState(0);
       const [isAdditionalImpostorsActive, setIsAdditionalImpostorsActive] = useState(false);
       const [jesterMode, setJesterMode] = useState(false);
       const [accompliceMode, setAccompliceMode] = useState(false);
+      const [lostMode, setLostMode] = useState(false);
       // Modo "todos impostores" siempre activo (sin mostrar opción)
       const allImpostorsMode = true;
       const [gameStarted, setGameStarted] = useState(false);
@@ -1382,6 +1388,16 @@
       const [showResultsConfirm, setShowResultsConfirm] = useState(false);
       const [openMenuCategory, setOpenMenuCategory] = useState(null);
       const [showPWAOpenModal, setShowPWAOpenModal] = useState(false);
+      
+      // Estados para sistema premium
+      const [isPremium, setIsPremium] = useState(() => {
+        // Cargar estado premium desde localStorage
+        const saved = localStorage.getItem('impostorGamePremium');
+        return saved === 'true';
+      });
+      const [showUnlockModal, setShowUnlockModal] = useState(false);
+      const [premiumCodeInput, setPremiumCodeInput] = useState('');
+      const [premiumError, setPremiumError] = useState('');
 
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
@@ -1397,7 +1413,8 @@
         { name: 'Objetos', emoji: '🔧' },
         { name: 'Lugares', emoji: '🏖️' },
         { name: 'Videojuegos', emoji: '🎮' },
-        { name: 'Música', emoji: '🎵' }
+        { name: 'Música', emoji: '🎵' },
+        { name: 'VIP', emoji: '👑', premium: true }
       ];
 
       const categoryWords = {
@@ -1410,7 +1427,8 @@
         'Objetos': ['Mate', 'Bombilla', 'Termo', 'Pava', 'Yerba', 'Alfajor', 'Dulce de leche', 'Facón', 'Boleadoras', 'Poncho', 'Boina', 'Bombacha de gaucho', 'Alpargatas', 'Asado', 'Parrilla', 'Changuito', 'Sifón', 'Pingüino', 'Cama', 'Colchón', 'Almohada', 'Sábana', 'Frazada', 'Mesa', 'Silla', 'Sillón', 'Sofá', 'Televisor', 'Control remoto', 'Celular', 'Cargador', 'Auriculares', 'Computadora', 'Notebook', 'Teclado', 'Mouse', 'Monitor', 'Impresora', 'Router', 'Lámpara', 'Foco', 'Linterna', 'Vela', 'Fósforo', 'Encendedor', 'Espejo', 'Reloj', 'Despertador', 'Ventilador', 'Estufa', 'Aire acondicionado', 'Heladera', 'Freezer', 'Microondas', 'Horno', 'Cocina', 'Licuadora', 'Batidora', 'Tostadora', 'Pava eléctrica', 'Cafetera', 'Exprimidor', 'Jarra', 'Vaso', 'Taza', 'Plato', 'Bowl', 'Tenedor', 'Cuchillo', 'Cuchara', 'Cucharón', 'Espátula', 'Pinzas', 'Colador', 'Rallador', 'Pelador', 'Abrelatas', 'Sacacorchos', 'Tabla de cortar', 'Olla', 'Cacerola', 'Sartén', 'Wok', 'Fuente', 'Bandeja', 'Tupperware', 'Botella', 'Termo stanley', 'Bidón', 'Servilleta', 'Repasador', 'Trapo de piso', 'Esponja', 'Detergente', 'Lavandina', 'Desinfectante', 'Jabón', 'Escoba', 'Pala', 'Balde', 'Trapeador', 'Secador de piso', 'Escurridor', 'Cepillo', 'Plumero', 'Aspiradora', 'Lavarropas', 'Secarropas', 'Plancha', 'Tabla de planchar', 'Perchero', 'Gancho', 'Tender', 'Broche', 'Canasto', 'Cesto de basura', 'Bolsa de residuos', 'Inodoro', 'Bidet', 'Ducha', 'Bañera', 'Canilla', 'Lavabo', 'Toalla', 'Toallón', 'Cortina de baño', 'Alfombra de baño', 'Papel higiénico', 'Jabón líquido', 'Shampoo', 'Acondicionador', 'Crema de enjuague', 'Gel de ducha', 'Esponja de baño', 'Cepillo de dientes', 'Pasta dental', 'Hilo dental', 'Enjuague bucal', 'Peine', 'Cepillo de pelo', 'Secador de pelo', 'Plancha de pelo', 'Afeitadora', 'Espuma de afeitar', 'Perfume', 'Desodorante', 'Crema', 'Protector solar', 'Maquillaje', 'Algodón', 'Cotonete', 'Tijera', 'Pinza de depilar', 'Cortauñas', 'Lima de uñas', 'Balanza', 'Botiquín', 'Termómetro', 'Curitas', 'Vendas', 'Alcohol', 'Agua oxigenada', 'Remedio', 'Pastillas', 'Jarabe', 'Anteojos', 'Lentes de contacto', 'Anteojos de sol', 'Paraguas', 'Piloto', 'Campera', 'Buzo', 'Remera', 'Camisa', 'Pantalón', 'Jean', 'Short', 'Pollera', 'Vestido', 'Zapatillas', 'Zapatos', 'Botas', 'Sandalias', 'Ojotas', 'Medias', 'Cinturón', 'Cartera', 'Mochila', 'Bolso', 'Billetera', 'Llavero', 'Llaves', 'Candado', 'Cerradura', 'Timbre', 'Puerta', 'Ventana', 'Persiana', 'Cortina', 'Cuadro', 'Portarretrato', 'Adorno', 'Florero', 'Planta', 'Maceta', 'Regadera', 'Pala de jardín', 'Rastrillo', 'Manguera', 'Biblioteca', 'Estante', 'Cajón', 'Ropero', 'Placard', 'Escritorio', 'Silla de escritorio', 'Libro', 'Revista', 'Diario', 'Diccionario', 'Cuaderno', 'Carpeta', 'Hoja', 'Lápiz', 'Lapicera', 'Birome', 'Marcador', 'Resaltador', 'Goma de borrar', 'Sacapuntas', 'Regla', 'Compás', 'Transportador', 'Calculadora', 'Cartuchera', 'Mochila escolar', 'Tijera escolar', 'Pegamento', 'Cinta adhesiva', 'Voligoma', 'Plasticola', 'Abrochadora', 'Ganchos', 'Perforadora', 'Clips', 'Broches', 'Archivador', 'Sobre', 'Sello', 'Timbres', 'Teléfono', 'Cámara', 'Videocámara', 'Trípode', 'Micrófono', 'Parlante', 'Equipo de música', 'Radio', 'CD', 'DVD', 'Pendrive', 'Disco duro', 'Tarjeta de memoria', 'Cable', 'Zapatilla eléctrica', 'Enchufe', 'Adaptador', 'Pila', 'Batería', 'Cinta métrica', 'Nivel', 'Martillo', 'Destornillador', 'Pinza', 'Alicate', 'Llave inglesa', 'Taladro', 'Sierra', 'Cinta aisladora', 'Tornillo', 'Clavo', 'Tarugos', 'Tuerca', 'Arandela', 'Pegamento universal', 'Silicona', 'Pintura', 'Pincel', 'Rodillo', 'Escalera', 'Banqueta', 'Soga', 'Cuerda', 'Cadena', 'Alambre', 'Bolsa', 'Caja', 'Envase', 'Frasco', 'Lata'],
         'Lugares': ['Playa', 'Montaña', 'Río', 'Lago', 'Bosque', 'Selva', 'Desierto', 'Campo', 'Centro comercial', 'Shopping', 'Supermercado', 'Almacén', 'Kiosco', 'Farmacia', 'Hospital', 'Clínica', 'Escuela', 'Universidad', 'Biblioteca', 'Museo', 'Teatro', 'Cine', 'Estadio', 'Cancha', 'Gimnasio', 'Parque', 'Plaza', 'Obelisco', 'Casa Rosada', 'Caminito', 'La Boca', 'Puerto Madero', 'Palermo', 'San Telmo', 'Recoleta', 'Cementerio de la Recoleta', 'Teatro Colón', 'Avenida 9 de Julio', 'Avenida Corrientes', 'Calle Florida', 'Cataratas del Iguazú', 'Glaciar Perito Moreno', 'Ushuaia', 'Tierra del Fuego', 'El Calafate', 'Bariloche', 'Cerro Catedral', 'Villa La Angostura', 'San Martín de los Andes', 'Mendoza', 'Aconcagua', 'Quebrada de Humahuaca', 'Cerro de los Siete Colores', 'Salta', 'Jujuy', 'Tilcara', 'Purmamarca', 'Cafayate', 'Tucumán', 'Tafí del Valle', 'Córdoba', 'Villa Carlos Paz', 'Mar del Plata', 'Pinamar', 'Villa Gesell', 'Cariló', 'Costa Atlántica', 'Península Valdés', 'Puerto Madryn', 'Rosario', 'Monumento a la Bandera', 'La Plata', 'Tigre', 'Delta del Tigre', 'Parque Nacional Los Glaciares', 'Parque Nacional Nahuel Huapi', 'Cerro Fitz Roy', 'El Chaltén', 'Tren a las Nubes', 'Ruta 40', 'Ruta de los Siete Lagos', 'Ischigualasto', 'Valle de la Luna', 'Talampaya', 'Salinas Grandes', 'Iruya', 'Torre Eiffel', 'Estatua de la Libertad', 'Big Ben', 'Coliseo Romano', 'Torre de Pisa', 'Taj Mahal', 'Gran Muralla China', 'Cristo Redentor', 'Machu Picchu', 'Pirámides de Egipto', 'Ópera de Sydney', 'Sagrada Familia', 'Puerta de Brandenburgo', 'Times Square', 'Central Park', 'Golden Gate', 'Chichén Itzá', 'Stonehenge', 'Partenón', 'Plaza Roja', 'Kremlin', 'Catedral de Notre Dame', 'Louvre', 'Arco de Triunfo', 'Palacio de Buckingham', 'Cataratas del Niágara', 'Gran Cañón', 'Petra', 'Monte Everest', 'Burj Khalifa', 'Alhambra', 'Restaurante', 'Bar', 'Café', 'Confitería', 'Parrilla', 'Pizzería', 'Hotel', 'Hostel', 'Aeropuerto', 'Terminal de buses', 'Estación de tren', 'Puerto', 'Aduana', 'Banco', 'Cajero', 'Correo', 'Comisaría', 'Cuartel de bomberos', 'Iglesia', 'Catedral', 'Templo', 'Mezquita', 'Sinagoga', 'Cementerio', 'Zoológico', 'Acuario', 'Parque de diversiones', 'Feria', 'Mercado', 'Feria americana', 'Casino', 'Boliche', 'Disco'],
         'Videojuegos': ['Minecraft', 'Fortnite', 'GTA V', 'FIFA', 'EA FC', 'Counter Strike', 'Free Fire', 'League of Legends', 'Apex Legends', 'Call of Duty', 'Valorant', 'Roblox', 'Among Us', 'Fall Guys', 'Rocket League', 'Clash Royale', 'Clash of Clans', 'PUBG', 'Brawl Stars', 'Mario', 'Luigi', 'Sonic', 'Pikachu', 'Pac-Man', 'Donkey Kong', 'Link', 'Zelda', 'Kirby', 'Yoshi', 'Bowser', 'Peach', 'Toad', 'Wario', 'Waluigi', 'Crash Bandicoot', 'Spyro', 'Lara Croft', 'Master Chief', 'Kratos', 'Nathan Drake', 'Ellie', 'Joel', 'Steve', 'Alex', 'Creeper', 'Enderman', 'Slenderman', 'Herobrine', 'Ryu', 'Ken', 'Chun-Li', 'Sub-Zero', 'Scorpion', 'Raiden', 'Ezio', 'Altair', 'Cloud', 'Sephiroth', 'Samus', 'Fox McCloud', 'Mega Man', 'Solid Snake', 'Doom Slayer', 'Duke Nukem', 'Rayman', 'Banjo Kazooie', 'Conker', 'Spyro', 'Ratchet', 'Clank', 'Jak', 'Daxter', 'Sackboy', 'Knuckles', 'Tails', 'Shadow', 'Amy Rose', 'Dr Eggman', 'Doctor Robotnik', 'Wii', 'PlayStation', 'Xbox', 'Nintendo', 'Switch', 'Game Boy', 'DS', 'PSP', 'Vita', 'Sega', 'Atari', 'Arcade', 'Joystick', 'Mando', 'Control', 'Gamepad', 'Tetris', 'Pong', 'Space Invaders', 'Galaga', 'Street Fighter', 'Mortal Kombat', 'Tekken', 'Dragon Ball', 'Naruto', 'One Piece', 'Pokemon', 'Digimon', 'Yu-Gi-Oh', 'Metal Gear', 'Resident Evil', 'Silent Hill', 'The Last of Us', 'Uncharted', 'God of War', 'Halo', 'Gears of War', 'Tomb Raider', 'Assassins Creed', 'Far Cry', 'Watch Dogs', 'Splinter Cell', 'Prince of Persia', 'Devil May Cry', 'Bayonetta', 'Final Fantasy', 'Kingdom Hearts', 'Persona', 'Zelda', 'Metroid', 'Castlevania', 'Mega Man', 'Sonic', 'Mario Kart', 'Super Smash Bros', 'Splatoon', 'Animal Crossing', 'Fire Emblem', 'Xenoblade', 'The Witcher', 'Skyrim', 'Fallout', 'Dark Souls', 'Bloodborne', 'Elden Ring', 'Sekiro', 'Hollow Knight', 'Celeste', 'Undertale', 'Stardew Valley', 'Terraria', 'Ori', 'Cuphead', 'Portal', 'Half-Life', 'Left 4 Dead', 'Team Fortress', 'Dota', 'Overwatch', 'Hearthstone', 'World of Warcraft', 'Diablo', 'StarCraft', 'WarCraft', 'Age of Empires', 'Civilization', 'SimCity', 'The Sims', 'Spore', 'Need for Speed', 'Gran Turismo', 'Forza', 'Mario Bros', 'Donkey Kong Country', 'Metroid Prime', 'Pikmin', 'Star Fox', 'Earthbound', 'Mother', 'F-Zero', 'Punch-Out', 'Wii Sports', 'Wii Fit', 'Just Dance', 'Guitar Hero', 'Rock Band', 'Dance Dance Revolution', 'Beat Saber', 'Angry Birds', 'Candy Crush', 'Plants vs Zombies', 'Geometry Dash', 'Subway Surfers', 'Temple Run', 'Fruit Ninja', 'Cut the Rope', 'Clash of Clans', 'Mobile Legends', 'Arena of Valor', 'Genshin Impact', 'Honkai', 'Raid Shadow Legends'],
-        'Música': ['Charly García', 'Gustavo Cerati', 'Soda Stereo', 'Luis Alberto Spinetta', 'Fito Páez', 'Los Redondos', 'Patricio Rey', 'Andrés Calamaro', 'Sumo', 'Luca Prodan', 'Serú Girán', 'Sui Generis', 'Almendra', 'Pescado Rabioso', 'Divididos', 'Los Piojos', 'La Renga', 'Callejeros', 'Bersuit Vergarabat', 'Babasónicos', 'Los Enanitos Verdes', 'Rata Blanca', 'V8', 'Hermética', 'Pappo', 'Viejas Locas', 'Las Pelotas', 'Attaque 77', 'Los Auténticos Decadentes', 'Los Fabulosos Cadillacs', 'Vicentico', 'León Gieco', 'Mercedes Sosa', 'Soledad', 'Los Chalchaleros', 'Los Nocheros', 'Rodrigo', 'La Mona Jiménez', 'Damas Gratis', 'Pablo Lescano', 'Los Palmeras', 'Ráfaga', 'Alcides', 'Gilda', 'Antonio Ríos', 'Duki', 'Bizarrap', 'Trueno', 'Wos', 'Nicki Nicole', 'María Becerra', 'Emilia Mernes', 'Tini Stoessel', 'Cazzu', 'Paulo Londra', 'Lit Killah', 'Khea', 'YSY A', 'Neo Pistea', 'Dillom', 'Bhavi', 'Tiago PZK', 'FMK', 'Rusherking', 'Big One', 'L-Gante', 'Luck Ra', 'Nathy Peluso', 'Ca7riel', 'Paco Amoroso', 'Zoe Gotusso', 'Bandalos Chinos', 'Las Ligas Menores', 'Los Espíritus', 'Conociendo Rusia', 'Ciro y los Persas', 'La Beriso', 'Las Pastillas del Abuelo', 'Tan Biónica', 'Miranda', 'Estelares', 'Turf', 'La Vela Puerca', 'No Te Va Gustar', 'Michael Jackson', 'Madonna', 'The Beatles', 'Queen', 'Elvis Presley', 'Bob Marley', 'Nirvana', 'Metallica', 'AC/DC', 'Led Zeppelin', 'Pink Floyd', 'The Rolling Stones', 'U2', 'Coldplay', 'Imagine Dragons', 'Maroon 5', 'Bruno Mars', 'Ed Sheeran', 'Justin Bieber', 'Taylor Swift', 'Ariana Grande', 'Billie Eilish', 'The Weeknd', 'Drake', 'Eminem', 'Rihanna', 'Beyoncé', 'Lady Gaga', 'Katy Perry', 'Shakira', 'Bad Bunny', 'J Balvin', 'Daddy Yankee', 'Maluma', 'Ozuna', 'Anuel AA', 'Karol G', 'Peso Pluma', 'Feid', 'Rauw Alejandro', 'Rosalía', 'C Tangana', 'Juan Luis Guerra', 'Marc Anthony', 'Luis Miguel', 'Alejandro Sanz', 'Maná', 'Soda Stereo', 'Enanitos Verdes', 'Los Prisioneros', 'Cafe Tacvba', 'Molotov', 'Zoé', 'Mon Laferte', 'Natalia Lafourcade', 'Rock', 'Pop', 'Cumbia', 'Cuarteto', 'Folklore', 'Tango', 'Trap', 'Reggaeton', 'Hip hop', 'Rap', 'RKT', 'Electrónica', 'House', 'Techno', 'Reggae', 'Ska', 'Punk', 'Metal', 'Heavy metal', 'Blues', 'Jazz', 'Soul', 'Funk', 'Disco', 'Country', 'Salsa', 'Bachata', 'Merengue', 'Balada', 'Bolero', 'Ranchera', 'Mariachi', 'Samba', 'Bossa nova', 'Guitarra', 'Piano', 'Batería', 'Bajo', 'Violín', 'Saxofón', 'Trompeta', 'Flauta', 'Armónica', 'Acordeón', 'Teclado', 'Micrófono', 'Amplificador', 'Parlante', 'Auriculares', 'Bandoneón', 'Bombo', 'Charango', 'Quena', 'Ukelele', 'Tambor', 'Pandereta', 'Maracas', 'Bongó', 'Congas', 'Sintetizador']
+        'Música': ['Charly García', 'Gustavo Cerati', 'Soda Stereo', 'Luis Alberto Spinetta', 'Fito Páez', 'Los Redondos', 'Patricio Rey', 'Andrés Calamaro', 'Sumo', 'Luca Prodan', 'Serú Girán', 'Sui Generis', 'Almendra', 'Pescado Rabioso', 'Divididos', 'Los Piojos', 'La Renga', 'Callejeros', 'Bersuit Vergarabat', 'Babasónicos', 'Los Enanitos Verdes', 'Rata Blanca', 'V8', 'Hermética', 'Pappo', 'Viejas Locas', 'Las Pelotas', 'Attaque 77', 'Los Auténticos Decadentes', 'Los Fabulosos Cadillacs', 'Vicentico', 'León Gieco', 'Mercedes Sosa', 'Soledad', 'Los Chalchaleros', 'Los Nocheros', 'Rodrigo', 'La Mona Jiménez', 'Damas Gratis', 'Pablo Lescano', 'Los Palmeras', 'Ráfaga', 'Alcides', 'Gilda', 'Antonio Ríos', 'Duki', 'Bizarrap', 'Trueno', 'Wos', 'Nicki Nicole', 'María Becerra', 'Emilia Mernes', 'Tini Stoessel', 'Cazzu', 'Paulo Londra', 'Lit Killah', 'Khea', 'YSY A', 'Neo Pistea', 'Dillom', 'Bhavi', 'Tiago PZK', 'FMK', 'Rusherking', 'Big One', 'L-Gante', 'Luck Ra', 'Nathy Peluso', 'Ca7riel', 'Paco Amoroso', 'Zoe Gotusso', 'Bandalos Chinos', 'Las Ligas Menores', 'Los Espíritus', 'Conociendo Rusia', 'Ciro y los Persas', 'La Beriso', 'Las Pastillas del Abuelo', 'Tan Biónica', 'Miranda', 'Estelares', 'Turf', 'La Vela Puerca', 'No Te Va Gustar', 'Michael Jackson', 'Madonna', 'The Beatles', 'Queen', 'Elvis Presley', 'Bob Marley', 'Nirvana', 'Metallica', 'AC/DC', 'Led Zeppelin', 'Pink Floyd', 'The Rolling Stones', 'U2', 'Coldplay', 'Imagine Dragons', 'Maroon 5', 'Bruno Mars', 'Ed Sheeran', 'Justin Bieber', 'Taylor Swift', 'Ariana Grande', 'Billie Eilish', 'The Weeknd', 'Drake', 'Eminem', 'Rihanna', 'Beyoncé', 'Lady Gaga', 'Katy Perry', 'Shakira', 'Bad Bunny', 'J Balvin', 'Daddy Yankee', 'Maluma', 'Ozuna', 'Anuel AA', 'Karol G', 'Peso Pluma', 'Feid', 'Rauw Alejandro', 'Rosalía', 'C Tangana', 'Juan Luis Guerra', 'Marc Anthony', 'Luis Miguel', 'Alejandro Sanz', 'Maná', 'Soda Stereo', 'Enanitos Verdes', 'Los Prisioneros', 'Cafe Tacvba', 'Molotov', 'Zoé', 'Mon Laferte', 'Natalia Lafourcade', 'Rock', 'Pop', 'Cumbia', 'Cuarteto', 'Folklore', 'Tango', 'Trap', 'Reggaeton', 'Hip hop', 'Rap', 'RKT', 'Electrónica', 'House', 'Techno', 'Reggae', 'Ska', 'Punk', 'Metal', 'Heavy metal', 'Blues', 'Jazz', 'Soul', 'Funk', 'Disco', 'Country', 'Salsa', 'Bachata', 'Merengue', 'Balada', 'Bolero', 'Ranchera', 'Mariachi', 'Samba', 'Bossa nova', 'Guitarra', 'Piano', 'Batería', 'Bajo', 'Violín', 'Saxofón', 'Trompeta', 'Flauta', 'Armónica', 'Acordeón', 'Teclado', 'Micrófono', 'Amplificador', 'Parlante', 'Auriculares', 'Bandoneón', 'Bombo', 'Charango', 'Quena', 'Ukelele', 'Tambor', 'Pandereta', 'Maracas', 'Bongó', 'Congas', 'Sintetizador'],
+        'VIP': ['Aleatorio', 'Misterio', 'Sorpresa', 'Éxito', 'Fortuna', 'Destino', 'Suerte', 'Magia', 'Enigma', 'Secreto', 'Poder', 'Gloria', 'Victoria', 'Triunfo', 'Honor', 'Nobleza', 'Elegancia', 'Lujo', 'Riqueza', 'Prestigio', 'Fama', 'Brillo', 'Esplendor', 'Majestad', 'Grandeza', 'Excelencia', 'Perfección', 'Maestría', 'Genialidad', 'Brillantez', 'Sabiduría', 'Inteligencia', 'Creatividad', 'Innovación', 'Revolución', 'Transformación', 'Evolución', 'Progreso', 'Avance', 'Desarrollo', 'Crecimiento', 'Expansión', 'Ampliación', 'Mejora', 'Optimización', 'Potenciación', 'Enriquecimiento', 'Elevación', 'Ascenso', 'Superación']
       };
 
       const wordHints = {
@@ -2942,6 +2960,15 @@
       }, [playerNames, playerCount, useNames]);
 
       const toggleCategory = (cat) => {
+        // Verificar si es categoría VIP y si el usuario tiene premium
+        const categoryInfo = categoryList.find(c => c.name === cat);
+        if (categoryInfo && categoryInfo.premium && !isPremium) {
+          // Mostrar modal de desbloqueo
+          console.log('Categoría premium detectada, mostrando modal de desbloqueo');
+          setShowUnlockModal(true);
+          return;
+        }
+        
         if (categoryMode === 'single') {
           setCategories([cat]);
         } else if (categoryMode === 'multiple') {
@@ -2952,6 +2979,45 @@
           }
         }
         // En modo 'all', no se permite cambiar la selección (todas están siempre seleccionadas)
+      };
+
+      // Función para calcular hash SHA-256
+      const calculateSHA256 = async (text) => {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+      };
+
+      // Función para validar código premium
+      // El código premium es: Q%0>q2Lz
+      // Para cambiar el código premium en el futuro:
+      // 1. Calcula el hash SHA-256 del nuevo código usando: await calculateSHA256('NUEVO_CODIGO')
+      // 2. Reemplaza 'Q%0>q2Lz' en la línea siguiente con el nuevo código
+      const validatePremiumCode = async (code) => {
+        try {
+          const inputHash = await calculateSHA256(code);
+          // Hash del código premium "Q%0>q2Lz"
+          const correctHash = await calculateSHA256('Q%0>q2Lz');
+          
+          if (inputHash === correctHash) {
+            setIsPremium(true);
+            localStorage.setItem('impostorGamePremium', 'true');
+            setShowUnlockModal(false);
+            setPremiumCodeInput('');
+            setPremiumError('');
+            return true;
+          } else {
+            setPremiumError('Código incorrecto. Intente nuevamente.');
+            return false;
+          }
+        } catch (error) {
+          console.error('Error validando código:', error);
+          setPremiumError('Error al validar el código. Intente nuevamente.');
+          return false;
+        }
       };
 
       // Función para detectar nombres duplicados
@@ -3028,11 +3094,16 @@
             }
             if (options.jesterMode !== undefined) setJesterMode(options.jesterMode);
             if (options.accompliceMode !== undefined) setAccompliceMode(options.accompliceMode);
+            if (options.lostMode !== undefined) setLostMode(options.lostMode);
             if (options.categoryMode !== undefined) {
               // Convertir 'single' a 'multiple' ya que 'single' ya no está disponible
               const mode = options.categoryMode === 'single' ? 'multiple' : options.categoryMode;
               setCategoryMode(mode);
             }
+            if (options.categories !== undefined && Array.isArray(options.categories)) {
+              setCategories(options.categories);
+            }
+            if (options.anonymousVoting !== undefined) setAnonymousVoting(options.anonymousVoting);
             if (options.useNames !== undefined) setUseNames(options.useNames);
           } catch (e) {
             console.error('Error loading saved options:', e);
@@ -3051,13 +3122,16 @@
           additionalImpostorsProbability,
           jesterMode,
           accompliceMode,
+          lostMode,
           categoryMode,
+          categories,
+          anonymousVoting,
           playerCount,
           impostorCount,
           useNames
         };
         localStorage.setItem('impostorGameOptions', JSON.stringify(options));
-      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, additionalImpostorsProbability, jesterMode, accompliceMode, categoryMode, playerCount, impostorCount, useNames]);
+      }, [impostorHints, impostorNeverFirst, impostorsKnowEachOther, additionalImpostorsMode, additionalImpostorsCount, additionalImpostorsProbability, jesterMode, accompliceMode, lostMode, categoryMode, categories, anonymousVoting, playerCount, impostorCount, useNames]);
 
       // Función para procesar categoría desde URL (debe estar antes del useEffect que la usa)
       const processCategoryFromUrl = (encodedData) => {
@@ -3146,10 +3220,26 @@
       // Actualizar categorías automáticamente cuando se está en modo 'all' y cambian las categorías personalizadas
       useEffect(() => {
         if (categoryMode === 'all') {
-          const allCatNames = [...categoryList.map(c => c.name), ...customCategories.map(c => c.name)];
+          // Filtrar categorías premium si el usuario no tiene premium
+          const availableCategories = categoryList.filter(cat => !cat.premium || isPremium);
+          const allCatNames = [...availableCategories.map(c => c.name), ...customCategories.map(c => c.name)];
           setCategories(allCatNames);
         }
-      }, [customCategories, categoryMode]);
+      }, [customCategories, categoryMode, isPremium]);
+
+      // Desactivar modos premium si el usuario pierde el premium
+      useEffect(() => {
+        if (!isPremium) {
+          setAdditionalImpostorsMode(false);
+          setJesterMode(false);
+          setAccompliceMode(false);
+          setLostMode(false);
+          // Remover VIP de las categorías seleccionadas si está presente
+          if (categories.includes('VIP')) {
+            setCategories(categories.filter(c => c !== 'VIP'));
+          }
+        }
+      }, [isPremium]);
 
       // Cerrar menú al hacer clic fuera
       useEffect(() => {
@@ -3287,36 +3377,20 @@
         
         // Codificar la categoría en base64 para la URL
         const encodedData = btoa(JSON.stringify(exportData));
-        // Construir la URL - usar la URL actual sin el nombre del archivo si es necesario
-        let baseUrl = window.location.origin;
-        // Si estamos en GitHub Pages, usar el pathname completo, sino solo el pathname
-        if (window.location.pathname && window.location.pathname !== '/') {
-          // Si el pathname termina con index.html, removerlo
-          if (window.location.pathname.endsWith('index.html')) {
-            baseUrl += window.location.pathname.replace(/index\.html$/, '');
-          } else if (window.location.pathname.endsWith('/')) {
-            baseUrl += window.location.pathname;
-          } else {
-            // Si tiene un archivo al final, mantener el directorio
-            const pathParts = window.location.pathname.split('/');
-            pathParts.pop(); // Remover el último elemento (el archivo)
-            baseUrl += pathParts.join('/') + (pathParts.length > 1 ? '/' : '');
-          }
-        } else {
-          baseUrl += '/';
-        }
-        // Asegurar que termine con /
-        if (!baseUrl.endsWith('/')) {
-          baseUrl += '/';
-        }
-        const shareUrl = `${baseUrl}?import=${encodedData}`;
+        // Construir la URL de forma más simple y robusta
+        const currentUrl = new URL(window.location.href);
+        // Limpiar parámetros existentes y agregar el import
+        currentUrl.search = '';
+        currentUrl.searchParams.set('import', encodedData);
+        const shareUrl = currentUrl.toString();
         
         // Copiar al portapapeles
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(shareUrl).then(() => {
-            showToast(`Link de categoría "${category.name}" copiado al portapapeles`, 'success', 3000);
-          }).catch(() => {
+            showToast(`✅ Link de categoría "${category.name}" copiado al portapapeles`, 'success', 4000);
+          }).catch((err) => {
             // Fallback si falla el clipboard
+            console.error('Error copying to clipboard:', err);
             fallbackCopyToClipboard(shareUrl, category.name);
           });
         } else {
@@ -3336,11 +3410,19 @@
         textArea.focus();
         textArea.select();
         try {
-          document.execCommand('copy');
-          showToast(`Link de categoría "${categoryName}" copiado al portapapeles`, 'success', 3000);
+          const success = document.execCommand('copy');
+          if (success) {
+            showToast(`✅ Link de categoría "${categoryName}" copiado al portapapeles`, 'success', 4000);
+          } else {
+            showToast(`❌ No se pudo copiar el link. Link: ${text}`, 'error', 6000);
+            setImportErrorMsg(`Link para compartir (copia manual):\n${text}`);
+            setShowImportErrorModal(true);
+          }
         } catch (err) {
           // Si falla, mostrar el link en un modal o alerta
-          setImportErrorMsg(`Link para compartir:\n${text}`);
+          console.error('Error copying to clipboard:', err);
+          showToast(`❌ No se pudo copiar el link. Link: ${text}`, 'error', 6000);
+          setImportErrorMsg(`Link para compartir (copia manual):\n${text}`);
           setShowImportErrorModal(true);
         }
         document.body.removeChild(textArea);
@@ -3593,8 +3675,9 @@
         let selectedCat;
         
         if (categoryMode === 'all') {
-          // En modo 'all', elegir una categoría al azar de todas las disponibles
-          const allCategories = [...categoryList, ...customCategories];
+          // En modo 'all', elegir una categoría al azar de todas las disponibles (filtrar VIP si no hay premium)
+          const availableCategories = categoryList.filter(cat => !cat.premium || isPremium);
+          const allCategories = [...availableCategories, ...customCategories];
           selectedCat = allCategories[Math.floor(Math.random() * allCategories.length)].name;
         } else {
           selectedCat = categories[Math.floor(Math.random() * categories.length)];
@@ -3640,7 +3723,7 @@
         let additionalImpostorsTriggered = false;
         let finalImpostorCount = impostorCount;
         
-        if (IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !allImpostorsTriggered && playerCount >= 5) {
+        if (IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !allImpostorsTriggered && playerCount >= 5 && isPremium) {
           // Verificar probabilidad
           const probability = additionalImpostorsProbability || 0;
           
@@ -3667,7 +3750,12 @@
         setIsAdditionalImpostorsActive(additionalImpostorsTriggered);
         
         const playerNumbers = Array.from({ length: playerCount }, (_, i) => i + 1);
-        const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
+        // Mejorar sistema de random usando Fisher-Yates shuffle
+        const shuffled = [...playerNumbers];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
         const impostors = allImpostorsTriggered 
           ? playerNumbers // Todos son impostores
           : shuffled.slice(0, finalImpostorCount);
@@ -3676,23 +3764,56 @@
         
         // Asignar bufón si está habilitado (aleatorio)
         let jesterNumber = null;
-        if (jesterMode && BUFON_MODE_HABILITADO) {
+        if (jesterMode && BUFON_MODE_HABILITADO && isPremium) {
           const nonImpostors = playerNumbers.filter(num => !impostors.includes(num));
           if (nonImpostors.length > 0) {
-            // Mezclar el array para asegurar aleatoriedad
-            const shuffledNonImpostors = [...nonImpostors].sort(() => Math.random() - 0.5);
+            // Mezclar el array usando Fisher-Yates shuffle
+            const shuffledNonImpostors = [...nonImpostors];
+            for (let i = shuffledNonImpostors.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffledNonImpostors[i], shuffledNonImpostors[j]] = [shuffledNonImpostors[j], shuffledNonImpostors[i]];
+            }
             jesterNumber = shuffledNonImpostors[0];
           }
         }
         
         // Asignar cómplice si está habilitado (aleatorio)
         let accompliceNumber = null;
-        if (accompliceMode && COMPLICE_MODE_HABILITADO) {
+        if (accompliceMode && COMPLICE_MODE_HABILITADO && isPremium) {
           const nonImpostors = playerNumbers.filter(num => !impostors.includes(num) && num !== jesterNumber);
           if (nonImpostors.length > 0) {
-            // Mezclar el array para asegurar aleatoriedad
-            const shuffledNonImpostors = [...nonImpostors].sort(() => Math.random() - 0.5);
+            // Mezclar el array usando Fisher-Yates shuffle
+            const shuffledNonImpostors = [...nonImpostors];
+            for (let i = shuffledNonImpostors.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffledNonImpostors[i], shuffledNonImpostors[j]] = [shuffledNonImpostors[j], shuffledNonImpostors[i]];
+            }
             accompliceNumber = shuffledNonImpostors[0];
+          }
+        }
+        
+        // Asignar "El Perdido" si está habilitado (aleatorio)
+        let lostNumber = null;
+        let lostWord = null;
+        if (lostMode && PERDIDO_MODE_HABILITADO && isPremium) {
+          const nonImpostors = playerNumbers.filter(num => !impostors.includes(num) && num !== jesterNumber && num !== accompliceNumber);
+          if (nonImpostors.length > 0) {
+            // Mezclar el array usando Fisher-Yates shuffle
+            const shuffledNonImpostors = [...nonImpostors];
+            for (let i = shuffledNonImpostors.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffledNonImpostors[i], shuffledNonImpostors[j]] = [shuffledNonImpostors[j], shuffledNonImpostors[i]];
+            }
+            lostNumber = shuffledNonImpostors[0];
+            
+            // Obtener una palabra diferente de la misma categoría
+            const availableWords = words.filter(w => w !== secretWord);
+            if (availableWords.length > 0) {
+              lostWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+            } else {
+              // Si no hay otras palabras disponibles, usar la misma palabra (caso extremo)
+              lostWord = secretWord;
+            }
           }
         }
         
@@ -3702,13 +3823,19 @@
           isImpostor: impostors.includes(num),
           isJester: num === jesterNumber,
           isAccomplice: num === accompliceNumber,
-          word: impostors.includes(num) ? null : secretWord,
+          isLost: num === lostNumber,
+          word: impostors.includes(num) ? null : (num === lostNumber ? lostWord : secretWord),
           hint: impostors.includes(num) && impostorHints && PISTAS_HABILITADAS ? hint : null,
           isEliminated: false,
           knowsImpostor: num === accompliceNumber && impostors.length > 0 ? [impostors[Math.floor(Math.random() * impostors.length)]] : null
         }));
         
-        const randomOrder = [...roles].sort(() => Math.random() - 0.5);
+        // Mezclar roles usando Fisher-Yates shuffle
+        const randomOrder = [...roles];
+        for (let i = randomOrder.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [randomOrder[i], randomOrder[j]] = [randomOrder[j], randomOrder[i]];
+        }
         const finalImpostorCountForDisplay = allImpostorsTriggered ? playerCount : finalImpostorCount;
         
         setGameStarted(randomOrder);
@@ -4715,12 +4842,39 @@
                           </svg>
                           Modo Pro (Eventos Especiales)
                         </h2>
+                        {isPremium && (
+                          <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl font-semibold text-white text-xs sm:text-sm flex items-center gap-2">
+                            <span className="text-base sm:text-lg">✓</span>
+                            <span>Pro Activo</span>
+                          </div>
+                        )}
                       </div>
+                      {!isPremium && (
+                        <div className="mb-4 sm:mb-5 md:mb-6">
+                          <button
+                            onClick={() => setShowUnlockModal(true)}
+                            className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-orange-500/50 hover:shadow-xl hover:scale-105 text-white text-sm sm:text-base flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none">
+                              <defs>
+                                <linearGradient id="orangeGradientButton" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#ffffff" />
+                                  <stop offset="100%" stopColor="#ffffff" />
+                                </linearGradient>
+                              </defs>
+                              <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2 4h10v2H7v-2z" fill="url(#orangeGradientButton)" />
+                              <path d="M9 11l3-2 3 2" fill="url(#orangeGradientButton)" opacity="0.8" />
+                            </svg>
+                            <span>Desbloquear Pro</span>
+                          </button>
+                        </div>
+                      )}
                       
                       {/* Impostores Adicionales */}
                       {(() => {
                         const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
-                        const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS;
+                        const isPremiumRequired = !isPremium;
+                        const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS || isPremiumRequired;
                         // Generar opciones de probabilidad: 0, 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
                         const probabilityOptions = [0, 1, 2, 3, 4, 5];
                         for (let i = 10; i <= 50; i += 5) {
@@ -4730,7 +4884,7 @@
                           <>
                             {/* Card style for Additional Impostors */}
                             <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                              !IMPOSTORES_ADICIONALES_HABILITADOS
+                              !IMPOSTORES_ADICIONALES_HABILITADOS || !isPremium
                                 ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
                                 : isLightMode 
                                   ? additionalImpostorsMode ? 'bg-orange-50 border border-orange-300' : 'bg-gray-50 border border-gray-200'
@@ -4749,34 +4903,44 @@
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className={`text-base sm:text-lg font-bold ${
-                                      IMPOSTORES_ADICIONALES_HABILITADOS 
+                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium
                                         ? (isLightMode ? 'text-gray-800' : 'text-white')
                                         : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                     }`}>
                                       Impostores adicionales
                                     </p>
                                     <p className={`text-xs sm:text-sm ${
-                                      IMPOSTORES_ADICIONALES_HABILITADOS
+                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium
                                         ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
                                         : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                     }`}>
-                                      {IMPOSTORES_ADICIONALES_HABILITADOS 
-                                        ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
-                                        : 'Próximamente'}
+                                      {!isPremium 
+                                        ? 'Requiere Pro'
+                                        : IMPOSTORES_ADICIONALES_HABILITADOS 
+                                          ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
+                                          : 'Próximamente'}
                                     </p>
                                   </div>
                                 </div>
                                 {/* Toggle switch */}
-                                <label className={IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                                <label className={IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled && isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}>
                                   <input
                                     type="checkbox"
                                     checked={additionalImpostorsMode}
-                                    onChange={(e) => IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled && setAdditionalImpostorsMode(e.target.checked)}
-                                    disabled={!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled}
+                                    onChange={(e) => {
+                                      if (!isPremium) {
+                                        setShowUnlockModal(true);
+                                        return;
+                                      }
+                                      if (IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled) {
+                                        setAdditionalImpostorsMode(e.target.checked);
+                                      }
+                                    }}
+                                    disabled={!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled || !isPremium}
                                     className="sr-only"
                                   />
                                   <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                                    !IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled
+                                    !IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled || !isPremium
                                       ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
                                       : additionalImpostorsMode 
                                         ? 'bg-gradient-to-r from-orange-500 to-orange-600' 
@@ -4784,13 +4948,13 @@
                                   }`}>
                                     <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
                                       additionalImpostorsMode ? 'left-7' : 'left-0.5'
-                                    } ${!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled ? 'opacity-50' : ''}`}></div>
+                                    } ${!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled || !isPremium ? 'opacity-50' : ''}`}></div>
                                   </div>
                                 </label>
                               </div>
                               
                               {/* Contenido expandible dentro de la misma tarjeta */}
-                              {IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabled && (
+                              {IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabled && isPremium && (
                               <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
                               <>
                                 <div className="mt-4">
@@ -4857,141 +5021,283 @@
                       })()}
 
                       {/* Modo Bufón */}
-                      <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                        !BUFON_MODE_HABILITADO
-                          ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
-                          : isLightMode 
-                            ? jesterMode ? 'bg-yellow-50 border border-yellow-300' : 'bg-gray-50 border border-gray-200'
-                            : jesterMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-gray-800/50 border border-gray-800'
-                      }`}>
-                        <div className="p-4 sm:p-5 flex items-center justify-between">
-                          <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              BUFON_MODE_HABILITADO && jesterMode ? 'bg-yellow-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
-                            }`}>
-                              <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${BUFON_MODE_HABILITADO && jesterMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10"/>
-                                <circle cx="9" cy="9" r="1.5"/>
-                                <circle cx="15" cy="9" r="1.5"/>
-                                <path d="M8 14c1.5 2 4.5 2 6 0"/>
-                              </svg>
+                      {(() => {
+                        const minPlayersForJester = 7;
+                        const canEnableJester = playerCount >= minPlayersForJester;
+                        const isJesterDisabledByPlayers = !canEnableJester;
+                        
+                        return (
+                          <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                            !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers
+                              ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                              : isLightMode 
+                                ? jesterMode ? 'bg-yellow-50 border border-yellow-300' : 'bg-gray-50 border border-gray-200'
+                                : jesterMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-gray-800/50 border border-gray-800'
+                          }`}>
+                            <div className="p-4 sm:p-5 flex items-center justify-between">
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'bg-yellow-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                                }`}>
+                                  <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <circle cx="9" cy="9" r="1.5"/>
+                                    <circle cx="15" cy="9" r="1.5"/>
+                                    <path d="M8 14c1.5 2 4.5 2 6 0"/>
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-base sm:text-lg font-bold ${
+                                    BUFON_MODE_HABILITADO && isPremium && canEnableJester
+                                      ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    Añadir bufón
+                                  </p>
+                                  <p className={`text-xs sm:text-sm ${
+                                    BUFON_MODE_HABILITADO && isPremium && canEnableJester
+                                      ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    {!isPremium 
+                                      ? 'Requiere Pro'
+                                      : isJesterDisabledByPlayers
+                                        ? `Requiere mínimo ${minPlayersForJester} jugadores`
+                                        : BUFON_MODE_HABILITADO 
+                                          ? (jesterMode ? 'Habilitado' : 'Deshabilitado')
+                                          : 'Próximamente'}
+                                  </p>
+                                </div>
+                              </div>
+                              <label className={BUFON_MODE_HABILITADO && isPremium && canEnableJester ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                                <input
+                                  type="checkbox"
+                                  checked={jesterMode}
+                                  onChange={(e) => {
+                                    if (!isPremium) {
+                                      setShowUnlockModal(true);
+                                      return;
+                                    }
+                                    if (!canEnableJester) {
+                                      showToast(`El modo bufón requiere mínimo ${minPlayersForJester} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (BUFON_MODE_HABILITADO) {
+                                      setJesterMode(e.target.checked);
+                                    }
+                                  }}
+                                  disabled={!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers}
+                                  className="sr-only"
+                                />
+                                <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                                  !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers
+                                    ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                    : jesterMode 
+                                      ? 'bg-yellow-500' 
+                                      : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                                }`}>
+                                  <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                    jesterMode ? 'left-7' : 'left-0.5'
+                                  } ${!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                </div>
+                              </label>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-base sm:text-lg font-bold ${
-                                BUFON_MODE_HABILITADO 
-                                  ? (isLightMode ? 'text-gray-800' : 'text-white')
-                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                              }`}>
-                                Añadir bufón
-                              </p>
-                              <p className={`text-xs sm:text-sm ${
-                                BUFON_MODE_HABILITADO
-                                  ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
-                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                              }`}>
-                                {BUFON_MODE_HABILITADO 
-                                  ? (jesterMode ? 'Habilitado' : 'Deshabilitado')
-                                  : 'Próximamente'}
-                              </p>
-                            </div>
+                            {BUFON_MODE_HABILITADO && jesterMode && isPremium && canEnableJester && (
+                              <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                                <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  Si eliminan al bufón, gana solo. El bufón conoce la palabra secreta.
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <label className={BUFON_MODE_HABILITADO ? 'cursor-pointer' : 'cursor-not-allowed'}>
-                            <input
-                              type="checkbox"
-                              checked={jesterMode}
-                              onChange={(e) => BUFON_MODE_HABILITADO && setJesterMode(e.target.checked)}
-                              disabled={!BUFON_MODE_HABILITADO}
-                              className="sr-only"
-                            />
-                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                              !BUFON_MODE_HABILITADO
-                                ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                : jesterMode 
-                                  ? 'bg-yellow-500' 
-                                  : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
-                            }`}>
-                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                jesterMode ? 'left-7' : 'left-0.5'
-                              } ${!BUFON_MODE_HABILITADO ? 'opacity-50' : ''}`}></div>
-                            </div>
-                          </label>
-                        </div>
-                        {BUFON_MODE_HABILITADO && jesterMode && (
-                          <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
-                            <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                              Si eliminan al bufón, gana solo. El bufón conoce la palabra secreta.
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                        );
+                      })()}
 
                       {/* Modo El Cómplice */}
-                      <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                        !COMPLICE_MODE_HABILITADO
-                          ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
-                          : isLightMode 
-                            ? accompliceMode ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
-                            : accompliceMode ? 'bg-blue-900/30 border border-blue-700' : 'bg-gray-800/50 border border-gray-800'
-                      }`}>
-                        <div className="p-4 sm:p-5 flex items-center justify-between">
-                          <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              COMPLICE_MODE_HABILITADO && accompliceMode ? 'bg-blue-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
-                            }`}>
-                              <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${COMPLICE_MODE_HABILITADO && accompliceMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="6" cy="12" r="4" fill="currentColor"/>
-                                <circle cx="18" cy="12" r="4" fill="currentColor"/>
-                                <rect x="10" y="11" width="4" height="2" fill="currentColor"/>
-                              </svg>
+                      {(() => {
+                        // Cómplice requiere mínimo 8 jugadores O 2 impostores
+                        const minPlayersForAccomplice = 8;
+                        const minImpostorsForAccomplice = 2;
+                        const canEnableAccomplice = playerCount >= minPlayersForAccomplice || impostorCount >= minImpostorsForAccomplice;
+                        const isAccompliceDisabledByPlayers = !canEnableAccomplice;
+                        
+                        return (
+                          <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                            !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers
+                              ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                              : isLightMode 
+                                ? accompliceMode ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
+                                : accompliceMode ? 'bg-blue-900/30 border border-blue-700' : 'bg-gray-800/50 border border-gray-800'
+                          }`}>
+                            <div className="p-4 sm:p-5 flex items-center justify-between">
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  COMPLICE_MODE_HABILITADO && accompliceMode && canEnableAccomplice ? 'bg-blue-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                                }`}>
+                                  <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${COMPLICE_MODE_HABILITADO && accompliceMode && canEnableAccomplice ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="6" cy="12" r="4" fill="currentColor"/>
+                                    <circle cx="18" cy="12" r="4" fill="currentColor"/>
+                                    <rect x="10" y="11" width="4" height="2" fill="currentColor"/>
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-base sm:text-lg font-bold ${
+                                    COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice
+                                      ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    El Cómplice
+                                  </p>
+                                  <p className={`text-xs sm:text-sm ${
+                                    COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice
+                                      ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    {!isPremium 
+                                      ? 'Requiere Pro'
+                                      : isAccompliceDisabledByPlayers
+                                        ? `Requiere mínimo ${minPlayersForAccomplice} jugadores`
+                                        : COMPLICE_MODE_HABILITADO 
+                                          ? (accompliceMode ? 'Habilitado' : 'Deshabilitado')
+                                          : 'Próximamente'}
+                                  </p>
+                                </div>
+                              </div>
+                              <label className={COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                                <input
+                                  type="checkbox"
+                                  checked={accompliceMode}
+                                  onChange={(e) => {
+                                    if (!isPremium) {
+                                      setShowUnlockModal(true);
+                                      return;
+                                    }
+                                    if (!canEnableAccomplice) {
+                                      showToast(`El modo cómplice requiere mínimo ${minPlayersForAccomplice} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (COMPLICE_MODE_HABILITADO) {
+                                      setAccompliceMode(e.target.checked);
+                                    }
+                                  }}
+                                  disabled={!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers}
+                                  className="sr-only"
+                                />
+                                <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                                  !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers
+                                    ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                    : accompliceMode 
+                                      ? 'bg-blue-500' 
+                                      : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                                }`}>
+                                  <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                    accompliceMode ? 'left-7' : 'left-0.5'
+                                  } ${!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                </div>
+                              </label>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-base sm:text-lg font-bold ${
-                                COMPLICE_MODE_HABILITADO 
-                                  ? (isLightMode ? 'text-gray-800' : 'text-white')
-                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                              }`}>
-                                El Cómplice
-                              </p>
-                              <p className={`text-xs sm:text-sm ${
-                                COMPLICE_MODE_HABILITADO
-                                  ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
-                                  : (isLightMode ? 'text-gray-500' : 'text-gray-500')
-                              }`}>
-                                {COMPLICE_MODE_HABILITADO 
-                                  ? (accompliceMode ? 'Habilitado' : 'Deshabilitado')
-                                  : 'Próximamente'}
-                              </p>
-                            </div>
+                            {COMPLICE_MODE_HABILITADO && accompliceMode && isPremium && canEnableAccomplice && (
+                              <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                                <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  Ayuda al impostor. Conoce la palabra secreta y quién es el impostor, pero juega como un civil.
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <label className={COMPLICE_MODE_HABILITADO ? 'cursor-pointer' : 'cursor-not-allowed'}>
-                            <input
-                              type="checkbox"
-                              checked={accompliceMode}
-                              onChange={(e) => COMPLICE_MODE_HABILITADO && setAccompliceMode(e.target.checked)}
-                              disabled={!COMPLICE_MODE_HABILITADO}
-                              className="sr-only"
-                            />
-                            <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                              !COMPLICE_MODE_HABILITADO
-                                ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                : accompliceMode 
-                                  ? 'bg-blue-500' 
-                                  : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
-                            }`}>
-                              <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                accompliceMode ? 'left-7' : 'left-0.5'
-                              } ${!COMPLICE_MODE_HABILITADO ? 'opacity-50' : ''}`}></div>
+                        );
+                      })()}
+
+                      {/* Modo El Perdido */}
+                      {(() => {
+                        const minPlayersForLost = 5;
+                        const canEnableLost = playerCount >= minPlayersForLost;
+                        const isLostDisabledByPlayers = !canEnableLost;
+                        
+                        return (
+                          <div className={`mb-4 rounded-xl transition-all duration-300 ${
+                            !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers
+                              ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
+                              : isLightMode 
+                                ? lostMode ? 'bg-purple-50 border border-purple-300' : 'bg-gray-50 border border-gray-200'
+                                : lostMode ? 'bg-purple-900/30 border border-purple-700' : 'bg-gray-800/50 border border-gray-800'
+                          }`}>
+                            <div className="p-4 sm:p-5 flex items-center justify-between">
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  PERDIDO_MODE_HABILITADO && lostMode && canEnableLost ? 'bg-purple-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                                }`}>
+                                  <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${PERDIDO_MODE_HABILITADO && lostMode && canEnableLost ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 2v4M12 18v4M4 12H2M22 12h-2"/>
+                                    <path d="M19.07 19.07l-2.83-2.83M7.76 7.76L4.93 4.93M19.07 4.93l-2.83 2.83M7.76 16.24L4.93 19.07"/>
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-base sm:text-lg font-bold ${
+                                    PERDIDO_MODE_HABILITADO && isPremium && canEnableLost
+                                      ? (isLightMode ? 'text-gray-800' : 'text-white')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    El Perdido
+                                  </p>
+                                  <p className={`text-xs sm:text-sm ${
+                                    PERDIDO_MODE_HABILITADO && isPremium && canEnableLost
+                                      ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
+                                      : (isLightMode ? 'text-gray-500' : 'text-gray-500')
+                                  }`}>
+                                    {!isPremium 
+                                      ? 'Requiere Pro'
+                                      : isLostDisabledByPlayers
+                                        ? `Requiere mínimo ${minPlayersForLost} jugadores`
+                                        : PERDIDO_MODE_HABILITADO 
+                                          ? (lostMode ? 'Habilitado' : 'Deshabilitado')
+                                          : 'Próximamente'}
+                                  </p>
+                                </div>
+                              </div>
+                              <label className={PERDIDO_MODE_HABILITADO && isPremium && canEnableLost ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                                <input
+                                  type="checkbox"
+                                  checked={lostMode}
+                                  onChange={(e) => {
+                                    if (!isPremium) {
+                                      setShowUnlockModal(true);
+                                      return;
+                                    }
+                                    if (!canEnableLost) {
+                                      showToast(`El modo perdido requiere mínimo ${minPlayersForLost} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (PERDIDO_MODE_HABILITADO) {
+                                      setLostMode(e.target.checked);
+                                    }
+                                  }}
+                                  disabled={!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers}
+                                  className="sr-only"
+                                />
+                                <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                                  !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers
+                                    ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
+                                    : lostMode 
+                                      ? 'bg-purple-500' 
+                                      : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
+                                }`}>
+                                  <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
+                                    lostMode ? 'left-7' : 'left-0.5'
+                                  } ${!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                </div>
+                              </label>
                             </div>
-                          </label>
-                        </div>
-                        {COMPLICE_MODE_HABILITADO && accompliceMode && (
-                          <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
-                            <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                              Ayuda al impostor. Conoce la palabra secreta y quién es el impostor, pero juega como un civil.
-                            </p>
+                            {PERDIDO_MODE_HABILITADO && lostMode && isPremium && canEnableLost && (
+                              <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
+                                <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  Ve una palabra diferente de la misma categoría. No sabe que tiene este rol hasta el final.
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Botones de acción */}
@@ -5061,8 +5367,9 @@
                           } else {
                             // Si está en 'multiple', cambiar a 'all'
                             setCategoryMode('all');
-                            // Seleccionar todas las categorías automáticamente
-                            const allCatNames = [...categoryList.map(c => c.name), ...customCategories.map(c => c.name)];
+                            // Seleccionar todas las categorías automáticamente (filtrar VIP si no hay premium)
+                            const availableCategories = categoryList.filter(cat => !cat.premium || isPremium);
+                            const allCatNames = [...availableCategories.map(c => c.name), ...customCategories.map(c => c.name)];
                             setCategories(allCatNames);
                           }
                         }}
@@ -5133,17 +5440,22 @@
                             // Calcular el conteo de manera explícita y forzar evaluación
                             const wordsArray = categoryWords[cat.name];
                             const wordCount = Array.isArray(wordsArray) ? wordsArray.length : 0;
+                            const isPremiumCategory = cat.premium === true;
+                            const isVIPLocked = isPremiumCategory && !isPremium;
+                            
                             return (
                             <div key={cat.name} className="relative" style={{ zIndex: categories.includes(cat.name) || categoryMode === 'all' ? 10 : 1 }}>
                               <button
                                 onClick={() => toggleCategory(cat.name)}
                                 disabled={categoryMode === 'all'}
                                 className={`w-full p-3 sm:p-4 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 sm:gap-3 text-xs sm:text-base shadow-lg relative ${
-                                  categories.includes(cat.name) || categoryMode === 'all'
-                                    ? categoryMode === 'all'
-                                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
-                                      : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
-                                    : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
+                                  isVIPLocked
+                                    ? `bg-gradient-to-r from-orange-500/30 to-orange-600/30 border-2 border-orange-500/50 text-white cursor-pointer opacity-70 ring-2 ring-orange-500/30 hover:opacity-90 hover:ring-orange-500/50`
+                                    : categories.includes(cat.name) || categoryMode === 'all'
+                                      ? categoryMode === 'all'
+                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-blue-500/50 cursor-default'
+                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 ring-2 ring-purple-400 shadow-purple-500/50'
+                                      : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl backdrop-blur-sm`
                                 }`}
                               >
                                 <span className="text-lg sm:text-2xl flex-shrink-0">{cat.emoji}</span>
@@ -5553,6 +5865,40 @@
             ) : currentlyRevealingPlayer && !allRolesRevealed ? (
               // Vista de revelación individual del jugador con animación 3D de carta (fase inicial)
               <div className={`${isLightMode ? 'bg-white/90' : 'bg-black'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-2xl border-4 ${isLightMode ? 'border-gray-300' : 'border-black'} relative overflow-hidden`} style={{borderRadius: '1rem'}}>
+                {/* Botón para cancelar/volver arriba - siempre visible si hay jugadores anteriores */}
+                {currentPlayerIndex > 0 && (
+                  <button
+                    onClick={() => {
+                      if (currentPlayerIndex > 0) {
+                        setCurrentPlayerIndex(currentPlayerIndex - 1);
+                        setRoleRevealed(false);
+                        const prevPlayer = gameStarted[currentPlayerIndex - 1];
+                        setCurrentlyRevealingPlayer(prevPlayer);
+                        setCardFlipped(false);
+                        // Remover el jugador anterior de revealedPlayers si está
+                        setRevealedPlayers(prev => prev.filter(num => num !== prevPlayer.number));
+                      }
+                    }}
+                    className="absolute top-4 left-4 px-4 sm:px-6 py-2 sm:py-3 bg-gray-600 hover:bg-gray-700 rounded-xl font-bold text-sm sm:text-base transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-white z-50"
+                    style={{zIndex: 1000}}
+                  >
+                    ← Volver
+                  </button>
+                )}
+                {/* Botón para cancelar revelación completamente - solo visible cuando la carta está cerrada */}
+                {!cardFlipped && (
+                  <button
+                    onClick={() => {
+                      setCurrentlyRevealingPlayer(null);
+                      setCardFlipped(false);
+                      setRoleRevealed(false);
+                    }}
+                    className="absolute top-4 right-4 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-sm sm:text-base transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-white z-50"
+                    style={{zIndex: 1000}}
+                  >
+                    ✕ Cancelar
+                  </button>
+                )}
                 <div className="text-center py-4 sm:py-6 flex items-center justify-center" style={{minHeight: '60vh'}}>
                   <div className="card-flip-container" style={{width: '90%', maxWidth: '400px', height: '400px', position: 'relative'}}>
                     <div className={`card-flip ${cardFlipped ? 'flipped' : ''}`} style={{width: '100%', height: '100%'}}>
@@ -5560,9 +5906,12 @@
                       <div 
                         className="card-front" 
                         onClick={() => setCardFlipped(true)}
-                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: '4px solid #9333ea'}}
+                        style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: '4px solid #9333ea', cursor: 'pointer'}}
                       >
                         <div className="relative w-full text-center">
+                          <p className={`text-xl sm:text-2xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            {getPlayerDisplay(currentlyRevealingPlayer)}
+                          </p>
                           <div className="mb-6 flex justify-center">
                             <span className="text-6xl sm:text-7xl">🔒</span>
                           </div>
@@ -5573,7 +5922,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : '#22c55e'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : currentlyRevealingPlayer.isLost ? '#a855f7' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -5637,6 +5986,15 @@
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          ) : currentlyRevealingPlayer.isLost ? (
+                            // El Perdido se muestra como jugador normal, sin revelar su rol especial
+                            <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">✅</p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Tu palabra es:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{currentlyRevealingPlayer.word}</p>
                             </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
@@ -5811,6 +6169,32 @@
                           <p className={`text-xl sm:text-2xl font-bold break-words ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
                             👉 {getPlayerDisplay(gameStarted.find(p => p.number === firstPlayer))}
                           </p>
+                        </div>
+
+                        <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-700/50'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-base sm:text-lg mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-400'}`}>Jugadores</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                            {[...gameStarted].sort((a, b) => a.number - b.number).map((player) => (
+                              <div
+                                key={player.number}
+                                className={`px-5 py-4 sm:px-6 sm:py-5 rounded-xl text-center font-bold text-base sm:text-lg md:text-xl transition-all duration-300 relative shadow-lg min-h-[100px] sm:min-h-[110px] flex flex-col items-center justify-center ${
+                                  player.isEliminated
+                                    ? `${isLightMode ? 'bg-gray-300 text-gray-500' : 'bg-gray-800 text-gray-600'} opacity-50`
+                                    : `${isLightMode ? 'bg-gray-200 text-gray-800' : 'bg-gray-600 text-white'}`
+                                }`}
+                              >
+                                <div className="break-words w-full px-2 text-base sm:text-lg md:text-xl">
+                                  {useNames ? player.name : `Jugador ${player.number}`}
+                                </div>
+                                {player.isEliminated && (
+                                  <div className="text-sm sm:text-base mt-2">💀 Eliminado</div>
+                                )}
+                                {!player.isEliminated && (
+                                  <div className="text-sm sm:text-base mt-2 opacity-75">✅ Activo</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
@@ -6375,8 +6759,9 @@
                 {(() => {
                   const jesterPlayer = gameStarted.find(p => p.isJester);
                   const accomplicePlayer = gameStarted.find(p => p.isAccomplice);
+                  const lostPlayer = gameStarted.find(p => p.isLost);
                   
-                  if (!jesterPlayer && !accomplicePlayer) return null;
+                  if (!jesterPlayer && !accomplicePlayer && !lostPlayer) return null;
                   
                   return (
                     <div className="space-y-4 mb-4 sm:mb-6">
@@ -6401,13 +6786,27 @@
                           </div>
                         </div>
                       )}
+                      
+                      {lostPlayer && (
+                        <div className={`${isLightMode ? 'bg-purple-100 border-2 border-purple-400' : 'bg-purple-900/50 border-2 border-purple-500'} p-4 sm:p-6 rounded-xl`}>
+                          <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>🔍 EL PERDIDO 🔍</p>
+                          <div className="flex justify-center">
+                            <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-base sm:text-xl break-words ${isLightMode ? 'bg-purple-200 text-purple-800' : 'bg-purple-700 text-white'}`}>
+                              {getPlayerDisplay(lostPlayer)}
+                            </div>
+                          </div>
+                          <p className={`text-sm sm:text-base mt-3 text-center ${isLightMode ? 'text-purple-700' : 'text-purple-300'}`}>
+                            Su palabra era: <span className="font-bold">{lostPlayer.word}</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
 
                 {(() => {
                   const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
-                  const honestPlayers = gameStarted.filter(p => !p.isImpostor);
+                  const honestPlayers = gameStarted.filter(p => !p.isImpostor && !p.isLost);
                   
                   return allAreImpostors ? (
                     <div className={`${isLightMode ? 'bg-gray-100 border-2 border-gray-300' : 'bg-gray-800/50 border-2 border-gray-700'} p-4 sm:p-6 rounded-xl mb-6 sm:mb-8`}>
@@ -6462,9 +6861,12 @@
                       <div 
                         className="card-front" 
                         onClick={() => setCardFlipped(true)}
-                        style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', borderRadius: '1rem', border: '4px solid #9333ea'}}
+                        style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: '4px solid #9333ea', cursor: 'pointer'}}
                       >
                         <div className="relative w-full text-center">
+                          <p className={`text-xl sm:text-2xl font-bold mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                            {getPlayerDisplay(currentlyRevealingPlayer)}
+                          </p>
                           <div className="mb-6 flex justify-center">
                             <span className="text-6xl sm:text-7xl">🔒</span>
                           </div>
@@ -6475,7 +6877,7 @@
                       </div>
                       
                       {/* Lado trasero de la carta - Contenido revelado */}
-                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : '#22c55e'}`}}>
+                      <div className="card-back" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', borderRadius: '1rem', border: `4px solid ${currentlyRevealingPlayer.isImpostor ? '#ef4444' : currentlyRevealingPlayer.isJester ? '#eab308' : currentlyRevealingPlayer.isAccomplice ? '#3b82f6' : currentlyRevealingPlayer.isLost ? '#a855f7' : '#22c55e'}`}}>
                         <div className="animate-flip-in w-full">
                           <h3 className={`text-xl sm:text-2xl font-bold mb-3 sm:mb-4 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
                             {getPlayerDisplay(currentlyRevealingPlayer)}
@@ -6525,6 +6927,15 @@
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          ) : currentlyRevealingPlayer.isLost ? (
+                            // El Perdido se muestra como jugador normal en la fase final también
+                            <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">✅</p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Su palabra era:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{currentlyRevealingPlayer.word}</p>
                             </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
@@ -6625,7 +7036,7 @@
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>V BETA 0.11.1</p>
+              <p>V BETA 0.12.1</p>
               <p className="mt-1">©2026 Argentores. Hecho por LosTomobri</p>
             </div>
           </div>
@@ -7062,6 +7473,97 @@
                     Ir a la app
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Desbloqueo Premium */}
+          {showUnlockModal && (
+            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isLightMode ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm`} onClick={() => {
+              setShowUnlockModal(false);
+              setPremiumCodeInput('');
+              setPremiumError('');
+            }}>
+              <div 
+                className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl p-6 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} max-w-md w-full`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header con título y botón cerrar */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-6 h-6 sm:w-7 sm:h-7" viewBox="0 0 24 24" fill="none">
+                      <defs>
+                        <linearGradient id="orangeGradientModal" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#f97316" />
+                          <stop offset="100%" stopColor="#ea580c" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2 4h10v2H7v-2z" fill="url(#orangeGradientModal)" />
+                      <path d="M9 11l3-2 3 2" fill="url(#orangeGradientModal)" opacity="0.8" />
+                    </svg>
+                    <h3 className={`text-xl sm:text-2xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Desbloquear Pro
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowUnlockModal(false);
+                      setPremiumCodeInput('');
+                      setPremiumError('');
+                    }}
+                    className={`p-2 rounded-lg transition-all duration-300 ${isLightMode ? 'hover:bg-gray-200 text-gray-600' : 'hover:bg-gray-700 text-gray-400'}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Descripción */}
+                <p className={`text-sm sm:text-base mb-6 ${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
+                  El modo Pro añade roles especiales como el Bufón y el Cómplice. Además, desbloquea más categorías para divertirse.
+                </p>
+
+                {/* Label para el input */}
+                <label className={`block text-xs sm:text-sm font-semibold mb-2 ${isLightMode ? 'text-gray-700' : 'text-white'}`}>
+                  INTRODUCE CÓDIGO
+                </label>
+
+                {/* Input de código */}
+                <input
+                  type="text"
+                  value={premiumCodeInput}
+                  onChange={(e) => {
+                    setPremiumCodeInput(e.target.value);
+                    setPremiumError('');
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      validatePremiumCode(premiumCodeInput);
+                    }
+                  }}
+                  placeholder="TU-CODIGO-SECRETO"
+                  className={`w-full px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base mb-4 ${
+                    isLightMode 
+                      ? 'bg-gray-100 text-gray-800 border-2 border-gray-300 focus:border-blue-500' 
+                      : 'bg-gray-800 text-white border-2 border-gray-700 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
+                />
+
+                {/* Mensaje de error */}
+                {premiumError && (
+                  <p className={`text-sm mb-4 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                    {premiumError}
+                  </p>
+                )}
+
+                {/* Botón de desbloquear */}
+                <button
+                  onClick={() => validatePremiumCode(premiumCodeInput)}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-orange-500/50 hover:shadow-xl hover:scale-105 text-white text-sm sm:text-base"
+                >
+                  Desbloquear
+                </button>
               </div>
             </div>
           )}
