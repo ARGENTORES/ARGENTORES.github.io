@@ -29,18 +29,30 @@ self.addEventListener('install', (event) => {
             // Cachear recursos externos uno por uno (pueden fallar si no hay conexión)
             const externalUrls = urlsToCache.filter(url => !url.startsWith('./'));
             return Promise.allSettled(
-              externalUrls.map(url => 
-                fetch(url)
+              externalUrls.map(url => {
+                // Verificar que la URL sea cacheable
+                try {
+                  const urlObj = new URL(url);
+                  if (urlObj.protocol === 'chrome-extension:' || urlObj.protocol === 'chrome:' || urlObj.protocol === 'moz-extension:') {
+                    console.warn(`[SW] Skipping unsupported scheme: ${url}`);
+                    return Promise.resolve();
+                  }
+                } catch (e) {
+                  // Si no es una URL válida, intentar cachear de todas formas
+                }
+                return fetch(url)
                   .then(response => {
                     if (response.ok) {
-                      return cache.put(url, response);
+                      return cache.put(url, response).catch((err) => {
+                        console.warn(`[SW] Failed to cache ${url}:`, err);
+                      });
                     }
                   })
                   .catch(e => {
                     console.warn(`[SW] Failed to cache ${url}:`, e);
                     // No es crítico, se intentará cachear cuando se use
-                  })
-              )
+                  });
+              })
             );
           })
           .catch((err) => {
@@ -79,6 +91,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const pathname = url.pathname;
   const isSameOrigin = url.origin === location.origin;
+  
+  // Ignorar esquemas no soportados (chrome-extension, chrome, etc.)
+  if (url.protocol === 'chrome-extension:' || url.protocol === 'chrome:' || url.protocol === 'moz-extension:') {
+    return; // No procesar estas peticiones
+  }
   
   // ESTRATEGIA OFFLINE FIRST: Cache First para todos los recursos locales
   // Esto permite que la app funcione completamente sin internet
@@ -123,7 +140,14 @@ self.addEventListener('fetch', (event) => {
             if (networkResponse.status === 200) {
               const responseToCache = networkResponse.clone();
               caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
+                // Verificar que la URL sea cacheable antes de intentar cachear
+                const requestUrl = new URL(event.request.url);
+                if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'chrome:' || requestUrl.protocol === 'moz-extension:') {
+                  return; // No cachear esquemas no soportados
+                }
+                cache.put(event.request, responseToCache).catch((err) => {
+                  console.warn('[SW] Failed to cache resource:', err);
+                });
               });
             }
             return networkResponse;
@@ -157,7 +181,14 @@ self.addEventListener('fetch', (event) => {
                   if (networkResponse.status === 200) {
                     const responseToCache = networkResponse.clone();
                     return caches.open(CACHE_NAME).then((cache) => {
-                      return cache.put(event.request, responseToCache);
+                      // Verificar que la URL sea cacheable antes de intentar cachear
+                      const requestUrl = new URL(event.request.url);
+                      if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'chrome:' || requestUrl.protocol === 'moz-extension:') {
+                        return; // No cachear esquemas no soportados
+                      }
+                      return cache.put(event.request, responseToCache).catch((err) => {
+                        console.warn('[SW] Failed to cache resource:', err);
+                      });
                     });
                   }
                 })
@@ -175,7 +206,14 @@ self.addEventListener('fetch', (event) => {
               if (networkResponse.status === 200) {
                 const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, responseToCache);
+                  // Verificar que la URL sea cacheable antes de intentar cachear
+                  const requestUrl = new URL(event.request.url);
+                  if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'chrome:' || requestUrl.protocol === 'moz-extension:') {
+                    return; // No cachear esquemas no soportados
+                  }
+                  cache.put(event.request, responseToCache).catch((err) => {
+                    console.warn('[SW] Failed to cache resource:', err);
+                  });
                 });
               }
               return networkResponse;
@@ -207,7 +245,14 @@ self.addEventListener('fetch', (event) => {
                   if (networkResponse.status === 200) {
                     const responseToCache = networkResponse.clone();
                     return caches.open(CACHE_NAME).then((cache) => {
-                      return cache.put(event.request, responseToCache);
+                      // Verificar que la URL sea cacheable antes de intentar cachear
+                      const requestUrl = new URL(event.request.url);
+                      if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'chrome:' || requestUrl.protocol === 'moz-extension:') {
+                        return; // No cachear esquemas no soportados
+                      }
+                      return cache.put(event.request, responseToCache).catch((err) => {
+                        console.warn('[SW] Failed to cache resource:', err);
+                      });
                     });
                   }
                 })
@@ -225,7 +270,14 @@ self.addEventListener('fetch', (event) => {
               if (networkResponse.status === 200) {
                 const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, responseToCache);
+                  // Verificar que la URL sea cacheable antes de intentar cachear
+                  const requestUrl = new URL(event.request.url);
+                  if (requestUrl.protocol === 'chrome-extension:' || requestUrl.protocol === 'chrome:' || requestUrl.protocol === 'moz-extension:') {
+                    return; // No cachear esquemas no soportados
+                  }
+                  cache.put(event.request, responseToCache).catch((err) => {
+                    console.warn('[SW] Failed to cache resource:', err);
+                  });
                 });
               }
               return networkResponse;
