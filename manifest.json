@@ -2,6 +2,7 @@
   "name": "ARGENTORES",
   "short_name": "ARGENTORES",
   "description": "El juego del impostor con temática Argentina",
+  "version": "0.14.1",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
