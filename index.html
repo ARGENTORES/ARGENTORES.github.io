@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="ARGENTORES">
   <meta name="browsermode" content="application">
   <title>ARGENTORES</title>
-  <link rel="manifest" href="manifest.json?v=3.0&t=2024">
+  <link rel="manifest" href="manifest.json?v=0.14.1&t=2024">
   <!-- Estilos críticos para pantalla de carga inmediata -->
   <style>
     html, body {
@@ -32,10 +32,24 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" onerror="this.onerror=null; document.documentElement.style.setProperty('--font-russo', 'Arial, sans-serif');">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" onerror="console.error('Failed to load React')"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onerror="console.error('Failed to load ReactDOM')"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js" onerror="console.error('Failed to load Babel')"></script>
-  <script src="https://cdn.tailwindcss.com" onerror="console.error('Failed to load Tailwind')"></script>
+  <script>
+    // Suprimir advertencias de producción de Tailwind y Babel
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      // Filtrar advertencias de Tailwind CDN y Babel en navegador
+      if (message.includes('cdn.tailwindcss.com should not be used in production') ||
+          message.includes('in-browser Babel transformer') ||
+          message.includes('precompile your scripts for production')) {
+        return; // No mostrar estas advertencias
+      }
+      originalWarn.apply(console, args);
+    };
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" onload="console.log('✅ React cargado')" onerror="console.error('❌ Failed to load React')"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onload="console.log('✅ ReactDOM cargado')" onerror="console.error('❌ Failed to load ReactDOM')"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" onload="console.log('✅ Babel cargado')" onerror="console.error('❌ Failed to load Babel')"></script>
+  <script src="https://cdn.tailwindcss.com" onload="console.log('✅ Tailwind cargado')" onerror="console.error('❌ Failed to load Tailwind')"></script>
   <noscript>
     <style>
       body { display: none; }
@@ -491,6 +505,38 @@
   </div>
   
   <script>
+    // EMERGENCY FAILSAFE: Ocultar pantalla de carga después de 3 segundos SIEMPRE
+    setTimeout(() => {
+      console.log('⏰ Emergency timeout: hiding loading screen');
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+        loadingScreen.style.visibility = 'hidden';
+        loadingScreen.style.opacity = '0';
+      }
+      document.body.classList.remove('loading');
+      document.documentElement.classList.remove('loading');
+      
+      // SUPER FAILSAFE: Si después de 6 segundos el root está vacío, mostrar error
+      setTimeout(() => {
+        const rootEl = document.getElementById('root');
+        if (rootEl && (!rootEl.innerHTML || rootEl.innerHTML.trim() === '' || rootEl.innerHTML.includes('loading-screen'))) {
+          console.error('⚠️ App no cargó correctamente, mostrando mensaje de error');
+          rootEl.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999999;">
+              <h1 style="color: #9333ea; margin-bottom: 20px; font-size: 24px;">⚠️ Error de Carga</h1>
+              <p style="margin-bottom: 10px; font-size: 16px; max-width: 500px;">La aplicación no se pudo cargar correctamente.</p>
+              <p style="margin-bottom: 20px; font-size: 14px; color: #999; max-width: 500px;">Puede ser un problema de conexión. Intenta recargar la página.</p>
+              <button onclick="location.reload()" style="padding: 12px 24px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; font-weight: bold;">
+                🔄 Recargar Página
+              </button>
+              <p style="margin-top: 20px; font-size: 12px; color: #666;">Si el problema persiste:<br/>1. Verifica tu conexión a internet<br/>2. Desactiva bloqueadores de anuncios/scripts temporalmente</p>
+            </div>
+          `;
+        }
+      }, 3000);
+    }, 3000);
+
     // Forzar mostrar pantalla de carga inmediatamente cuando se detecta modo standalone
     (function() {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -567,10 +613,6 @@
     const ICON_VERSION = '1.0';
     
     const { useState, useEffect } = React;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:component-init',message:'Componente iniciando',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // Componentes de iconos simples
     const UsersIcon = ({ size = 24, className = "" }) => (
@@ -747,10 +789,6 @@
       // ============================================
       const MODO_PRUEBA_TODOS_IMPOSTORES = false;
       // ============================================
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:ImpostorGame-render',message:'Componente renderizando',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       // Detección mejorada de instalación
       const checkInstalled = () => {
@@ -1064,10 +1102,21 @@
             eligiblePlayers = gameStarted;
           }
         }
-        // Si no hay jugadores elegibles (todos son impostores), usar todos
+        
+        // REGLA DE BALANCE: Cómplice no puede hablar primero en la primera ronda
+        // Excluir al cómplice de los jugadores elegibles para hablar primero
+        eligiblePlayers = eligiblePlayers.filter(p => !p.isAccomplice);
+        
+        // Si no hay jugadores elegibles después de excluir al cómplice, usar todos excepto cómplice
+        if (eligiblePlayers.length === 0) {
+          eligiblePlayers = gameStarted.filter(p => !p.isAccomplice);
+        }
+        
+        // Si aún no hay jugadores (todos son cómplices, caso extremo), usar todos
         if (eligiblePlayers.length === 0) {
           eligiblePlayers = gameStarted;
         }
+        
         const randomFirst = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)].number;
         setFirstPlayer(randomFirst);
         setAllRolesRevealed(true);
@@ -1357,6 +1406,7 @@ Juega ahora: https://argentores.github.io`;
       const [isLightMode, setIsLightMode] = useState(false);
       const [isAllImpostorsMode, setIsAllImpostorsMode] = useState(false);
       const [originalImpostorCount, setOriginalImpostorCount] = useState(0);
+      const [roundNumber, setRoundNumber] = useState(1); // Rastrear número de ronda para reglas de balance
       // Estados para modales modernos
       const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
       const [categoryToDelete, setCategoryToDelete] = useState(null);
@@ -1398,10 +1448,6 @@ Juega ahora: https://argentores.github.io`;
       const [showUnlockModal, setShowUnlockModal] = useState(false);
       const [premiumCodeInput, setPremiumCodeInput] = useState('');
       const [premiumError, setPremiumError] = useState('');
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:state-init',message:'Estados inicializados',data:{step,playerCount,gameStarted:!!gameStarted,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
 
       const categoryList = [
         { name: 'Animales', emoji: '🐾' },
@@ -2911,9 +2957,36 @@ Juega ahora: https://argentores.github.io`;
           return;
         }
         
+        // Validar límite del 50% de impostores + roles especiales juntos
+        const currentSpecialRoles = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+        const maxTotal = Math.floor(playerCount * 0.5);
+        const currentTotal = impostorCount + currentSpecialRoles;
+        const wouldExceedLimit = currentTotal >= maxTotal;
+        
+        // Nota: Ya no se fuerza la desactivación automática cuando se alcanza el límite
+        // Los botones se deshabilitan mediante wouldExceedLimit para mantener el modo activo
+        // pero impedir cambios cuando se alcanza el límite del 50%
+        
         // Si el modo está activo y hay 5+ jugadores, solo ajustar el contador si es necesario
         if (additionalImpostorsMode) {
           const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
+          // Validar también contra el límite del 50%
+          const additionalImpostorsToCount = (additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+          const totalWithImpostors = impostorCount + currentSpecialRoles + additionalImpostorsToCount;
+          const wouldExceedWithCurrent = totalWithImpostors > maxTotal;
+          
+          if (wouldExceedWithCurrent) {
+            // Reducir la cantidad para no exceder el límite
+            const maxAllowed = Math.max(0, maxTotal - currentTotal);
+            if (additionalImpostorsCount > maxAllowed) {
+              setAdditionalImpostorsCount(maxAllowed);
+            }
+            // Si no hay espacio, desactivar el modo
+            if (maxAllowed === 0) {
+              setAdditionalImpostorsMode(false);
+            }
+          }
+          
           // Solo ajustar si el valor actual excede el máximo permitido
           // No tocar el valor si está dentro del rango válido (1 a maxAdditional) para preservar el valor guardado
           if (maxAdditional > 0) {
@@ -2932,7 +3005,11 @@ Juega ahora: https://argentores.github.io`;
           // NO desactivar el modo automáticamente si maxAdditional === 0
           // Permitir que el usuario lo active/desactive manualmente
         }
-      }, [playerCount, impostorCount, additionalImpostorsMode]);
+      }, [playerCount, impostorCount, additionalImpostorsMode, jesterMode, accompliceMode, lostMode, additionalImpostorsCount, additionalImpostorsProbability]);
+
+      // Nota: Ya no se fuerza la desactivación automática de modos cuando se alcanza el límite
+      // En su lugar, los botones se deshabilitan mediante wouldExceedLimit para mantener
+      // los modos activos pero impedir cambios cuando se alcanza el límite del 50%
 
       // Ajustar nombres cuando cambia playerCount
       useEffect(() => {
@@ -3593,8 +3670,19 @@ Juega ahora: https://argentores.github.io`;
       }, [useNames, playerCount]);
 
       const saveProfile = () => {
-        if (playerNames.length === 0 || playerNames.every(name => !name.trim())) {
-          setImportErrorMsg('Por favor, ingresa al menos un nombre antes de guardar');
+        // Contar cuántos nombres tienen contenido
+        const filledNamesCount = playerNames.filter(name => name && name.trim()).length;
+        
+        // Validar que haya al menos 3 nombres llenos
+        if (filledNamesCount < 3) {
+          setImportErrorMsg('Por favor, ingresa al menos 3 nombres antes de guardar el perfil');
+          setShowImportErrorModal(true);
+          return;
+        }
+        
+        // Si hay más jugadores que el mínimo, todos deben tener nombres
+        if (filledNamesCount < playerCount) {
+          setImportErrorMsg(`Por favor, completa los nombres de todos los ${playerCount} jugadores antes de guardar el perfil`);
           setShowImportErrorModal(true);
           return;
         }
@@ -3668,10 +3756,21 @@ Juega ahora: https://argentores.github.io`;
           }
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:startGame',message:'Iniciando juego',data:{categoryMode,categoriesLength:categories.length,playerCount,impostorCount,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
-
+        // REGLA DE BALANCE: Máximo 50% de impostores + roles especiales juntos
+        const specialRolesCount = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+        const additionalImpostorsToCount = (additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+        const totalSpecialCount = specialRolesCount + additionalImpostorsToCount;
+        const totalWithImpostors = impostorCount + totalSpecialCount;
+        const maxTotal = Math.floor(playerCount * 0.5);
+        if (totalWithImpostors > maxTotal) {
+          setImportErrorMsg(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Actualmente tienes ${totalWithImpostors}.`);
+          setShowImportErrorModal(true);
+          return;
+        }
+        
+        // Reiniciar número de ronda al iniciar nueva partida
+        setRoundNumber(1);
+        
         let selectedCat;
         
         if (categoryMode === 'all') {
@@ -3986,6 +4085,7 @@ Juega ahora: https://argentores.github.io`;
         if (!playerToEliminate) return;
         
         // Verificar si el bufón fue eliminado (gana solo) - ANTES de actualizar el estado
+        // REGLA DE BALANCE: Bufón no puede ganar si lo matan en la primera ronda
         if (playerToEliminate.isJester) {
           const updatedPlayers = gameStarted.map(p => 
             p.number === playerToEliminate.number 
@@ -3994,6 +4094,19 @@ Juega ahora: https://argentores.github.io`;
           );
           setGameStarted(updatedPlayers);
           setEliminatedPlayers([...eliminatedPlayers, playerToEliminate.number]);
+          
+          // Si es la primera ronda, el bufón NO gana
+          if (roundNumber === 1) {
+            // El bufón fue eliminado pero no gana en la primera ronda
+            // Continuar el juego normalmente
+            setVotingPlayer(null);
+            setRevealingVote(false);
+            // Incrementar ronda para la próxima votación
+            setRoundNumber(2);
+            return;
+          }
+          
+          // Si no es la primera ronda, el bufón gana normalmente
           setWinners('jester');
           // Limpiar votos y estados de votación
           if (!anonymousVoting) {
@@ -4022,6 +4135,9 @@ Juega ahora: https://argentores.github.io`;
         
         setGameStarted(updatedPlayers);
         setEliminatedPlayers([...eliminatedPlayers, playerToEliminate.number]);
+        
+        // Incrementar número de ronda después de cada eliminación
+        setRoundNumber(prev => prev + 1);
         
         // Limpiar votos públicos y resetear estado de votación anónima
         if (!anonymousVoting) {
@@ -4197,7 +4313,7 @@ Juega ahora: https://argentores.github.io`;
 
       const StepIndicator = () => (
         <div className="flex items-center justify-center gap-2 mb-6 sm:mb-8 md:mb-12 flex-wrap px-2 sm:px-4">
-          {[1, 2, 3].map((s) => (
+          {[1, 2].map((s) => (
             <div key={s} className="flex items-center">
               <div className={`w-8 h-8 sm:w-9 md:w-10 sm:h-9 md:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base md:text-lg transition-all ${
                 step >= s 
@@ -4206,15 +4322,11 @@ Juega ahora: https://argentores.github.io`;
               }`}>
                 {s}
               </div>
-              {s < 3 && <div className={`w-6 sm:w-8 h-1 mx-1 ${step > s ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-800'}`} />}
+              {s < 2 && <div className={`w-6 sm:w-8 h-1 mx-1 ${step > s ? 'bg-gradient-to-r from-purple-600 to-pink-600' : isLightMode ? 'bg-gray-300' : 'bg-gray-800'}`} />}
             </div>
           ))}
         </div>
       );
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:before-render',message:'Antes de renderizar JSX',data:{step,gameStarted:!!gameStarted,allRolesRevealed,showDiscussion,showFinalReveal,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
 
       return (
         <>
@@ -4487,7 +4599,7 @@ Juega ahora: https://argentores.github.io`;
 
                           {/* Botón para volver */}
                           {(showPlayerNamesList || showProfilesList) && (
-                            <div className="mt-4 mb-4">
+                            <div className="mt-4 mb-4 flex gap-2">
                               <button
                                 onClick={() => {
                                   setShowPlayerNamesList(false);
@@ -4501,6 +4613,37 @@ Juega ahora: https://argentores.github.io`;
                               >
                                 ← Volver
                               </button>
+                              {/* Botón para cambiar entre listas */}
+                              {showPlayerNamesList && (
+                                <button
+                                  onClick={() => {
+                                    setShowPlayerNamesList(false);
+                                    setShowProfilesList(true);
+                                  }}
+                                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                                    isLightMode 
+                                      ? 'bg-purple-200 hover:bg-purple-300 text-purple-800' 
+                                      : 'bg-purple-700 hover:bg-purple-600 text-white'
+                                  }`}
+                                >
+                                  Ver Perfiles Guardados →
+                                </button>
+                              )}
+                              {showProfilesList && (
+                                <button
+                                  onClick={() => {
+                                    setShowProfilesList(false);
+                                    setShowPlayerNamesList(true);
+                                  }}
+                                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                                    isLightMode 
+                                      ? 'bg-purple-200 hover:bg-purple-300 text-purple-800' 
+                                      : 'bg-purple-700 hover:bg-purple-600 text-white'
+                                  }`}
+                                >
+                                  Ver Lista de Jugadores →
+                                </button>
+                              )}
                             </div>
                           )}
 
@@ -4604,9 +4747,15 @@ Juega ahora: https://argentores.github.io`;
                           <div className="mt-4 flex justify-end">
                             <button
                               onClick={saveProfile}
-                              disabled={playerNames.length === 0 || playerNames.every(name => !name.trim())}
+                              disabled={(() => {
+                                const filledNamesCount = playerNames.filter(name => name && name.trim()).length;
+                                return filledNamesCount < 3 || filledNamesCount < playerCount;
+                              })()}
                               className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
-                                playerNames.length === 0 || playerNames.every(name => !name.trim())
+                                (() => {
+                                  const filledNamesCount = playerNames.filter(name => name && name.trim()).length;
+                                  return filledNamesCount < 3 || filledNamesCount < playerCount;
+                                })()
                                   ? 'bg-gray-600 cursor-not-allowed opacity-50'
                                   : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/50 hover:shadow-xl hover:scale-105'
                               }`}
@@ -4826,6 +4975,122 @@ Juega ahora: https://argentores.github.io`;
                     </div>
                     </div>
 
+                    {/* Selección de cantidad de impostores */}
+                    <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
+                      <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-4 sm:mb-5 md:mb-6 flex items-center gap-2 sm:gap-3 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Cantidad de Impostores
+                      </h2>
+                      <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Cuántos impostores habrá en el juego?</p>
+                      
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8">
+                        {(() => {
+                          const maxImpostors = getMaxImpostors(playerCount);
+                          const maxOptions = Math.min(maxImpostors, playerCount - 1, 10); // Máximo 10 opciones para no saturar
+                          const options = Array.from({ length: maxOptions }, (_, i) => i + 1);
+                          return options.map((count) => {
+                            const recommendedCount = getRecommendedImpostors(playerCount);
+                            const isRecommended = count === recommendedCount && count <= maxImpostors;
+                            // Validar también contra el límite del 50% con especiales
+                            const currentSpecialRoles = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+                            const additionalImpostorsToCount = (additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+                            const currentTotalSpecial = currentSpecialRoles + additionalImpostorsToCount;
+                            const maxTotal = Math.floor(playerCount * 0.5);
+                            const wouldExceedLimit = (count + currentTotalSpecial) > maxTotal;
+                            const isDisabled = count >= playerCount || count > maxImpostors || wouldExceedLimit;
+                            return (
+                              <button
+                                key={count}
+                                onClick={() => {
+                                  if (wouldExceedLimit) {
+                                    showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Con ${count} impostores y ${currentTotalSpecial} especiales tendrías ${count + currentTotalSpecial}.`, 'warning', 5000);
+                                    return;
+                                  }
+                                  setImpostorCount(count);
+                                }}
+                                disabled={isDisabled}
+                                className={`p-4 sm:p-6 rounded-xl font-bold text-xl sm:text-2xl transition-all duration-300 shadow-lg ${
+                                  isDisabled
+                                    ? 'bg-gray-700 opacity-30 cursor-not-allowed'
+                                    : impostorCount === count
+                                    ? `bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 ring-4 ${isRecommended ? 'ring-yellow-400' : 'ring-purple-400'} shadow-purple-500/50 transform scale-105 text-white`
+                                    : isRecommended
+                                    ? `${isLightMode ? 'bg-yellow-200 hover:bg-yellow-300 text-gray-800 ring-4 ring-yellow-500 border-2 border-yellow-500' : 'bg-yellow-900/60 hover:bg-yellow-900/70 ring-4 ring-yellow-400 border-2 border-yellow-400'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                    : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
+                                }`}
+                                style={{
+                                  position: 'relative',
+                                  ...(isRecommended ? {
+                                    border: '3px solid #fbbf24',
+                                    boxShadow: '0 0 0 3px rgba(251, 191, 36, 0.5), 0 0 10px rgba(251, 191, 36, 0.3)',
+                                    backgroundColor: isLightMode ? '#fef3c7' : 'rgba(234, 179, 8, 0.3)'
+                                  } : {})
+                                }}
+                              >
+                                {isRecommended && (
+                                  <span 
+                                    className="bg-yellow-500 text-black font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-xl border-3 border-yellow-700 text-[10px] sm:text-[11px] flex items-center justify-center" 
+                                    title="Recomendado" 
+                                    style={{
+                                      position: 'absolute',
+                                      top: '2px',
+                                      right: '2px',
+                                      zIndex: 10,
+                                      lineHeight: '1',
+                                      display: 'flex',
+                                      whiteSpace: 'nowrap',
+                                      minWidth: 'fit-content',
+                                      borderWidth: '3px',
+                                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5), 0 0 8px rgba(251, 191, 36, 0.8)'
+                                    }}
+                                  >
+                                    ⭐
+                                  </span>
+                                )}
+                                <div className="flex items-center justify-center">
+                                  {count}
+                                </div>
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+
+                      <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-800/70'} rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border-2 ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
+                        <div className="text-center mb-4">
+                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Jugadores</p>
+                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>{playerCount}</p>
+                        </div>
+                        {(() => {
+                          const specialCount = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0) + ((additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0);
+                          const hasSpecial = specialCount > 0;
+                          return (
+                            <div className={`grid gap-4 mb-4 ${hasSpecial ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                              <div className="text-center">
+                                <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Impostores</p>
+                                <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>{impostorCount}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Civiles</p>
+                                <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{playerCount - impostorCount - specialCount}</p>
+                              </div>
+                              {hasSpecial && (
+                                <div className="text-center">
+                                  <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Especiales</p>
+                                  <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>{specialCount}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <p className={`text-xs sm:text-sm text-center ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                          Los jugadores conocen la palabra secreta. ¡Los impostores deben fingir que la conocen!
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Cuadrado 3: Modo Pro (Eventos Especiales) */}
                     <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
                       <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
@@ -4872,11 +5137,21 @@ Juega ahora: https://argentores.github.io`;
                       
                       {/* Impostores Adicionales */}
                       {(() => {
+                        const minPlayersForAdditional = 5;
                         const maxAdditional = getMaxAdditionalImpostors(playerCount, impostorCount);
                         const isPremiumRequired = !isPremium;
-                        const isDisabled = playerCount < 5 || !IMPOSTORES_ADICIONALES_HABILITADOS || isPremiumRequired;
-                        // Generar opciones de probabilidad: 0, 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
-                        const probabilityOptions = [0, 1, 2, 3, 4, 5];
+                        const isDisabledByPlayers = playerCount < minPlayersForAdditional;
+                        
+                        // Validar máximo 50% de impostores + roles especiales juntos
+                        const currentSpecialRoles = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+                        const maxTotal = Math.floor(playerCount * 0.5);
+                        const currentTotal = impostorCount + currentSpecialRoles;
+                        const wouldExceedLimit = currentTotal >= maxTotal;
+                        
+                        const isDisabled = isDisabledByPlayers || !IMPOSTORES_ADICIONALES_HABILITADOS || isPremiumRequired || wouldExceedLimit;
+                        
+                        // Generar opciones de probabilidad: 1, 2, 3, 4, 5, luego de 5 en 5 hasta 50
+                        const probabilityOptions = [1, 2, 3, 4, 5];
                         for (let i = 10; i <= 50; i += 5) {
                           probabilityOptions.push(i);
                         }
@@ -4884,7 +5159,7 @@ Juega ahora: https://argentores.github.io`;
                           <>
                             {/* Card style for Additional Impostors */}
                             <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                              !IMPOSTORES_ADICIONALES_HABILITADOS || !isPremium
+                              !IMPOSTORES_ADICIONALES_HABILITADOS || !isPremium || isDisabledByPlayers || wouldExceedLimit
                                 ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
                                 : isLightMode 
                                   ? additionalImpostorsMode ? 'bg-orange-50 border border-orange-300' : 'bg-gray-50 border border-gray-200'
@@ -4893,32 +5168,36 @@ Juega ahora: https://argentores.github.io`;
                               {/* Header de la tarjeta con toggle */}
                               <div className="p-4 sm:p-5 flex items-center justify-between">
                                 <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                                  {/* Icono cuadrado naranja con rayo */}
+                                  {/* Icono cuadrado naranja con + */}
                                   <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'bg-gradient-to-r from-orange-500 to-orange-600' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
+                                    IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabledByPlayers && !wouldExceedLimit ? 'bg-gradient-to-r from-orange-500 to-orange-600' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
                                   }`}>
-                                    <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    <svg className={`w-6 h-6 sm:w-7 sm:h-7 ${IMPOSTORES_ADICIONALES_HABILITADOS && additionalImpostorsMode && !isDisabledByPlayers && !wouldExceedLimit ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                                     </svg>
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className={`text-base sm:text-lg font-bold ${
-                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium
+                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium && !isDisabledByPlayers && !wouldExceedLimit
                                         ? (isLightMode ? 'text-gray-800' : 'text-white')
                                         : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                     }`}>
                                       Impostores adicionales
                                     </p>
                                     <p className={`text-xs sm:text-sm ${
-                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium
+                                      IMPOSTORES_ADICIONALES_HABILITADOS && isPremium && !isDisabledByPlayers && !wouldExceedLimit
                                         ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
                                         : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                     }`}>
                                       {!isPremium 
                                         ? 'Requiere Pro'
-                                        : IMPOSTORES_ADICIONALES_HABILITADOS 
-                                          ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
-                                          : 'Próximamente'}
+                                        : isDisabledByPlayers
+                                          ? `Disponible a partir de ${minPlayersForAdditional} jugadores`
+                                          : wouldExceedLimit
+                                            ? `⚠️ Límite alcanzado`
+                                            : IMPOSTORES_ADICIONALES_HABILITADOS 
+                                              ? (additionalImpostorsMode ? 'Habilitado' : 'Deshabilitado')
+                                              : 'Próximamente'}
                                     </p>
                                   </div>
                                 </div>
@@ -4926,10 +5205,18 @@ Juega ahora: https://argentores.github.io`;
                                 <label className={IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled && isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}>
                                   <input
                                     type="checkbox"
-                                    checked={additionalImpostorsMode}
+                                    checked={additionalImpostorsMode && !isDisabledByPlayers && !wouldExceedLimit}
                                     onChange={(e) => {
                                       if (!isPremium) {
                                         setShowUnlockModal(true);
+                                        return;
+                                      }
+                                      if (isDisabledByPlayers) {
+                                        showToast(`Disponible a partir de ${minPlayersForAdditional} jugadores`, 'warning', 4000);
+                                        return;
+                                      }
+                                      if (wouldExceedLimit && e.target.checked) {
+                                        showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Actualmente tienes ${currentTotal}.`, 'warning', 5000);
                                         return;
                                       }
                                       if (IMPOSTORES_ADICIONALES_HABILITADOS && !isDisabled) {
@@ -4942,12 +5229,12 @@ Juega ahora: https://argentores.github.io`;
                                   <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
                                     !IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled || !isPremium
                                       ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                      : additionalImpostorsMode 
+                                      : (additionalImpostorsMode && !isDisabledByPlayers && !wouldExceedLimit)
                                         ? 'bg-gradient-to-r from-orange-500 to-orange-600' 
                                         : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
                                   }`}>
                                     <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                      additionalImpostorsMode ? 'left-7' : 'left-0.5'
+                                      (additionalImpostorsMode && !isDisabledByPlayers && !wouldExceedLimit) ? 'left-7' : 'left-0.5'
                                     } ${!IMPOSTORES_ADICIONALES_HABILITADOS || isDisabled || !isPremium ? 'opacity-50' : ''}`}></div>
                                   </div>
                                 </label>
@@ -4967,21 +5254,40 @@ Juega ahora: https://argentores.github.io`;
                                     )}
                                   </label>
                                   <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                    {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => (
-                                      <button
-                                        key={value}
-                                        onClick={() => setAdditionalImpostorsCount(value)}
-                                        className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
-                                          additionalImpostorsCount === value
-                                            ? 'bg-orange-600 text-white shadow-lg'
-                                            : isLightMode
-                                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                        }`}
-                                      >
-                                        +{value}
-                                      </button>
-                                    ))}
+                                    {Array.from({ length: Math.max(1, maxAdditional) }, (_, i) => i + 1).map((value) => {
+                                      // Validar límite del 50% al cambiar cantidad de impostores adicionales
+                                      const specialRolesCount = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+                                      const maxTotal = Math.floor(playerCount * 0.5);
+                                      const currentTotal = impostorCount + specialRolesCount;
+                                      const wouldExceedWithThisValue = additionalImpostorsProbability > 0 && (currentTotal + value) > maxTotal;
+                                      
+                                      return (
+                                        <button
+                                          key={value}
+                                          onClick={() => {
+                                            if (wouldExceedWithThisValue) {
+                                              showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Con ${value} impostores adicionales tendrías ${currentTotal + value}.`, 'warning', 5000);
+                                              return;
+                                            }
+                                            setAdditionalImpostorsCount(value);
+                                          }}
+                                          className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                            additionalImpostorsCount === value
+                                              ? 'bg-orange-600 text-white shadow-lg'
+                                              : wouldExceedWithThisValue
+                                                ? isLightMode
+                                                  ? 'bg-red-200 text-red-700 hover:bg-red-300 opacity-60'
+                                                  : 'bg-red-800 text-red-300 hover:bg-red-700 opacity-60'
+                                                : isLightMode
+                                                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                          }`}
+                                          disabled={wouldExceedWithThisValue}
+                                        >
+                                          +{value}
+                                        </button>
+                                      );
+                                    })}
                                     {maxAdditional === 0 && (
                                       <span className={`text-xs px-3 py-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
                                         No se pueden agregar más impostores (límite alcanzado)
@@ -4995,21 +5301,40 @@ Juega ahora: https://argentores.github.io`;
                                     Probabilidad de activación: {additionalImpostorsProbability}%
                                   </label>
                                   <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                    {probabilityOptions.map((value) => (
-                                      <button
-                                        key={value}
-                                        onClick={() => setAdditionalImpostorsProbability(value)}
-                                        className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
-                                          additionalImpostorsProbability === value
-                                            ? 'bg-orange-600 text-white shadow-lg'
-                                            : isLightMode
-                                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                        }`}
-                                      >
-                                        {value}%
-                                      </button>
-                                    ))}
+                                    {probabilityOptions.map((value) => {
+                                      // Validar límite del 50% al cambiar probabilidad
+                                      const specialRolesCount = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+                                      const maxTotal = Math.floor(playerCount * 0.5);
+                                      const currentTotal = impostorCount + specialRolesCount;
+                                      const wouldExceedWithThisProbability = value > 0 && (currentTotal + additionalImpostorsCount) > maxTotal;
+                                      
+                                      return (
+                                        <button
+                                          key={value}
+                                          onClick={() => {
+                                            if (wouldExceedWithThisProbability) {
+                                              showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Con ${additionalImpostorsCount} impostores adicionales tendrías ${currentTotal + additionalImpostorsCount}.`, 'warning', 5000);
+                                              return;
+                                            }
+                                            setAdditionalImpostorsProbability(value);
+                                          }}
+                                          className={`px-3 sm:px-4 py-2 text-sm font-semibold rounded transition-all min-w-[50px] text-center ${
+                                            additionalImpostorsProbability === value
+                                              ? 'bg-orange-600 text-white shadow-lg'
+                                              : wouldExceedWithThisProbability
+                                                ? isLightMode
+                                                  ? 'bg-red-200 text-red-700 hover:bg-red-300 opacity-60'
+                                                  : 'bg-red-800 text-red-300 hover:bg-red-700 opacity-60'
+                                                : isLightMode
+                                                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                          }`}
+                                          disabled={wouldExceedWithThisProbability}
+                                        >
+                                          {value}%
+                                        </button>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               </>
@@ -5022,13 +5347,23 @@ Juega ahora: https://argentores.github.io`;
 
                       {/* Modo Bufón */}
                       {(() => {
-                        const minPlayersForJester = 7;
-                        const canEnableJester = playerCount >= minPlayersForJester;
+                        // REGLA DE BALANCE: Bufón requiere mínimo 5 jugadores, pero NO en 4-5 jugadores (rompe el balance)
+                        const minPlayersForJester = 5;
+                        const maxPlayersForJester = 5; // Máximo 5 jugadores donde NO se permite
+                        const canEnableJester = playerCount >= minPlayersForJester && playerCount > maxPlayersForJester;
                         const isJesterDisabledByPlayers = !canEnableJester;
+                        
+                        // Validar máximo 50% de impostores + roles especiales juntos
+                        const currentSpecialRoles = (accompliceMode ? 1 : 0) + (lostMode ? 1 : 0);
+                        const additionalImpostorsToCount = (additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+                        const currentTotalSpecial = currentSpecialRoles + additionalImpostorsToCount;
+                        const maxTotal = Math.floor(playerCount * 0.5);
+                        const currentTotal = impostorCount + currentTotalSpecial;
+                        const wouldExceedLimit = !jesterMode && currentTotal >= maxTotal;
                         
                         return (
                           <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                            !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers
+                            !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers || wouldExceedLimit
                               ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
                               : isLightMode 
                                 ? jesterMode ? 'bg-yellow-50 border border-yellow-300' : 'bg-gray-50 border border-gray-200'
@@ -5055,50 +5390,56 @@ Juega ahora: https://argentores.github.io`;
                                     Añadir bufón
                                   </p>
                                   <p className={`text-xs sm:text-sm ${
-                                    BUFON_MODE_HABILITADO && isPremium && canEnableJester
+                                    BUFON_MODE_HABILITADO && isPremium && canEnableJester && !wouldExceedLimit
                                       ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
                                       : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                   }`}>
                                     {!isPremium 
                                       ? 'Requiere Pro'
                                       : isJesterDisabledByPlayers
-                                        ? `Requiere mínimo ${minPlayersForJester} jugadores`
-                                        : BUFON_MODE_HABILITADO 
-                                          ? (jesterMode ? 'Habilitado' : 'Deshabilitado')
-                                          : 'Próximamente'}
+                                        ? `Disponible a partir de ${minPlayersForJester + 1} jugadores`
+                                        : wouldExceedLimit
+                                          ? `⚠️ Límite alcanzado`
+                                          : BUFON_MODE_HABILITADO 
+                                            ? (jesterMode ? 'Habilitado' : 'Deshabilitado')
+                                            : 'Próximamente'}
                                   </p>
                                 </div>
                               </div>
-                              <label className={BUFON_MODE_HABILITADO && isPremium && canEnableJester ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                              <label className={BUFON_MODE_HABILITADO && isPremium && canEnableJester && !wouldExceedLimit ? 'cursor-pointer' : 'cursor-not-allowed'}>
                                 <input
                                   type="checkbox"
-                                  checked={jesterMode}
+                                  checked={jesterMode && !isJesterDisabledByPlayers && !wouldExceedLimit}
                                   onChange={(e) => {
                                     if (!isPremium) {
                                       setShowUnlockModal(true);
                                       return;
                                     }
                                     if (!canEnableJester) {
-                                      showToast(`El modo bufón requiere mínimo ${minPlayersForJester} jugadores`, 'warning', 4000);
+                                      showToast(`Disponible a partir de ${minPlayersForJester + 1} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (wouldExceedLimit && e.target.checked) {
+                                      showToast(`⚠️ Máximo ${maxSpecialRoles} rol${maxSpecialRoles !== 1 ? 'es' : ''} especial${maxSpecialRoles !== 1 ? 'es' : ''} permitido${maxSpecialRoles !== 1 ? 's' : ''} (40% de ${playerCount} jugadores). Actualmente tienes ${currentTotalSpecial}.`, 'warning', 5000);
                                       return;
                                     }
                                     if (BUFON_MODE_HABILITADO) {
                                       setJesterMode(e.target.checked);
                                     }
                                   }}
-                                  disabled={!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers}
+                                  disabled={!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers || wouldExceedLimit}
                                   className="sr-only"
                                 />
                                 <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                                  !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers
+                                  !BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers || wouldExceedLimit
                                     ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                    : jesterMode 
+                                    : (jesterMode && !isJesterDisabledByPlayers && !wouldExceedLimit)
                                       ? 'bg-yellow-500' 
                                       : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
                                 }`}>
                                   <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                    jesterMode ? 'left-7' : 'left-0.5'
-                                  } ${!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                    (jesterMode && !isJesterDisabledByPlayers && !wouldExceedLimit) ? 'left-7' : 'left-0.5'
+                                  } ${!BUFON_MODE_HABILITADO || !isPremium || isJesterDisabledByPlayers || wouldExceedLimit ? 'opacity-50' : ''}`}></div>
                                 </div>
                               </label>
                             </div>
@@ -5115,15 +5456,26 @@ Juega ahora: https://argentores.github.io`;
 
                       {/* Modo El Cómplice */}
                       {(() => {
-                        // Cómplice requiere mínimo 8 jugadores O 2 impostores
-                        const minPlayersForAccomplice = 8;
+                        // REGLA DE BALANCE: Cómplice requiere mínimo 6 jugadores, pero NO en 4-5 jugadores (rompe el balance)
+                        const minPlayersForAccomplice = 6;
+                        const maxPlayersForAccomplice = 5; // Máximo 5 jugadores donde NO se permite
                         const minImpostorsForAccomplice = 2;
-                        const canEnableAccomplice = playerCount >= minPlayersForAccomplice || impostorCount >= minImpostorsForAccomplice;
+                        // Puede habilitarse con 6+ jugadores O 2+ impostores, pero NO en 4-5 jugadores
+                        const canEnableAccomplice = (playerCount >= minPlayersForAccomplice && playerCount > maxPlayersForAccomplice) || 
+                                                     (impostorCount >= minImpostorsForAccomplice && playerCount > maxPlayersForAccomplice);
                         const isAccompliceDisabledByPlayers = !canEnableAccomplice;
+                        
+                        // Validar máximo 50% de impostores + roles especiales juntos
+                        const currentSpecialRoles = (jesterMode ? 1 : 0) + (lostMode ? 1 : 0);
+                        const additionalImpostorsToCount = (additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+                        const currentTotalSpecial = currentSpecialRoles + additionalImpostorsToCount;
+                        const maxTotal = Math.floor(playerCount * 0.5);
+                        const currentTotal = impostorCount + currentTotalSpecial;
+                        const wouldExceedLimit = !accompliceMode && currentTotal >= maxTotal;
                         
                         return (
                           <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                            !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers
+                            !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers || wouldExceedLimit
                               ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
                               : isLightMode 
                                 ? accompliceMode ? 'bg-blue-50 border border-blue-300' : 'bg-gray-50 border border-gray-200'
@@ -5149,50 +5501,56 @@ Juega ahora: https://argentores.github.io`;
                                     El Cómplice
                                   </p>
                                   <p className={`text-xs sm:text-sm ${
-                                    COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice
+                                    COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice && !wouldExceedLimit
                                       ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
                                       : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                   }`}>
                                     {!isPremium 
                                       ? 'Requiere Pro'
                                       : isAccompliceDisabledByPlayers
-                                        ? `Requiere mínimo ${minPlayersForAccomplice} jugadores`
-                                        : COMPLICE_MODE_HABILITADO 
-                                          ? (accompliceMode ? 'Habilitado' : 'Deshabilitado')
-                                          : 'Próximamente'}
+                                        ? `Disponible a partir de ${minPlayersForAccomplice} jugadores`
+                                        : wouldExceedLimit
+                                          ? `⚠️ Límite alcanzado`
+                                          : COMPLICE_MODE_HABILITADO 
+                                            ? (accompliceMode ? 'Habilitado' : 'Deshabilitado')
+                                            : 'Próximamente'}
                                   </p>
                                 </div>
                               </div>
-                              <label className={COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                              <label className={COMPLICE_MODE_HABILITADO && isPremium && canEnableAccomplice && !wouldExceedLimit ? 'cursor-pointer' : 'cursor-not-allowed'}>
                                 <input
                                   type="checkbox"
-                                  checked={accompliceMode}
+                                  checked={accompliceMode && !isAccompliceDisabledByPlayers && !wouldExceedLimit}
                                   onChange={(e) => {
                                     if (!isPremium) {
                                       setShowUnlockModal(true);
                                       return;
                                     }
                                     if (!canEnableAccomplice) {
-                                      showToast(`El modo cómplice requiere mínimo ${minPlayersForAccomplice} jugadores`, 'warning', 4000);
+                                      showToast(`Disponible a partir de ${minPlayersForAccomplice} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (wouldExceedLimit && e.target.checked) {
+                                      showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Actualmente tienes ${currentTotal}.`, 'warning', 5000);
                                       return;
                                     }
                                     if (COMPLICE_MODE_HABILITADO) {
                                       setAccompliceMode(e.target.checked);
                                     }
                                   }}
-                                  disabled={!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers}
+                                  disabled={!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers || wouldExceedLimit}
                                   className="sr-only"
                                 />
                                 <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                                  !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers
+                                  !COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers || wouldExceedLimit
                                     ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                    : accompliceMode 
+                                    : (accompliceMode && !isAccompliceDisabledByPlayers && !wouldExceedLimit)
                                       ? 'bg-blue-500' 
                                       : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
                                 }`}>
                                   <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                    accompliceMode ? 'left-7' : 'left-0.5'
-                                  } ${!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                    (accompliceMode && !isAccompliceDisabledByPlayers && !wouldExceedLimit) ? 'left-7' : 'left-0.5'
+                                  } ${!COMPLICE_MODE_HABILITADO || !isPremium || isAccompliceDisabledByPlayers || wouldExceedLimit ? 'opacity-50' : ''}`}></div>
                                 </div>
                               </label>
                             </div>
@@ -5213,9 +5571,17 @@ Juega ahora: https://argentores.github.io`;
                         const canEnableLost = playerCount >= minPlayersForLost;
                         const isLostDisabledByPlayers = !canEnableLost;
                         
+                        // Validar máximo 50% de impostores + roles especiales juntos
+                        const currentSpecialRoles = (jesterMode ? 1 : 0) + (accompliceMode ? 1 : 0);
+                        const additionalImpostorsToCount = (additionalImpostorsMode && additionalImpostorsProbability > 0) ? additionalImpostorsCount : 0;
+                        const currentTotalSpecial = currentSpecialRoles + additionalImpostorsToCount;
+                        const maxTotal = Math.floor(playerCount * 0.5);
+                        const currentTotal = impostorCount + currentTotalSpecial;
+                        const wouldExceedLimit = !lostMode && currentTotal >= maxTotal;
+                        
                         return (
                           <div className={`mb-4 rounded-xl transition-all duration-300 ${
-                            !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers
+                            !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers || wouldExceedLimit
                               ? isLightMode ? 'bg-gray-100 border border-gray-300 opacity-60' : 'bg-gray-800/50 border border-gray-800 opacity-50'
                               : isLightMode 
                                 ? lostMode ? 'bg-purple-50 border border-purple-300' : 'bg-gray-50 border border-gray-200'
@@ -5228,8 +5594,8 @@ Juega ahora: https://argentores.github.io`;
                                 }`}>
                                   <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${PERDIDO_MODE_HABILITADO && lostMode && canEnableLost ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="10"/>
-                                    <path d="M12 2v4M12 18v4M4 12H2M22 12h-2"/>
-                                    <path d="M19.07 19.07l-2.83-2.83M7.76 7.76L4.93 4.93M19.07 4.93l-2.83 2.83M7.76 16.24L4.93 19.07"/>
+                                    <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                                    <path d="M12 17h.01"/>
                                   </svg>
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -5241,50 +5607,56 @@ Juega ahora: https://argentores.github.io`;
                                     El Perdido
                                   </p>
                                   <p className={`text-xs sm:text-sm ${
-                                    PERDIDO_MODE_HABILITADO && isPremium && canEnableLost
+                                    PERDIDO_MODE_HABILITADO && isPremium && canEnableLost && !wouldExceedLimit
                                       ? (isLightMode ? 'text-gray-600' : 'text-gray-400')
                                       : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                   }`}>
                                     {!isPremium 
                                       ? 'Requiere Pro'
                                       : isLostDisabledByPlayers
-                                        ? `Requiere mínimo ${minPlayersForLost} jugadores`
-                                        : PERDIDO_MODE_HABILITADO 
-                                          ? (lostMode ? 'Habilitado' : 'Deshabilitado')
-                                          : 'Próximamente'}
+                                        ? `Disponible a partir de ${minPlayersForLost} jugadores`
+                                        : wouldExceedLimit
+                                          ? `⚠️ Límite alcanzado`
+                                          : PERDIDO_MODE_HABILITADO 
+                                            ? (lostMode ? 'Habilitado' : 'Deshabilitado')
+                                            : 'Próximamente'}
                                   </p>
                                 </div>
                               </div>
-                              <label className={PERDIDO_MODE_HABILITADO && isPremium && canEnableLost ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                              <label className={PERDIDO_MODE_HABILITADO && isPremium && canEnableLost && !wouldExceedLimit ? 'cursor-pointer' : 'cursor-not-allowed'}>
                                 <input
                                   type="checkbox"
-                                  checked={lostMode}
+                                  checked={lostMode && !isLostDisabledByPlayers && !wouldExceedLimit}
                                   onChange={(e) => {
                                     if (!isPremium) {
                                       setShowUnlockModal(true);
                                       return;
                                     }
                                     if (!canEnableLost) {
-                                      showToast(`El modo perdido requiere mínimo ${minPlayersForLost} jugadores`, 'warning', 4000);
+                                      showToast(`Disponible a partir de ${minPlayersForLost} jugadores`, 'warning', 4000);
+                                      return;
+                                    }
+                                    if (wouldExceedLimit && e.target.checked) {
+                                      showToast(`⚠️ Máximo ${maxTotal} impostores y especiales permitidos (50% de ${playerCount} jugadores). Actualmente tienes ${currentTotal}.`, 'warning', 5000);
                                       return;
                                     }
                                     if (PERDIDO_MODE_HABILITADO) {
                                       setLostMode(e.target.checked);
                                     }
                                   }}
-                                  disabled={!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers}
+                                  disabled={!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers || wouldExceedLimit}
                                   className="sr-only"
                                 />
                                 <div className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                                  !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers
+                                  !PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers || wouldExceedLimit
                                     ? `${isLightMode ? 'bg-gray-300' : 'bg-gray-700'} opacity-50`
-                                    : lostMode 
+                                    : (lostMode && !isLostDisabledByPlayers && !wouldExceedLimit)
                                       ? 'bg-purple-500' 
                                       : isLightMode ? 'bg-gray-300' : 'bg-gray-600'
                                 }`}>
                                   <div className={`w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all duration-300 ${
-                                    lostMode ? 'left-7' : 'left-0.5'
-                                  } ${!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers ? 'opacity-50' : ''}`}></div>
+                                    (lostMode && !isLostDisabledByPlayers && !wouldExceedLimit) ? 'left-7' : 'left-0.5'
+                                  } ${!PERDIDO_MODE_HABILITADO || !isPremium || isLostDisabledByPlayers || wouldExceedLimit ? 'opacity-50' : ''}`}></div>
                                 </div>
                               </label>
                             </div>
@@ -5736,7 +6108,19 @@ Juega ahora: https://argentores.github.io`;
                       <span>Volver</span>
                     </button>
                     <button
-                      onClick={() => setStep(3)}
+                      onClick={() => {
+                        if (categoryMode !== 'all' && categories.length === 0) {
+                          setImportErrorMsg('⚠️ Debes seleccionar al menos una categoría antes de continuar.');
+                          setShowImportErrorModal(true);
+                          return;
+                        }
+                        if (useNames && getDuplicateNameIndices().length > 0) {
+                          setImportErrorMsg('⚠️ Hay nombres duplicados. Por favor, usa nombres únicos para cada jugador antes de continuar.');
+                          setShowImportErrorModal(true);
+                          return;
+                        }
+                        startGame();
+                      }}
                       disabled={categoryMode !== 'all' && categories.length === 0}
                       className={`px-3 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg flex items-center gap-1.5 sm:gap-2 ${
                         categoryMode === 'all' || categories.length > 0
@@ -5744,123 +6128,14 @@ Juega ahora: https://argentores.github.io`;
                           : 'bg-gray-600 cursor-not-allowed opacity-50'
                       }`}
                     >
-                      <span>Continuar</span>
+                      <span>Iniciar Juego</span>
                       <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </button>
                   </div>
                 )}
 
-                {/* Step 3: Select Impostor Count */}
-                {step === 3 && (
-                  <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'}`}>
-                    <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Cantidad de Impostores</h2>
-                    <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>¿Cuántos impostores habrá en el juego?</p>
-                    
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8">
-                      {(() => {
-                        const maxImpostors = getMaxImpostors(playerCount);
-                        const maxOptions = Math.min(maxImpostors, playerCount - 1, 10); // Máximo 10 opciones para no saturar
-                        const options = Array.from({ length: maxOptions }, (_, i) => i + 1);
-                        return options.map((count) => {
-                          const recommendedCount = getRecommendedImpostors(playerCount);
-                          const isRecommended = count === recommendedCount && count <= maxImpostors;
-                          const isDisabled = count >= playerCount || count > maxImpostors;
-                          console.log(`Count: ${count}, Recommended: ${recommendedCount}, Max: ${maxImpostors}, PlayerCount: ${playerCount}, IsRecommended: ${isRecommended}, IsDisabled: ${isDisabled}`);
-                          return (
-                            <button
-                            key={count}
-                            onClick={() => setImpostorCount(count)}
-                            disabled={isDisabled}
-                            className={`p-4 sm:p-6 rounded-xl font-bold text-xl sm:text-2xl transition-all duration-300 shadow-lg ${
-                              isDisabled
-                                ? 'bg-gray-700 opacity-30 cursor-not-allowed'
-                                : impostorCount === count
-                                ? `bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 ring-4 ${isRecommended ? 'ring-yellow-400' : 'ring-purple-400'} shadow-purple-500/50 transform scale-105 text-white`
-                                : isRecommended
-                                ? `${isLightMode ? 'bg-yellow-200 hover:bg-yellow-300 text-gray-800 ring-4 ring-yellow-500 border-2 border-yellow-500' : 'bg-yellow-900/60 hover:bg-yellow-900/70 ring-4 ring-yellow-400 border-2 border-yellow-400'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
-                                : `${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90'} hover:shadow-xl hover:scale-105 backdrop-blur-sm`
-                            }`}
-                            style={{
-                              position: 'relative',
-                              ...(isRecommended ? {
-                                border: '3px solid #fbbf24',
-                                boxShadow: '0 0 0 3px rgba(251, 191, 36, 0.5), 0 0 10px rgba(251, 191, 36, 0.3)',
-                                backgroundColor: isLightMode ? '#fef3c7' : 'rgba(234, 179, 8, 0.3)'
-                              } : {})
-                            }}
-                          >
-                            {isRecommended && (
-                              <span 
-                                className="bg-yellow-500 text-black font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full leading-none shadow-xl border-3 border-yellow-700 text-[10px] sm:text-[11px] flex items-center justify-center" 
-                                title="Recomendado" 
-                                style={{
-                                  position: 'absolute',
-                                  top: '2px',
-                                  right: '2px',
-                                  zIndex: 10,
-                                  lineHeight: '1',
-                                  display: 'flex',
-                                  whiteSpace: 'nowrap',
-                                  minWidth: 'fit-content',
-                                  borderWidth: '3px',
-                                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5), 0 0 8px rgba(251, 191, 36, 0.8)'
-                                }}
-                              >
-                                ⭐
-                              </span>
-                            )}
-                            <div className="flex items-center justify-center">
-                              {count}
-                            </div>
-                          </button>
-                          );
-                        });
-                      })()}
-                    </div>
-
-                    <div className={`${isLightMode ? 'bg-gray-100' : 'bg-gray-800/70'} rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border-2 ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="text-center">
-                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Jugadores</p>
-                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>{playerCount}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Impostores</p>
-                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>{impostorCount}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-1`}>Jugadores</p>
-                          <p className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{playerCount - impostorCount}</p>
-                        </div>
-                      </div>
-                      <p className={`text-xs sm:text-sm text-center ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                        Los jugadores conocen la palabra secreta. ¡Los impostores deben fingir que la conocen!
-                      </p>
-                    </div>
-
-                    <div className={`flex justify-between items-center pt-4 border-t gap-2 ${isLightMode ? 'border-gray-300' : 'border-gray-700'}`}>
-                      <button
-                        onClick={() => setStep(2)}
-                        className={`px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-105 ${isLightMode ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' : 'bg-gray-700/80 hover:bg-gray-600/90 text-white'}`}
-                      >
-                        {'<'} Volver
-                      </button>
-                      <button
-                        onClick={startGame}
-                        disabled={impostorCount > getMaxImpostors(playerCount) || (useNames && getDuplicateNameIndices().length > 0)}
-                        className={`px-6 sm:px-8 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base shadow-lg ${
-                          impostorCount > getMaxImpostors(playerCount) || (useNames && getDuplicateNameIndices().length > 0)
-                            ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-green-500/50 hover:shadow-xl hover:scale-105'
-                        }`}
-                      >
-                        Iniciar Juego 🎮
-                      </button>
-                    </div>
-                  </div>
-                )}
               </>
             ) : currentlyRevealingPlayer && !allRolesRevealed ? (
               // Vista de revelación individual del jugador con animación 3D de carta (fase inicial)
@@ -5988,13 +6263,19 @@ Juega ahora: https://argentores.github.io`;
                               )}
                             </div>
                           ) : currentlyRevealingPlayer.isLost ? (
-                            // El Perdido se muestra como jugador normal, sin revelar su rol especial
-                            <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
-                              <p className="text-4xl sm:text-5xl mb-3">✅</p>
-                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                Tu palabra es:
+                            // REGLA DE BALANCE: Perdido sabe que es Perdido, pero no sabe quién es impostor
+                            <div className={`${isLightMode ? 'bg-purple-100 border-2 border-purple-300' : 'bg-purple-900/50 border-2 border-purple-500'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">🔍</p>
+                              <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>
+                                🔍 ERES EL PERDIDO 🔍
                               </p>
-                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{currentlyRevealingPlayer.word}</p>
+                              <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                Tu palabra es diferente a la de los demás:
+                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>{currentlyRevealingPlayer.word}</p>
+                              <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-purple-700' : 'text-purple-300'}`}>
+                                ⚠️ No sabes quién es el impostor
+                              </p>
                             </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
@@ -7036,7 +7317,7 @@ Juega ahora: https://argentores.github.io`;
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>V BETA 0.12.1</p>
+              <p>V BETA 0.14.1</p>
               <p className="mt-1">©2026 Argentores. Hecho por LosTomobri</p>
             </div>
           </div>
@@ -7667,47 +7948,41 @@ Juega ahora: https://argentores.github.io`;
       );
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/6251a0c8-d6b1-4626-8ad8-d2956cbcfa9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:before-render-root',message:'Antes de renderizar en root',data:{hasReact:typeof React !== 'undefined',hasReactDOM:typeof ReactDOM !== 'undefined',timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-
     // Flag para prevenir múltiples inicializaciones
     let appInitialized = false;
     let retryCount = 0;
-    const MAX_RETRIES = 50; // Máximo 5 segundos (50 * 100ms)
+    const MAX_RETRIES = 3; // Solo 3 reintentos
 
-    // Verificar que todas las dependencias estén cargadas
+    // Verificar que todas las dependencias estén cargadas (SIMPLIFICADO)
     function checkDependencies() {
-      const hasReact = typeof React !== 'undefined';
-      const hasReactDOM = typeof ReactDOM !== 'undefined';
-      const hasBabel = typeof Babel !== 'undefined';
-      
-      if (!hasReact || !hasReactDOM) {
-        console.log(`⏳ Esperando dependencias... React: ${hasReact}, ReactDOM: ${hasReactDOM}, Babel: ${hasBabel}`);
-        return false;
-      }
-      
-      // Verificar que ReactDOM tenga los métodos necesarios
-      if (typeof ReactDOM.createRoot === 'undefined' && typeof ReactDOM.render === 'undefined') {
-        console.log('⏳ ReactDOM no tiene métodos de renderizado disponibles');
-        return false;
-      }
-      
-      return true;
+      return typeof React !== 'undefined' && 
+             typeof ReactDOM !== 'undefined' && 
+             (typeof ReactDOM.createRoot !== 'undefined' || typeof ReactDOM.render !== 'undefined');
     }
 
     // Mostrar mensaje de error
     function showError(message, details = '') {
+      console.error('Showing error:', message, details);
       const rootEl = document.getElementById('root');
       if (rootEl) {
+        // Forzar eliminar pantalla de carga primero
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          loadingScreen.style.display = 'none';
+        }
+        document.body.classList.remove('loading');
+        document.documentElement.classList.remove('loading');
+        
+        // Mostrar error con fondo visible
         rootEl.innerHTML = `
-          <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-            <h1 style="color: #9333ea; margin-bottom: 20px;">⚠️ Error de Carga</h1>
-            <p style="margin-bottom: 10px;">${message}</p>
-            ${details ? `<p style="margin-bottom: 20px; font-size: 14px; color: #999;">${details}</p>` : ''}
-            <button onclick="location.reload()" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px;">
-              Recargar Página
+          <div style="padding: 20px; text-align: center; color: white; background: #1a1a1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999999;">
+            <h1 style="color: #9333ea; margin-bottom: 20px; font-size: 24px;">⚠️ Error de Carga</h1>
+            <p style="margin-bottom: 10px; font-size: 16px; max-width: 500px;">${message}</p>
+            ${details ? `<p style="margin-bottom: 20px; font-size: 14px; color: #999; max-width: 500px;">${details}</p>` : ''}
+            <button onclick="location.reload()" style="padding: 12px 24px; background: #9333ea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; font-weight: bold;">
+              🔄 Recargar Página
             </button>
+            <p style="margin-top: 20px; font-size: 12px; color: #666;">Si el problema persiste, verifica tu conexión a internet</p>
           </div>
         `;
       }
@@ -7719,130 +7994,113 @@ Juega ahora: https://argentores.github.io`;
       console.log('Cargando:', message);
     }
 
-    // Esperar a que los scripts se carguen e inicializar la app
+    // Esperar a que los scripts se carguen e inicializar la app (SIMPLIFICADO)
     function initApp() {
-      // Prevenir múltiples inicializaciones
+      console.log('🔧 initApp llamado, appInitialized:', appInitialized, 'retryCount:', retryCount);
       if (appInitialized) {
+        console.log('⚠️ App ya inicializada, saliendo');
         return;
       }
 
       // Verificar dependencias
-      if (!checkDependencies()) {
+      const depsReady = checkDependencies();
+      console.log('📦 Dependencias:', {
+        React: typeof React !== 'undefined',
+        ReactDOM: typeof ReactDOM !== 'undefined',
+        createRoot: typeof ReactDOM?.createRoot !== 'undefined',
+        render: typeof ReactDOM?.render !== 'undefined',
+        ready: depsReady
+      });
+      
+      if (!depsReady) {
         retryCount++;
-        
+        console.log('⏳ Reintentando cargar dependencias... intento', retryCount, 'de', MAX_RETRIES);
         if (retryCount > MAX_RETRIES) {
-          showError(
-            'No se pudieron cargar las dependencias necesarias después de varios intentos.',
-            'Si usas Brave o un bloqueador de anuncios, verifica que los scripts no estén bloqueados. Intenta recargar la página.'
-          );
+          console.error('❌ No se pudieron cargar las dependencias después de', MAX_RETRIES, 'intentos');
+          showError('Error al cargar recursos', 'Las librerías necesarias no se pudieron cargar. Por favor, verifica tu conexión a internet y recarga la página.');
           return;
         }
-
-        // Log del progreso (sin actualizar UI, solo mantener animación)
-        if (retryCount % 5 === 0) {
-          console.log(`Cargando recursos... (${retryCount}/${MAX_RETRIES})`);
-        }
-        
-        // Reintentar con backoff exponencial (máximo 500ms)
-        const delay = Math.min(100 * Math.pow(1.1, retryCount), 500);
-        setTimeout(initApp, delay);
+        setTimeout(initApp, 800);
         return;
       }
 
-      // Si llegamos aquí, las dependencias están listas
       try {
         const rootElement = document.getElementById('root');
         if (!rootElement) {
+          console.error('❌ Root element no encontrado');
           throw new Error('Root element not found');
         }
 
-        console.log('✅ Todas las dependencias cargadas, inicializando app...');
+        console.log('✅ Inicializando app con React...');
 
-        // Verificar si está en modo standalone (app instalada)
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-        const isIOSStandalone = window.navigator.standalone === true;
-        const isInstalledApp = isStandalone || isIOSStandalone;
-        
-        // Si es app instalada, asegurar que la pantalla de carga se muestre por más tiempo
-        const loadingDelay = isInstalledApp ? 500 : 100;
-
-        // Ocultar pantalla de carga y restaurar scroll
+        // Ocultar pantalla de carga
         const loadingScreen = document.getElementById('loading-screen');
         if (loadingScreen) {
+          console.log('🌟 Ocultando pantalla de carga...');
           setTimeout(() => {
             loadingScreen.classList.add('hidden');
-            // Remover clase loading para restaurar scroll
             document.documentElement.classList.remove('loading');
             document.body.classList.remove('loading');
             setTimeout(() => {
               loadingScreen.style.display = 'none';
+              console.log('✅ Pantalla de carga oculta');
             }, 300);
-          }, loadingDelay);
-        } else {
-          // Si no hay loading screen, asegurar que el scroll funcione
-          document.documentElement.classList.remove('loading');
-          document.body.classList.remove('loading');
+          }, 100);
         }
 
-        // Intentar usar createRoot (React 18+)
+        // Renderizar app
+        console.log('🎨 Renderizando componente ImpostorGame...');
         if (typeof ReactDOM.createRoot !== 'undefined') {
+          console.log('📱 Usando ReactDOM.createRoot (React 18+)');
           const root = ReactDOM.createRoot(rootElement);
           root.render(<ImpostorGame />);
-          appInitialized = true;
-          console.log('✅ App inicializada con ReactDOM.createRoot');
-        } 
-        // Fallback a render (React 17 y anteriores)
-        else if (typeof ReactDOM.render !== 'undefined') {
+        } else {
+          console.log('📱 Usando ReactDOM.render (React 17)');
           ReactDOM.render(<ImpostorGame />, rootElement);
-          appInitialized = true;
-          console.log('✅ App inicializada con ReactDOM.render');
-        } 
-        else {
-          throw new Error('ReactDOM method not available');
         }
+        appInitialized = true;
+        console.log('✅ App inicializada correctamente!');
       } catch (error) {
-        console.error('❌ Error rendering app:', error);
-        showError(
-          `Error al renderizar la aplicación: ${error.message}`,
-          'Por favor, recarga la página. Si el problema persiste, verifica la consola del navegador para más detalles.'
-        );
+        console.error('❌ Error al inicializar:', error);
+        console.error('Stack trace:', error.stack);
+        showError('Error al inicializar la aplicación', 'Detalles técnicos: ' + error.message);
       }
     }
 
-    // Estrategia de inicialización mejorada
+    // Estrategia de inicialización SIMPLIFICADA
     function startInitialization() {
-      console.log('🚀 Iniciando proceso de carga...');
+      console.log('🚀 Iniciando app...');
+      console.log('🌐 User Agent:', navigator.userAgent);
+      console.log('💻 Navegador:', {
+        isChrome: /Chrome/.test(navigator.userAgent),
+        isFirefox: /Firefox/.test(navigator.userAgent),
+        isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+        isEdge: /Edge/.test(navigator.userAgent)
+      });
       
-      // Intentar inicializar inmediatamente si el DOM ya está listo
+      // FAILSAFE: Forzar ocultar pantalla después de 3 segundos
+      setTimeout(() => {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+          console.warn('⚠️ Timeout: forzando ocultar pantalla');
+          loadingScreen.classList.add('hidden');
+          document.documentElement.classList.remove('loading');
+          document.body.classList.remove('loading');
+          setTimeout(() => loadingScreen.style.display = 'none', 300);
+        }
+      }, 3000);
+      
+      // Inicializar cuando el DOM esté listo
       if (document.readyState !== 'loading') {
-        console.log('📄 DOM ya cargado, iniciando verificación de dependencias...');
+        console.log('📝 DOM ya cargado, inicializando...');
         setTimeout(initApp, 50);
       } else {
-        // Esperar a que el DOM esté listo
+        console.log('⏳ Esperando DOMContentLoaded...');
         document.addEventListener('DOMContentLoaded', () => {
-          console.log('📄 DOM cargado, iniciando verificación de dependencias...');
+          console.log('✅ DOMContentLoaded disparado');
           setTimeout(initApp, 50);
         });
       }
-
-      // Fallback: intentar después de que la ventana cargue completamente
-      window.addEventListener('load', () => {
-        console.log('🌐 Ventana completamente cargada');
-        if (!appInitialized) {
-          console.log('🔄 Intentando inicializar después de window.load...');
-          setTimeout(initApp, 100);
-        }
-      });
-
-      // Fallback adicional: intentar periódicamente si aún no se ha inicializado
-      const fallbackInterval = setInterval(() => {
-        if (!appInitialized && retryCount < MAX_RETRIES) {
-          console.log('🔄 Reintento automático de inicialización...');
-          initApp();
-        } else {
-          clearInterval(fallbackInterval);
-        }
-      }, 500);
     }
 
     // Iniciar el proceso
@@ -7858,8 +8116,28 @@ Juega ahora: https://argentores.github.io`;
       }
       
       function registerSW() {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .then((registration) => {
+        // Primero, limpiar cualquier service worker antiguo y cachés
+        console.log('🧹 Limpiando service workers y cachés antiguos...');
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            const scriptURL = registration.active?.scriptURL || '';
+            console.log('🗑️ Desregistrando SW:', scriptURL);
+            registration.unregister();
+          }
+        }).then(() => {
+          console.log('🧹 Limpiando todos los cachés...');
+          return caches.keys().then(function(cacheNames) {
+            return Promise.all(
+              cacheNames.map(function(cacheName) {
+                console.log('🗑️ Eliminando caché:', cacheName);
+                return caches.delete(cacheName);
+              })
+            );
+          });
+        }).then(() => {
+          console.log('✅ Cachés limpiados, registrando nuevo SW...');
+          return navigator.serviceWorker.register('./sw.js', { scope: './' });
+        }).then((registration) => {
             console.log('✅ SW registered successfully:', registration.scope);
             
             // Verificar estado del service worker
@@ -7935,4 +8213,5 @@ Juega ahora: https://argentores.github.io`;
     }
   </script>
 </body>
+</html>
 </html>
