@@ -648,6 +648,25 @@
       </svg>
     );
 
+    // Icono de bufón (jester) con sombrero de bufón
+    const JesterIcon = ({ size = 24, className = "", fill = "currentColor" }) => (
+      <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {/* Cabeza */}
+        <circle cx="12" cy="14" r="6" fill={fill} stroke="currentColor"/>
+        {/* Sombrero de bufón - parte superior con picos */}
+        <path d="M6 8 L12 4 L18 8 L16 10 L8 10 Z" fill={fill} stroke="currentColor"/>
+        {/* Campanillas en el sombrero */}
+        <circle cx="9" cy="9" r="1" fill="currentColor"/>
+        <circle cx="12" cy="6" r="1" fill="currentColor"/>
+        <circle cx="15" cy="9" r="1" fill="currentColor"/>
+        {/* Ojos */}
+        <circle cx="10" cy="13" r="1" fill="currentColor"/>
+        <circle cx="14" cy="13" r="1" fill="currentColor"/>
+        {/* Sonrisa */}
+        <path d="M9 16 Q12 18 15 16" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+      </svg>
+    );
+
     const GamepadIcon = ({ size = 24, className = "" }) => (
       <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 12h4m-2-2v4m8-4v.01M18 12v.01M6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path>
@@ -1225,6 +1244,131 @@
         }
       }, []);
 
+      // Sistema de racha - inicialización basada en partidas jugadas
+      useEffect(() => {
+        const savedGamesPlayed = parseInt(localStorage.getItem('impostorGame_gamesPlayed') || '0');
+        const savedStreak = parseInt(localStorage.getItem('impostorGame_streak') || '0');
+        const savedRecoveryUsed = localStorage.getItem('impostorGame_recoveryUsed') === 'true';
+
+        setGamesPlayed(savedGamesPlayed);
+        setRecoveryUsed(savedRecoveryUsed);
+        
+        // La racha se activa después de 3 partidas
+        // La racha es el número de "grupos de 3 partidas" completados
+        if (savedGamesPlayed >= 3) {
+          const calculatedStreak = Math.floor(savedGamesPlayed / 3);
+          setStreak(calculatedStreak);
+        } else {
+          setStreak(0);
+        }
+      }, []);
+
+      // Detectar cuando se completa una partida para actualizar la racha
+      useEffect(() => {
+        if (showFinalReveal && winners !== null) {
+          // Partida completada - incrementar contador
+          const currentGames = parseInt(localStorage.getItem('impostorGame_gamesPlayed') || '0');
+          const newGamesPlayed = currentGames + 1;
+          
+          setGamesPlayed(newGamesPlayed);
+          localStorage.setItem('impostorGame_gamesPlayed', newGamesPlayed.toString());
+          
+          // Actualizar racha (se activa después de 3 partidas)
+          const newStreak = Math.floor(newGamesPlayed / 3);
+          setStreak(newStreak);
+          localStorage.setItem('impostorGame_streak', newStreak.toString());
+        }
+      }, [showFinalReveal, winners, recoveryUsed]);
+
+      // Contador de usuarios en vivo - usando CountAPI (gratis, funciona en GitHub Pages)
+      useEffect(() => {
+        // Si está offline, no intentar actualizar
+        if (!navigator.onLine) {
+          setLiveUserCount(null);
+          setIsLoadingUsers(false);
+          return;
+        }
+
+        const updateLiveUserCount = async () => {
+          // Verificar conexión antes de intentar
+          if (!navigator.onLine) {
+            setLiveUserCount(null);
+            setIsLoadingUsers(false);
+            return;
+          }
+
+          try {
+            setIsLoadingUsers(true);
+            // Usar CountAPI para el contador en tiempo real
+            // Primero incrementar el contador (simula un usuario activo)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            await fetch('https://api.countapi.xyz/hit/argentores-live-users', {
+              method: 'GET',
+              mode: 'cors',
+              signal: controller.signal
+            }).catch(() => {
+              clearTimeout(timeoutId);
+            }); // Ignorar errores silenciosamente
+            clearTimeout(timeoutId);
+
+            // Obtener el valor actual
+            const controller2 = new AbortController();
+            const timeoutId2 = setTimeout(() => controller2.abort(), 5000);
+            
+            const response = await fetch('https://api.countapi.xyz/get/argentores-live-users', {
+              method: 'GET',
+              mode: 'cors',
+              signal: controller2.signal
+            });
+            clearTimeout(timeoutId2);
+            
+            if (response.ok) {
+              const data = await response.json();
+              setLiveUserCount(data.value || 0);
+            } else {
+              // Si falla, mostrar línea (null)
+              setLiveUserCount(null);
+            }
+          } catch (error) {
+            // Si hay error, mostrar línea (null) en lugar de números random
+            setLiveUserCount(null);
+          } finally {
+            setIsLoadingUsers(false);
+          }
+        };
+
+        updateLiveUserCount();
+        
+        // Actualizar cada 30 segundos solo si está online
+        const interval = setInterval(() => {
+          if (navigator.onLine) {
+            updateLiveUserCount();
+          } else {
+            setLiveUserCount(null);
+          }
+        }, 30000);
+        
+        // Escuchar cambios de conexión
+        const handleOnline = () => {
+          updateLiveUserCount();
+        };
+        const handleOffline = () => {
+          setLiveUserCount(null);
+          setIsLoadingUsers(false);
+        };
+        
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        
+        return () => {
+          clearInterval(interval);
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+        };
+      }, []);
+
       const handleUpdate = async () => {
         if (waitingWorker) {
           waitingWorker.postMessage({ type: 'SKIP_WAITING' });
@@ -1447,6 +1591,16 @@ Juega ahora: https://argentores.github.io`;
       });
       const [showUnlockModal, setShowUnlockModal] = useState(false);
       const [premiumCodeInput, setPremiumCodeInput] = useState('');
+      
+      // Estados para sistema de racha (basado en partidas)
+      const [streak, setStreak] = useState(0);
+      const [gamesPlayed, setGamesPlayed] = useState(0);
+      const [recoveryUsed, setRecoveryUsed] = useState(false);
+      const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+      
+      // Estados para contador de usuarios en vivo
+      const [liveUserCount, setLiveUserCount] = useState(null); // null = no disponible (offline/error)
+      const [isLoadingUsers, setIsLoadingUsers] = useState(true);
       const [premiumError, setPremiumError] = useState('');
 
       const categoryList = [
@@ -4164,11 +4318,21 @@ Juega ahora: https://argentores.github.io`;
           // Si es la primera ronda, el bufón NO gana
           if (roundNumber === 1) {
             // El bufón fue eliminado pero no gana en la primera ronda
-            // Continuar el juego normalmente
-            setVotingPlayer(null);
-            setRevealingVote(false);
-            // Incrementar ronda para la próxima votación
-            setRoundNumber(2);
+            // Mostrar pantalla de revelación con botón "Continuar Juego"
+            setVotingPlayer(playerToEliminate);
+            setRevealingVote(true);
+            
+            // Limpiar votos públicos y resetear estado de votación anónima
+            if (!anonymousVoting) {
+              setPublicVotes({});
+            } else {
+              setVotingStarted(false);
+              setCurrentVotingPlayerIndex(0);
+              setAnonymousVotes({});
+              setSelectedVoteTarget(null);
+            }
+            
+            // NO incrementar ronda todavía - se hará cuando se presione "Continuar Juego"
             return;
           }
           
@@ -4217,7 +4381,8 @@ Juega ahora: https://argentores.github.io`;
         }
         
         let newImpostorsRemaining = impostorsRemaining;
-        if (votingPlayer && votingPlayer.isImpostor) {
+        // Verificar si el jugador eliminado es un impostor (no el que está votando)
+        if (playerToEliminate && playerToEliminate.isImpostor) {
           newImpostorsRemaining = impostorsRemaining - 1;
           setImpostorsRemaining(newImpostorsRemaining);
         }
@@ -4543,6 +4708,158 @@ Juega ahora: https://argentores.github.io`;
               <p className={`text-base sm:text-lg md:text-xl ${isLightMode ? 'text-gray-700' : 'text-purple-200'}`}>Encuentra al impostor.</p>
             </div>
 
+            {/* Sistema de Racha y Contador de Usuarios en Vivo - Solo visible en el inicio */}
+            {!gameStarted && (
+            <div className={`${isLightMode ? 'bg-white/90' : 'bg-gray-900/80'} backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-800'} mb-4 sm:mb-6`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                {/* Sistema de Racha */}
+                <div className={`${isLightMode ? 'bg-gradient-to-br from-purple-50 to-pink-50' : 'bg-gradient-to-br from-purple-900/30 to-pink-900/30'} rounded-xl p-4 sm:p-5 border ${isLightMode ? 'border-purple-200' : 'border-purple-700/50'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <h3 className={`text-base sm:text-lg font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        Racha de Partidas
+                      </h3>
+                    </div>
+                    {streak > 0 && (
+                      <span className={`text-xs sm:text-sm px-2 py-1 rounded-full ${isLightMode ? 'bg-purple-100 text-purple-700' : 'bg-purple-800/50 text-purple-300'}`}>
+                        🔥 {streak} racha{streak !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-3xl sm:text-4xl font-bold ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>
+                      {streak > 0 ? '🔥' : '💤'}
+                    </div>
+                    <div>
+                      <div className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        {streak}
+                      </div>
+                      <div className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {streak === 0 
+                          ? gamesPlayed < 3 
+                            ? `${gamesPlayed}/3 partidas - Juega ${3 - gamesPlayed} más para activar`
+                            : 'Inicia tu racha'
+                          : streak === 1 
+                            ? 'Racha activa - ¡Sigue jugando!' 
+                            : `${streak} rachas completadas`
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  {streak === 0 && !recoveryUsed && gamesPlayed > 0 && gamesPlayed < 3 && (
+                    <button
+                      onClick={() => setShowRecoveryModal(true)}
+                      className={`mt-3 w-full py-2 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                        isLightMode 
+                          ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+                          : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                      }`}
+                    >
+                      🔄 Recuperar Racha (1 vez)
+                    </button>
+                  )}
+                </div>
+
+                {/* Contador de Usuarios en Vivo */}
+                <div className={`${isLightMode ? 'bg-gradient-to-br from-blue-50 to-cyan-50' : 'bg-gradient-to-br from-blue-900/30 to-cyan-900/30'} rounded-xl p-4 sm:p-5 border ${isLightMode ? 'border-blue-200' : 'border-blue-700/50'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      <h3 className={`text-base sm:text-lg font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        Usuarios en Vivo
+                      </h3>
+                    </div>
+                    {liveUserCount !== null && (
+                      <div className={`w-2 h-2 rounded-full ${isLoadingUsers ? 'bg-gray-400 animate-pulse' : 'bg-green-500 animate-pulse'}`}></div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-3xl sm:text-4xl font-bold ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                      👥
+                    </div>
+                    <div>
+                      <div className={`text-2xl sm:text-3xl font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                        {liveUserCount === null ? (
+                          <span className={`${isLightMode ? 'text-gray-400' : 'text-gray-500'}`}>—</span>
+                        ) : isLoadingUsers ? (
+                          '...'
+                        ) : (
+                          liveUserCount
+                        )}
+                      </div>
+                      <div className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {liveUserCount === null 
+                          ? 'No disponible' 
+                          : isLoadingUsers 
+                            ? 'Cargando...' 
+                            : 'jugando ahora'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            )}
+
+            {/* Modal de Recuperación de Racha */}
+            {showRecoveryModal && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className={`${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border ${isLightMode ? 'border-gray-200' : 'border-gray-700'}`}>
+                  <div className="text-center mb-6">
+                    <div className="text-5xl mb-4">🔄</div>
+                    <h3 className={`text-2xl font-bold mb-2 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                      Recuperar Racha
+                    </h3>
+                    <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                      ¿Deseas recuperar tu racha? Esta opción solo se puede usar una vez.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Recuperar estableciendo partidas jugadas a 3 (mínimo para activar racha)
+                        const currentGames = parseInt(localStorage.getItem('impostorGame_gamesPlayed') || '0');
+                        const recoveredGames = Math.max(3, currentGames);
+                        setGamesPlayed(recoveredGames);
+                        localStorage.setItem('impostorGame_gamesPlayed', recoveredGames.toString());
+                        
+                        const recoveredStreak = Math.floor(recoveredGames / 3);
+                        setStreak(recoveredStreak);
+                        setRecoveryUsed(true);
+                        setShowRecoveryModal(false);
+                        localStorage.setItem('impostorGame_streak', recoveredStreak.toString());
+                        localStorage.setItem('impostorGame_recoveryUsed', 'true');
+                        showToast(`¡Racha recuperada! ${recoveredStreak} racha${recoveredStreak !== 1 ? 's' : ''}`, 'success', 3000);
+                      }}
+                      className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
+                        isLightMode 
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white' 
+                          : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                      }`}
+                    >
+                      Sí, recuperar
+                    </button>
+                    <button
+                      onClick={() => setShowRecoveryModal(false)}
+                      className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
+                        isLightMode 
+                          ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' 
+                          : 'bg-gray-700 hover:bg-gray-600 text-white'
+                      }`}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!gameStarted ? (
               <>
                 <StepIndicator />
@@ -4600,7 +4917,7 @@ Juega ahora: https://argentores.github.io`;
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-base sm:text-lg font-bold ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                              Nombres personalizados
+                              Nombres Personalizados
                             </p>
                             <p className={`text-xs sm:text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
                               {useNames ? 'Habilitado' : 'Deshabilitado'}
@@ -5440,12 +5757,7 @@ Juega ahora: https://argentores.github.io`;
                                 <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                   BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'bg-yellow-500' : (isLightMode ? 'bg-gray-300' : 'bg-gray-700')
                                 }`}>
-                                  <svg className={`w-8 h-8 sm:w-9 sm:h-9 ${BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <circle cx="9" cy="9" r="1.5"/>
-                                    <circle cx="15" cy="9" r="1.5"/>
-                                    <path d="M8 14c1.5 2 4.5 2 6 0"/>
-                                  </svg>
+                                  <JesterIcon size={36} className={`${BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'text-white' : (isLightMode ? 'text-gray-500' : 'text-gray-400')}`} fill={BUFON_MODE_HABILITADO && jesterMode && canEnableJester ? 'currentColor' : (isLightMode ? 'currentColor' : 'currentColor')}/>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-base sm:text-lg font-bold ${
@@ -5453,7 +5765,7 @@ Juega ahora: https://argentores.github.io`;
                                       ? (isLightMode ? 'text-gray-800' : 'text-white')
                                       : (isLightMode ? 'text-gray-500' : 'text-gray-500')
                                   }`}>
-                                    Añadir bufón
+                                    Añadir Bufón
                                   </p>
                                   <p className={`text-xs sm:text-sm ${
                                     BUFON_MODE_HABILITADO && isPremium && canEnableJester && !wouldExceedLimit
@@ -5512,7 +5824,7 @@ Juega ahora: https://argentores.github.io`;
                             {BUFON_MODE_HABILITADO && jesterMode && isPremium && canEnableJester && (
                               <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
                                 <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                  Si eliminan al bufón, gana solo. El bufón conoce la palabra secreta.
+                                  Gana si lo eliminan (no aplica en la primera ronda)
                                 </p>
                               </div>
                             )}
@@ -5623,7 +5935,7 @@ Juega ahora: https://argentores.github.io`;
                             {COMPLICE_MODE_HABILITADO && accompliceMode && isPremium && canEnableAccomplice && (
                               <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-opacity-20" style={{borderColor: isLightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}}>
                                 <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                  Ayuda al impostor. Conoce la palabra secreta y quién es el impostor, pero juega como un civil.
+                                  Conoce la palabra secreta y a uno de los impostores, juega como civil y puede ayudar a los impostores.
                                 </p>
                               </div>
                             )}
@@ -6291,7 +6603,9 @@ Juega ahora: https://argentores.github.io`;
                             </div>
                           ) : currentlyRevealingPlayer.isJester ? (
                             <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-300' : 'bg-yellow-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
-                              <p className="text-4xl sm:text-5xl mb-3">😊</p>
+                              <div className="flex justify-center mb-3">
+                                <JesterIcon size={64} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                              </div>
                               <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
                                 ¡Eres el BUFÓN!
                               </p>
@@ -6329,19 +6643,13 @@ Juega ahora: https://argentores.github.io`;
                               )}
                             </div>
                           ) : currentlyRevealingPlayer.isLost ? (
-                            // REGLA DE BALANCE: Perdido sabe que es Perdido, pero no sabe quién es impostor
-                            <div className={`${isLightMode ? 'bg-purple-100 border-2 border-purple-300' : 'bg-purple-900/50 border-2 border-purple-500'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
-                              <p className="text-4xl sm:text-5xl mb-3">🔍</p>
-                              <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>
-                                🔍 ERES EL PERDIDO 🔍
-                              </p>
+                            // El Perdido no sabe que es el Perdido - se muestra como inocente normal pero con otra palabra
+                            <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
+                              <p className="text-4xl sm:text-5xl mb-3">✅</p>
                               <p className={`text-sm sm:text-base mb-3 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                Tu palabra es diferente a la de los demás:
+                                Tu palabra es:
                               </p>
-                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>{currentlyRevealingPlayer.word}</p>
-                              <p className={`text-xs sm:text-sm mt-3 ${isLightMode ? 'text-purple-700' : 'text-purple-300'}`}>
-                                ⚠️ No sabes quién es el impostor
-                              </p>
+                              <p className={`text-3xl sm:text-4xl font-bold mb-3 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>{currentlyRevealingPlayer.word}</p>
                             </div>
                           ) : (
                             <div className={`${isLightMode ? 'bg-green-100 border-2 border-green-300' : 'bg-green-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
@@ -6672,68 +6980,88 @@ Juega ahora: https://argentores.github.io`;
                     // Resultado del voto anónimo
                     <div className="text-center py-8 sm:py-12">
                       <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
-                      <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
-                        votingPlayer.isImpostor 
-                          ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
-                          : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
-                      }`}>
-                        <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
-                        <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                          {getPlayerDisplay(votingPlayer)}
-                        </p>
-                        {votingPlayer.isImpostor ? (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
-                            {(() => {
-                              const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
-                              const newImpostorsRemaining = impostorsRemaining - 1;
-                              
-                              // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
-                              if (allAreImpostors && newImpostorsRemaining <= 2) {
-                                return (
-                                  <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
-                                    <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
-                                    <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
-                                      ¡TODOS SON IMPOSTORES!
-                                    </p>
-                                  </div>
-                                );
-                              }
-                              
-                              if (newImpostorsRemaining === 0) {
-                                return (
-                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                                    🎊 ¡GANARON LOS JUGADORES! 🎊
-                                  </p>
-                                );
-                              }
-                              
-                              return null;
-                            })()}
-                          </>
-                        ) : votingPlayer.isJester ? (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 ¡Es el BUFÓN!</p>
-                            <p className={`text-lg sm:text-xl mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                              El bufón fue eliminado y ganó solo
-                            </p>
-                            <button
-                              onClick={() => {
+                      {votingPlayer.isJester ? (
+                        <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-6 sm:p-8 rounded-xl mb-6 flex flex-col items-center`}>
+                          <div className="mb-4">
+                            <JesterIcon size={80} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                          </div>
+                          <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>Gano el Bufon</p>
+                          <button
+                            onClick={() => {
+                              if (roundNumber === 1) {
+                                // Primera ronda: continuar el juego
+                                // El bufón ya fue eliminado, solo limpiar estado y continuar
+                                setVotingPlayer(null);
+                                setRevealingVote(false);
+                                setRoundNumber(2);
+                                // Limpiar votos para la próxima ronda
+                                if (!anonymousVoting) {
+                                  setPublicVotes({});
+                                } else {
+                                  setVotingStarted(false);
+                                  setCurrentVotingPlayerIndex(0);
+                                  setAnonymousVotes({});
+                                  setSelectedVoteTarget(null);
+                                }
+                              } else {
+                                // Otras rondas: mostrar resultados finales
                                 setFinalRevealedPlayers(gameStarted.map(p => p.number));
                                 setCurrentlyRevealingPlayer(null);
                                 setCardFlipped(false);
                                 setShowFinalReveal(true);
                                 setVotingPlayer(null);
                                 setRevealingVote(false);
-                              }}
-                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
-                            >
-                              Ver Resultados Finales
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
+                              }
+                            }}
+                            className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
+                          >
+                            {roundNumber === 1 ? 'Continuar Juego' : 'Ver Resultados Finales'}
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
+                            votingPlayer.isImpostor 
+                              ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
+                              : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
+                          }`}>
+                            <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
+                            <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                              {getPlayerDisplay(votingPlayer)}
+                            </p>
+                            {votingPlayer.isImpostor ? (
+                              <>
+                                <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
+                                {(() => {
+                                  const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                                  const newImpostorsRemaining = impostorsRemaining - 1;
+                                  
+                                  // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
+                                  if (allAreImpostors && newImpostorsRemaining <= 2) {
+                                    return (
+                                      <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
+                                        <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
+                                        <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
+                                          ¡TODOS SON IMPOSTORES!
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  if (newImpostorsRemaining === 0) {
+                                    return (
+                                      <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                        🎊 ¡GANARON LOS JUGADORES! 🎊
+                                      </p>
+                                    );
+                                  }
+                                  
+                                  return null;
+                                })()}
+                              </>
+                            ) : (
+                              <>
+                                <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
                             {(() => {
                               // Calcular jugadores honestos restantes después de eliminar este jugador
                               const honestPlayersRemaining = gameStarted.filter(p => 
@@ -6751,9 +7079,11 @@ Juega ahora: https://argentores.github.io`;
                               }
                               return null;
                             })()}
-                          </>
-                        )}
-                      </div>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
                       {(() => {
                         // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
                         const remainingPlayers = gameStarted.filter(p => 
@@ -6890,68 +7220,88 @@ Juega ahora: https://argentores.github.io`;
                     // Resultado del voto público
                     <div className="text-center py-8 sm:py-12">
                       <h2 className={`text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 ${isLightMode ? 'text-gray-800' : 'text-white'}`}>Resultado</h2>
-                      <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
-                        votingPlayer.isImpostor 
-                          ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
-                          : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
-                      }`}>
-                        <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
-                        <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
-                          {getPlayerDisplay(votingPlayer)}
-                        </p>
-                        {votingPlayer.isImpostor ? (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
-                            {(() => {
-                              const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
-                              const newImpostorsRemaining = impostorsRemaining - 1;
-                              
-                              // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
-                              if (allAreImpostors && newImpostorsRemaining <= 2) {
-                                return (
-                                  <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
-                                    <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
-                                    <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
-                                      ¡TODOS SON IMPOSTORES!
-                                    </p>
-                                  </div>
-                                );
-                              }
-                              
-                              if (newImpostorsRemaining === 0) {
-                                return (
-                                  <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                                    🎊 ¡GANARON LOS JUGADORES! 🎊
-                                  </p>
-                                );
-                              }
-                              
-                              return null;
-                            })()}
-                          </>
-                        ) : votingPlayer.isJester ? (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 ¡Es el BUFÓN!</p>
-                            <p className={`text-lg sm:text-xl mb-6 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                              El bufón fue eliminado y ganó solo
-                            </p>
-                            <button
-                              onClick={() => {
+                      {votingPlayer.isJester ? (
+                        <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-6 sm:p-8 rounded-xl mb-6 flex flex-col items-center`}>
+                          <div className="mb-4">
+                            <JesterIcon size={80} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                          </div>
+                          <p className={`text-2xl sm:text-3xl font-bold mb-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>Gano el Bufon</p>
+                          <button
+                            onClick={() => {
+                              if (roundNumber === 1) {
+                                // Primera ronda: continuar el juego
+                                // El bufón ya fue eliminado, solo limpiar estado y continuar
+                                setVotingPlayer(null);
+                                setRevealingVote(false);
+                                setRoundNumber(2);
+                                // Limpiar votos para la próxima ronda
+                                if (!anonymousVoting) {
+                                  setPublicVotes({});
+                                } else {
+                                  setVotingStarted(false);
+                                  setCurrentVotingPlayerIndex(0);
+                                  setAnonymousVotes({});
+                                  setSelectedVoteTarget(null);
+                                }
+                              } else {
+                                // Otras rondas: mostrar resultados finales
                                 setFinalRevealedPlayers(gameStarted.map(p => p.number));
                                 setCurrentlyRevealingPlayer(null);
                                 setCardFlipped(false);
                                 setShowFinalReveal(true);
                                 setVotingPlayer(null);
                                 setRevealingVote(false);
-                              }}
-                              className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
-                            >
-                              Ver Resultados Finales
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
+                              }
+                            }}
+                            className="px-8 sm:px-12 py-3 sm:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl font-bold text-base sm:text-xl transition-all duration-300 shadow-lg shadow-yellow-500/50 hover:shadow-xl hover:scale-105 text-white"
+                          >
+                            {roundNumber === 1 ? 'Continuar Juego' : 'Ver Resultados Finales'}
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`p-6 sm:p-8 rounded-xl mb-6 sm:mb-8 ${
+                            votingPlayer.isImpostor 
+                              ? isLightMode ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/50 border-2 border-green-600'
+                              : isLightMode ? 'bg-red-100 border-2 border-red-400' : 'bg-red-900/50 border-2 border-red-600'
+                          }`}>
+                            <p className="text-4xl sm:text-5xl mb-4">{votingPlayer.isImpostor ? '🎉' : '😢'}</p>
+                            <p className={`text-xl sm:text-2xl font-bold mb-4 break-words ${isLightMode ? 'text-gray-800' : 'text-white'}`}>
+                              {getPlayerDisplay(votingPlayer)}
+                            </p>
+                            {votingPlayer.isImpostor ? (
+                              <>
+                                <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>¡ERA IMPOSTOR!</p>
+                                {(() => {
+                                  const allAreImpostors = gameStarted && gameStarted.length > 0 && gameStarted.every(p => p.isImpostor);
+                                  const newImpostorsRemaining = impostorsRemaining - 1;
+                                  
+                                  // Mostrar mensaje cuando queden 2 o menos impostores y todos son impostores
+                                  if (allAreImpostors && newImpostorsRemaining <= 2) {
+                                    return (
+                                      <div className={`mt-4 p-4 rounded-xl ${isLightMode ? 'bg-gradient-to-r from-red-500 to-orange-500 border-4 border-red-600' : 'bg-gradient-to-r from-red-700 to-orange-700 border-4 border-red-500'}`}>
+                                        <p className="text-4xl sm:text-5xl mb-2">🕵️🕵️🕵️</p>
+                                        <p className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg`}>
+                                          ¡TODOS SON IMPOSTORES!
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  if (newImpostorsRemaining === 0) {
+                                    return (
+                                      <p className={`text-xl sm:text-2xl font-bold mt-4 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                                        🎊 ¡GANARON LOS JUGADORES! 🎊
+                                      </p>
+                                    );
+                                  }
+                                  
+                                  return null;
+                                })()}
+                              </>
+                            ) : (
+                              <>
+                                <p className={`text-2xl sm:text-3xl font-bold mb-2 ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>Era Inocente...</p>
                             {(() => {
                               // Calcular jugadores honestos restantes después de eliminar este jugador
                               const honestPlayersRemaining = gameStarted.filter(p => 
@@ -6969,9 +7319,11 @@ Juega ahora: https://argentores.github.io`;
                               }
                               return null;
                             })()}
-                          </>
-                        )}
-                      </div>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
                       {(() => {
                         // Calcular si los impostores e inocentes están equilibrados después de eliminar este jugador
                         const remainingPlayers = gameStarted.filter(p => 
@@ -7072,11 +7424,11 @@ Juega ahora: https://argentores.github.io`;
 
                 {winners === 'jester' && (
                   <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-6 sm:p-8 rounded-xl mb-4 sm:mb-6 text-center`}>
+                    <div className="flex justify-center mb-4">
+                      <JesterIcon size={80} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                    </div>
                     <p className={`text-3xl sm:text-4xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
-                      🎊 ¡GANÓ EL BUFÓN! 🎊
-                    </p>
-                    <p className={`text-lg sm:text-xl ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                      El bufón fue eliminado y ganó solo
+                      El bufón fue eliminado
                     </p>
                   </div>
                 )}
@@ -7114,7 +7466,11 @@ Juega ahora: https://argentores.github.io`;
                     <div className="space-y-4 mb-4 sm:mb-6">
                       {jesterPlayer && (
                         <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-yellow-900/50 border-2 border-yellow-500'} p-4 sm:p-6 rounded-xl`}>
-                          <p className={`text-lg sm:text-xl font-bold mb-3 text-center ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>😊 BUFÓN 😊</p>
+                          <div className="flex items-center justify-center gap-2 mb-3">
+                            <JesterIcon size={32} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                            <p className={`text-lg sm:text-xl font-bold ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>BUFÓN</p>
+                            <JesterIcon size={32} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                          </div>
                           <div className="flex justify-center">
                             <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-base sm:text-xl break-words ${isLightMode ? 'bg-yellow-200 text-yellow-800' : 'bg-yellow-700 text-white'}`}>
                               {getPlayerDisplay(jesterPlayer)}
@@ -7238,7 +7594,9 @@ Juega ahora: https://argentores.github.io`;
                             </div>
                           ) : currentlyRevealingPlayer.isJester ? (
                             <div className={`${isLightMode ? 'bg-yellow-100 border-2 border-yellow-300' : 'bg-yellow-900/50'} p-4 sm:p-6 rounded-xl mb-4 sm:mb-6`}>
-                              <p className="text-4xl sm:text-5xl mb-3">😊</p>
+                              <div className="flex justify-center mb-3">
+                                <JesterIcon size={64} className={`${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`} fill={isLightMode ? '#ca8a04' : '#eab308'}/>
+                              </div>
                               <p className={`text-xl sm:text-2xl font-bold mb-2 ${isLightMode ? 'text-yellow-600' : 'text-yellow-400'}`}>
                                 ¡Es el BUFÓN!
                               </p>
@@ -7383,7 +7741,7 @@ Juega ahora: https://argentores.github.io`;
 
             {/* Footer */}
             <div className="text-center mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm">
-              <p>V BETA 0.14.1</p>
+              <p>V BETA 0.17.1</p>
               <p className="mt-1">©2026 Argentores. Hecho por LosTomobri</p>
             </div>
           </div>
